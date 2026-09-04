@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<h1>Log effort</h1>
+
+{% if not has_chores %}
+  <div class="alert alert-warning">Add a chore first via /chores/ &ndash; <a href="{% url 'chore_list' %}">go there</a></div>
+{% endif %}
+
+<form method="post" action="{% url 'log_list' %}" class="row g-2 align-items-end mb-4">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="col-md-4">
+    <label class="form-label" for="{{ form.chore.id_for_label }}">Chore</label>
+    {{ form.chore }}
+    {% if form.chore.errors %}<div class="text-danger">{{ form.chore.errors }}</div>{% endif %}
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="{{ form.owner.id_for_label }}">Owner</label>
+    {{ form.owner }}
+    {% if form.owner.errors %}<div class="text-danger">{{ form.owner.errors }}</div>{% endif %}
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="{{ form.effort_rating.id_for_label }}">Rating (1&ndash;10)</label>
+    {{ form.effort_rating }}
+    {% if form.effort_rating.errors %}<div class="text-danger">{{ form.effort_rating.errors }}</div>{% endif %}
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">Log</button>
+  </div>
+</form>
+
+<table class="table table-striped">
+  <thead>
+    <tr><th>Chore</th><th>Owner</th><th>Rating</th><th>Date</th></tr>
+  </thead>
+  <tbody>
+    {% for entry in entries %}
+      <tr>
+        <td>{{ entry.chore.name }}</td>
+        <td>{{ entry.owner }}</td>
+        <td>{{ entry.effort_rating }}</td>
+        <td>{{ entry.date|date:"Y-m-d" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-muted">No entries yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

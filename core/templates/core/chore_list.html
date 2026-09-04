@@ -1,0 +1,48 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<h1>Chores</h1>
+
+<form method="post" action="{% url 'chore_list' %}" class="row g-2 align-items-end mb-4">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="col-md-6">
+    <label class="form-label" for="{{ form.name.id_for_label }}">Name</label>
+    {{ form.name }}
+    {% if form.name.errors %}<div class="text-danger">{{ form.name.errors }}</div>{% endif %}
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="{{ form.default_owner.id_for_label }}">Default owner</label>
+    {{ form.default_owner }}
+    {% if form.default_owner.errors %}<div class="text-danger">{{ form.default_owner.errors }}</div>{% endif %}
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">Add</button>
+  </div>
+</form>
+
+<ul class="list-group">
+  {% for chore in chores %}
+    <li class="list-group-item">
+      <form method="post" action="{% url 'chore_list' %}" class="row g-2 align-items-center">
+        {% csrf_token %}
+        <input type="hidden" name="chore_id" value="{{ chore.id }}">
+        <div class="col-md-6">
+          <input type="text" name="name" value="{{ chore.name }}" maxlength="100" required class="form-control">
+        </div>
+        <div class="col-md-4">
+          <select name="default_owner" class="form-select">
+            <option value="you" {% if chore.default_owner == "you" %}selected{% endif %}>You</option>
+            <option value="partner" {% if chore.default_owner == "partner" %}selected{% endif %}>Partner</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-secondary w-100">Save</button>
+        </div>
+      </form>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted">No chores yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

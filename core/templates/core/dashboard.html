@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<p>
+  Fairness:
+  {% if fairness == "No data yet" %}
+    No data yet
+  {% else %}
+    {{ fairness }}% imbalance
+  {% endif %}
+</p>
+<p class="text-muted">You: {{ total_you }} · Partner: {{ total_partner }}</p>
+
+<canvas id="trendChart" height="120"></canvas>
+
+{{ dates|json_script:"chart-dates" }}
+{{ series.you|json_script:"chart-you" }}
+{{ series.partner|json_script:"chart-partner" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const dates = JSON.parse(document.getElementById("chart-dates").textContent);
+  const youData = JSON.parse(document.getElementById("chart-you").textContent);
+  const partnerData = JSON.parse(document.getElementById("chart-partner").textContent);
+  new Chart(document.getElementById("trendChart"), {
+    type: "line",
+    data: {
+      labels: dates,
+      datasets: [
+        { label: "You", data: youData },
+        { label: "Partner", data: partnerData },
+      ],
+    },
+  });
+</script>
+{% endblock %}

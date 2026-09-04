@@ -1,3 +1,13 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import Chore, LogEntry
+
+
+@admin.register(Chore)
+class ChoreAdmin(admin.ModelAdmin):
+    list_display = ("name", "default_owner", "created_at")
+
+
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    list_display = ("chore", "owner", "effort_rating", "date")
