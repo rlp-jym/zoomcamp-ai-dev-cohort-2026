@@ -1,0 +1,40 @@
+.objectives-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1.25rem;
+}
+
+.gold-team {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.gold-bar {
+  flex: 1;
+  height: 12px;
+  background: var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.gold-bar-home {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms;
+}
+
+.gold-numbers {
+  font-size: 1.25rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gold-share {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}

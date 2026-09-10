@@ -1,0 +1,13 @@
+.idle-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.idle-text {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin: 0;
+}

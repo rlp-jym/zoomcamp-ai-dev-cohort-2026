@@ -1,0 +1,59 @@
+.deep-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  overflow: auto;
+}
+
+.deep-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.deep-team-name {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.deep-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+.deep-table th,
+.deep-table td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.deep-table th {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.deep-table td {
+  font-weight: 600;
+}
+
+.deep-items {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.deep-timers {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.deep-timers strong {
+  color: var(--text);
+}

@@ -321,6 +321,7 @@ Local only, unauthenticated, JSON over HTTP.
     "gold":    { "home": 42100, "away": 39800 },
     "towers":  { "home": 3, "away": 2 },
     "dragons": { "home": ["infernal", "ocean"], "away": ["cloud"] },
+    // null = unknown (feed gap); [] = no dragons taken
     "barons":  { "home": 0, "away": 1 },
     "players": {
       "home": [

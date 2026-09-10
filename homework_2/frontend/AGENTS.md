@@ -94,7 +94,7 @@ export interface Game {
   kills: Record<Side, number | null>
   gold: Record<Side, number | null>
   towers: Record<Side, number | null>
-  dragons: Record<Side, string[]>
+  dragons: Record<Side, string[] | null>
   barons: Record<Side, number | null>
   players: Record<Side, Player[]>
   objectiveTimers: { dragon: number | null; baron: number | null }
@@ -127,12 +127,43 @@ export interface Preferences {
 
 ## `api.ts`
 
-**The only file that calls `fetch`.**
+**The only file that calls `fetch`.** All backend communication goes through
+this module — nothing else in the app touches the network.
 
-- Export `fetchState(): Promise<State>` and `fetchPreferences()` /
+### Two modes
+
+`api.ts` has a **mock mode** and a **live mode**, selected by
+`import.meta.env.VITE_USE_MOCK`.
+
+| Mode | Behavior |
+|---|---|
+| `mock` **(default)** | Returns fixture data from `src/mocks/`. No network. |
+| `live` | Calls `/api/state` etc. via `fetch`. Requires the backend running. |
+
+**Unset means mock.** The prototype must run with no setup, no backend, and
+no env file: `npm install && npm run dev`.
+
+The exported function signatures are **identical in both modes.** Callers do
+not know which mode is active. Switching to live mode later is one env var,
+not a code change.
+
+### Mock mode
+
+- Fixtures live in `src/mocks/`, one per state: `idle.ts`, `betweenGames.ts`,
+  `live.ts`. Each exports a full `State` object matching `_docs/specs.md` §9.
+- `mockState()` returns the currently selected fixture.
+- **A dev control must exist** to switch fixtures and toggle `stale`
+  independently, so every state in the spec is reachable in one click.
+  Render it only when `import.meta.env.DEV && useMock`.
+- At least one fixture must contain `null` fields, so the `—` rendering path
+  is visible rather than theoretical.
+
+### Both modes
+
+- Export `fetchState(): Promise<State>`, `fetchPreferences()`,
   `putPreferences()`.
 - `App.tsx` polls `fetchState` **once per second** via `setInterval`. This is
-  deliberate and decoupled from the backend's 10s Riot poll (root §9). **Do not
+  deliberate and decoupled from the backend's 10s Riot poll. **Do not
   "optimize" it.**
 - **On fetch failure, keep the last good state and set a local error flag.**
   Do not clear state. Do not render an error page.

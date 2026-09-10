@@ -1,3 +1,8 @@
+# Dependencies
+node_modules/
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -6,11 +11,16 @@ __pycache__/
 # C extensions
 *.so
 
+# Vite cache
+.vite/
+*.local
+
 # Distribution / packaging
 .Python
 build/
 develop-eggs/
 dist/
+dist-ssr/
 downloads/
 eggs/
 .eggs/
@@ -149,6 +159,7 @@ activemq-data/
 
 # Environments
 .env
+.env.*.local
 .envrc
 .venv
 env/
@@ -156,6 +167,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.swp
 
 # Spyder project settings
 .spyderproject
