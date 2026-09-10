@@ -22,6 +22,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "RIOT_API_KEY",
         "NEXUS_PORT",
         "STORAGE_BACKEND",
+        "DATABASE_URL",
         "POLL_LIVE_SECONDS",
         "POLL_BETWEEN_SECONDS",
         "POLL_IDLE_SECONDS",
@@ -36,7 +37,8 @@ def test_defaults_with_empty_env_file(tmp_path: Path, clean_env: None) -> None:
     settings = _isolated_settings_class(env_file)()
     assert settings.riot_api_key == ""
     assert settings.nexus_port == 8000
-    assert settings.storage_backend == "json"
+    assert settings.storage_backend == "sqlalchemy"
+    assert settings.database_url == "sqlite:///.nexus/nexus.db"
     assert settings.poll_live_seconds == 10
     assert settings.poll_between_seconds == 30
     assert settings.poll_idle_seconds == 60

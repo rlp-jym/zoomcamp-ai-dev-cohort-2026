@@ -370,10 +370,19 @@ class PreferencesRepository(Protocol):
 The default implementation is a JSON file. A Postgres implementation would be
 a single additional adapter plus a configuration value.
 
-**This abstraction is deliberately thin.** No migrations, connection pooling,
-ORM, or generic query layer. There is one small schema; anything more is
-speculative work. The abstraction exists to keep the *option* open cheaply, not
-to build for a database that is not currently needed.
+Two adapters exist: `JsonFilePreferencesRepository` (a JSON file at
+`backend/.nexus/preferences.json`) and `SqlAlchemyPreferencesRepository`
+(one table, SQLite by default). `STORAGE_BACKEND` (`json` | `sqlalchemy`,
+default `sqlalchemy`) selects between them; `DATABASE_URL` points the
+SQLAlchemy adapter at its database (default
+`sqlite:///.nexus/nexus.db`, resolved against the working directory).
+
+The storage layer uses SQLAlchemy 2.0 so the backing database is a
+configuration choice rather than an architectural one. The schema is
+deliberately minimal — one table — and tables are created with
+`Base.metadata.create_all()` at startup. Do not add Alembic, connection
+pool tuning, or any repository layer beyond `PreferencesRepository`.
+The original "no ORM" rule is superseded by this one.
 
 ## 11. Design decisions
 

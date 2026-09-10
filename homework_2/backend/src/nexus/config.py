@@ -21,7 +21,8 @@ class Settings(BaseSettings):
 
     riot_api_key: str = ""
     nexus_port: int = 8000
-    storage_backend: Literal["json", "postgres"] = "json"
+    storage_backend: Literal["json", "sqlalchemy"] = "sqlalchemy"
+    database_url: str = "sqlite:///.nexus/nexus.db"
     poll_live_seconds: int = 10
     poll_between_seconds: int = 30
     poll_idle_seconds: int = 60

@@ -6,6 +6,7 @@ the key is always present and the value may be null.
 
 import asyncio
 import json
+import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -20,6 +21,14 @@ from nexus.riot.client import RiotClient
 from nexus.state import AppState
 from nexus.storage.base import PreferencesRepository
 from nexus.storage.json_file import JsonFilePreferencesRepository
+from nexus.storage.sqlalchemy_repo import (
+    Base,
+    SqlAlchemyPreferencesRepository,
+    default_engine,
+    sqlite_file_path,
+)
+
+logger = logging.getLogger(__name__)
 
 MISSING_KEY_MESSAGE = (
     "RIOT_API_KEY is not set. Copy backend/.env.example to backend/.env and fill it in."
@@ -201,21 +210,38 @@ def require_api_key(settings: Settings) -> None:
         raise SystemExit(1)
 
 
+def create_repository(settings: Settings) -> PreferencesRepository:
+    """Select the preferences adapter from STORAGE_BACKEND."""
+    if settings.storage_backend == "json":
+        return JsonFilePreferencesRepository(preferences_path())
+    if settings.storage_backend == "sqlalchemy":
+        engine = default_engine(settings.database_url)
+        Base.metadata.create_all(engine)
+        resolved = sqlite_file_path(settings.database_url)
+        if resolved is not None:
+            logger.info("Preferences store: sqlalchemy at %s", resolved)
+        else:
+            logger.info("Preferences store: sqlalchemy (non-file database URL)")
+        return SqlAlchemyPreferencesRepository(engine)
+    raise ValueError(
+        f"Unsupported STORAGE_BACKEND: {settings.storage_backend}. "
+        "Expected 'json' or 'sqlalchemy'."
+    )
+
+
 def run() -> None:
     # Local import: the poller is build-order step 6 and may not exist yet.
     from nexus.poller import Poller
 
     settings = load_settings()
     require_api_key(settings)
-    if settings.storage_backend != "json":
-        sys.stderr.write(
-            f"Unsupported STORAGE_BACKEND: {settings.storage_backend}. "
-            "Only 'json' is implemented.\n"
-        )
-        raise SystemExit(1)
-    repo = JsonFilePreferencesRepository(preferences_path())
+    try:
+        repo = create_repository(settings)
+    except ValueError as exc:
+        sys.stderr.write(str(exc) + "\n")
+        raise SystemExit(1) from exc
     store = AppState()
     client = RiotClient(api_key=settings.riot_api_key)
-    poller = Poller(client=client, store=store, repo=repo, settings=settings)
+    poller = Poller(client=client, store=store, settings=settings)
     app = create_app(store=store, repo=repo, poller=poller)
     uvicorn.run(app, host="127.0.0.1", port=settings.nexus_port)

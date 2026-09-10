@@ -16,7 +16,6 @@ from nexus.config import Settings
 from nexus.poller import Poller
 from nexus.riot.client import FetchResult
 from nexus.state import AppState, idle_state
-from nexus.storage.json_file import JsonFilePreferencesRepository
 
 
 def ok(data: Any) -> FetchResult:
@@ -64,7 +63,6 @@ def _poller(tmp_path: Path, script: list[Any], **overrides: Any) -> Poller:
     return Poller(
         client=FakeClient(script),
         store=AppState(),
-        repo=JsonFilePreferencesRepository(tmp_path / "prefs.json"),
         settings=_settings(**overrides),
     )
 

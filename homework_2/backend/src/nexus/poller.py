@@ -17,7 +17,6 @@ from typing import Protocol
 from nexus.config import Settings
 from nexus.riot.client import FetchResult
 from nexus.state import AppState, idle_state
-from nexus.storage.base import PreferencesRepository
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +36,10 @@ class Poller:
         self,
         client: PollerClient,
         store: AppState,
-        repo: PreferencesRepository,
         settings: Settings,
     ) -> None:
         self.client = client
         self.store = store
-        # Reserved for the step-6 pin override (root §4 tick step 1).
-        self.repo = repo
         self.settings = settings
         self._consecutive_errors = 0
 

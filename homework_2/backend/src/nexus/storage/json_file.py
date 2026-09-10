@@ -1,4 +1,4 @@
-"""JSON-file preferences repository (default adapter)."""
+"""JSON-file preferences repository (file adapter)."""
 
 import json
 import logging

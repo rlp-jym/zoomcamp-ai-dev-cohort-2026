@@ -301,7 +301,8 @@ hardcode.
 RIOT_API_KEY=
 
 NEXUS_PORT=8000
-STORAGE_BACKEND=json
+STORAGE_BACKEND=sqlalchemy
+DATABASE_URL=sqlite:///.nexus/nexus.db
 POLL_LIVE_SECONDS=10
 POLL_BETWEEN_SECONDS=30
 POLL_IDLE_SECONDS=60
@@ -312,7 +313,8 @@ POLL_MAX_BACKOFF_SECONDS=300
 |---|---|---|
 | `RIOT_API_KEY` | *(none)* | Required. App exits if unset. |
 | `NEXUS_PORT` | `8000` | |
-| `STORAGE_BACKEND` | `json` | `json` \| `postgres` |
+| `STORAGE_BACKEND` | `sqlalchemy` | `json` \| `sqlalchemy` |
+| `DATABASE_URL` | `sqlite:///.nexus/nexus.db` | SQLAlchemy URL for the `sqlalchemy` backend |
 | `POLL_LIVE_SECONDS` | `10` | |
 | `POLL_BETWEEN_SECONDS` | `30` | |
 | `POLL_IDLE_SECONDS` | `60` | |

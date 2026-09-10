@@ -106,7 +106,8 @@ This is where bugs live and where tests pay off.
 - `JsonFilePreferencesRepository` writes to `backend/.nexus/preferences.json`,
   creating the directory if needed.
 - Keep the interface to the three methods in root §11. **No migrations, no
-  pooling, no ORM, no generic query layer.**
+  pooling, no generic query layer. SQLAlchemy 2.0 is the ORM; use it
+  minimally — one table, create_all(), no Alembic.**
 - If a change would make "add a Postgres adapter = one file + one config value"
   untrue, it is out of scope. Ask first.
 
