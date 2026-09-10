@@ -1,0 +1,372 @@
+openapi: 3.1.0
+info:
+  title: Nexus API
+  version: 1.0.0
+  description: >
+    Local, unauthenticated API for the Nexus League of Legends
+    scoreboard. Binds to localhost only. No auth, no SSE, no WebSockets.
+servers:
+  - url: http://localhost:8000
+    description: Local backend
+tags:
+  - name: State
+    description: Current normalized scoreboard state.
+  - name: Matches
+    description: Live match discovery and manual pin selection.
+  - name: Preferences
+    description: Persisted user preferences.
+paths:
+  /api/state:
+    get:
+      tags:
+        - State
+      operationId: getState
+      summary: Current normalized scoreboard state
+      description: >
+        The single source of truth for the frontend. Polled once per
+        second. Every nullable field is present with a null value when
+        unknown; keys are never omitted.
+      responses:
+        '200':
+          description: Current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/matches/live:
+    get:
+      tags:
+        - Matches
+      operationId: getLiveMatches
+      summary: Currently live matches
+      description: Used to populate the manual pin list. May be empty.
+      responses:
+        '200':
+          description: Live match summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveMatch'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/selection:
+    put:
+      tags:
+        - Matches
+      operationId: putSelection
+      summary: Pin or unpin a match
+      description: >
+        Body {"matchId": "..."} pins. Body {"matchId": null} unpins and
+        returns to auto-detection. The pin persists across restarts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectionRequest'
+      responses:
+        '200':
+          description: Updated preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/preferences:
+    get:
+      tags:
+        - Preferences
+      operationId: getPreferences
+      summary: Read persisted preferences
+      responses:
+        '200':
+          description: Persisted preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Preferences
+      operationId: putPreferences
+      summary: Update persisted preferences
+      description: Partial updates are not supported — send the full object.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preferences'
+      responses:
+        '200':
+          description: Updated preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Status:
+      type: string
+      enum: [live, between_games, idle]
+    Team:
+      type: object
+      additionalProperties: false
+      required: [name, code, logo, color]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        logo:
+          type: [string, 'null']
+          format: uri
+        color:
+          type: [string, 'null']
+    Player:
+      type: object
+      additionalProperties: false
+      required: [role, champion, kills, deaths, assists, cs, items]
+      properties:
+        role:
+          type: string
+        champion:
+          type: [string, 'null']
+        kills:
+          type: [integer, 'null']
+        deaths:
+          type: [integer, 'null']
+        assists:
+          type: [integer, 'null']
+        cs:
+          type: [integer, 'null']
+        items:
+          type: array
+          items:
+            type: integer
+    Objectives:
+      type: object
+      additionalProperties: false
+      required: [dragon, baron]
+      properties:
+        dragon:
+          type: [integer, 'null']
+          description: Seconds until spawn.
+        baron:
+          type: [integer, 'null']
+          description: Seconds until spawn.
+    SeriesScore:
+      type: object
+      additionalProperties: false
+      required: [home, away]
+      properties:
+        home:
+          type: integer
+        away:
+          type: integer
+    Teams:
+      type: object
+      additionalProperties: false
+      required: [home, away]
+      properties:
+        home:
+          $ref: '#/components/schemas/Team'
+        away:
+          $ref: '#/components/schemas/Team'
+    Game:
+      type: object
+      additionalProperties: false
+      required:
+        - clockSeconds
+        - kills
+        - gold
+        - towers
+        - dragons
+        - barons
+        - players
+        - objectiveTimers
+      properties:
+        clockSeconds:
+          type: [integer, 'null']
+          description: Seconds elapsed in the current game.
+        kills:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          properties:
+            home:
+              type: [integer, 'null']
+            away:
+              type: [integer, 'null']
+        gold:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          description: Raw gold values. The client may derive a display ratio but the API value is the source of truth.
+          properties:
+            home:
+              type: [integer, 'null']
+            away:
+              type: [integer, 'null']
+        towers:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          properties:
+            home:
+              type: [integer, 'null']
+            away:
+              type: [integer, 'null']
+        dragons:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          description: 'null means unknown (feed gap); [] means none taken.'
+          properties:
+            home:
+              type: [array, 'null']
+              items:
+                type: string
+            away:
+              type: [array, 'null']
+              items:
+                type: string
+        barons:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          properties:
+            home:
+              type: [integer, 'null']
+            away:
+              type: [integer, 'null']
+        players:
+          type: object
+          additionalProperties: false
+          required: [home, away]
+          properties:
+            home:
+              type: array
+              items:
+                $ref: '#/components/schemas/Player'
+            away:
+              type: array
+              items:
+                $ref: '#/components/schemas/Player'
+        objectiveTimers:
+          $ref: '#/components/schemas/Objectives'
+          description: Seconds until spawn. Null means unknown or already spawned.
+    Match:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - bestOf
+        - gameNumber
+        - nextGameNumber
+        - seriesScore
+        - teams
+      properties:
+        id:
+          type: string
+        bestOf:
+          type: [integer, 'null']
+        gameNumber:
+          type: [integer, 'null']
+          description: Null when status is between_games.
+        nextGameNumber:
+          type: [integer, 'null']
+          description: Non-null only when status is between_games.
+        seriesScore:
+          $ref: '#/components/schemas/SeriesScore'
+        teams:
+          $ref: '#/components/schemas/Teams'
+    State:
+      type: object
+      additionalProperties: false
+      required: [status, stale, lastUpdated, match, game]
+      properties:
+        status:
+          $ref: '#/components/schemas/Status'
+        stale:
+          type: boolean
+          description: A poll failed. Orthogonal to status; can be true in any state.
+        lastUpdated:
+          type: string
+          format: date-time
+        match:
+          description: Null when status is idle.
+          anyOf:
+            - $ref: '#/components/schemas/Match'
+            - type: 'null'
+        game:
+          description: Null unless status is live.
+          anyOf:
+            - $ref: '#/components/schemas/Game'
+            - type: 'null'
+    LiveMatch:
+      type: object
+      additionalProperties: false
+      required: [id, bestOf, teams, league]
+      properties:
+        id:
+          type: string
+        bestOf:
+          type: [integer, 'null']
+        teams:
+          $ref: '#/components/schemas/Teams'
+        league:
+          type: [string, 'null']
+    SelectionRequest:
+      type: object
+      additionalProperties: false
+      required: [matchId]
+      properties:
+        matchId:
+          type: [string, 'null']
+    Preferences:
+      type: object
+      additionalProperties: false
+      required: [pinned_match_id, view_mode]
+      properties:
+        pinned_match_id:
+          type: [string, 'null']
+        view_mode:
+          type: string
+          enum: [standard, deep]
+    Error:
+      type: object
+      additionalProperties: false
+      required: [detail]
+      properties:
+        detail:
+          type: string

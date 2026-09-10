@@ -1,0 +1,11 @@
+extends:
+  - recommended
+rules:
+  # Local-only API. No auth by design (specs §5 NFR-1).
+  security-defined: off
+  # FastAPI returns 422 on body validation; not in the contract.
+  operation-4xx-response: off
+  # No license block; local-only API with no distribution.
+  info-license: off
+  # The server URL is localhost by design (specs §5 NFR-1).
+  no-server-example.com: off
