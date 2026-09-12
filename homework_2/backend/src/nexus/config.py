@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     poll_between_seconds: int = 30
     poll_idle_seconds: int = 60
     poll_max_backoff_seconds: int = 300
+    poll_source: Literal["live", "replay"] = "live"
+    replay_file: str = ""
 
 
 def load_settings() -> Settings:

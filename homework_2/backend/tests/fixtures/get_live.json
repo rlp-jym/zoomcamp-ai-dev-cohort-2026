@@ -1,0 +1,193 @@
+{
+  "data": {
+    "schedule": {
+      "events": [
+        {
+          "id": "117030752644841637",
+          "startTime": "2026-09-12T05:00:00Z",
+          "state": "inProgress",
+          "type": "match",
+          "blockName": "Playoffs",
+          "league": {
+            "id": "98767991310872058",
+            "slug": "lck",
+            "name": "LCK",
+            "image": "http://static.lolesports.com/leagues/lck-color-on-black.png",
+            "priority": 1,
+            "displayPriority": {
+              "position": 3,
+              "status": "not_selected"
+            }
+          },
+          "tournament": {
+            "id": "115548147890329817"
+          },
+          "match": {
+            "id": "117030752644841637",
+            "teams": [
+              {
+                "id": "100205573496804586",
+                "name": "Hanwha Life Esports",
+                "slug": "hanwha-life-esports",
+                "code": "HLE",
+                "image": "http://static.lolesports.com/teams/1631819564399_hle-2021-worlds.png",
+                "result": {
+                  "outcome": null,
+                  "gameWins": 2
+                },
+                "record": {
+                  "wins": 1,
+                  "losses": 1
+                }
+              },
+              {
+                "id": "98767991853197861",
+                "name": "T1",
+                "slug": "t1",
+                "code": "T1",
+                "image": "http://static.lolesports.com/teams/1726801573959_539px-T1_2019_full_allmode.png",
+                "result": {
+                  "outcome": null,
+                  "gameWins": 0
+                },
+                "record": {
+                  "wins": 2,
+                  "losses": 1
+                }
+              }
+            ],
+            "strategy": {
+              "type": "bestOf",
+              "count": 5
+            },
+            "games": [
+              {
+                "number": 1,
+                "id": "117030752644841638",
+                "state": "completed",
+                "teams": [
+                  {
+                    "id": "100205573496804586",
+                    "side": "blue"
+                  },
+                  {
+                    "id": "98767991853197861",
+                    "side": "red"
+                  }
+                ],
+                "vods": []
+              },
+              {
+                "number": 2,
+                "id": "117030752644841639",
+                "state": "completed",
+                "teams": [
+                  {
+                    "id": "98767991853197861",
+                    "side": "blue"
+                  },
+                  {
+                    "id": "100205573496804586",
+                    "side": "red"
+                  }
+                ],
+                "vods": []
+              },
+              {
+                "number": 3,
+                "id": "117030752644841640",
+                "state": "inProgress",
+                "teams": [
+                  {
+                    "id": "100205573496804586",
+                    "side": "blue"
+                  },
+                  {
+                    "id": "98767991853197861",
+                    "side": "red"
+                  }
+                ],
+                "vods": []
+              },
+              {
+                "number": 4,
+                "id": "117030752644841641",
+                "state": "unstarted",
+                "teams": [
+                  {
+                    "id": "100205573496804586",
+                    "side": "blue"
+                  },
+                  {
+                    "id": "98767991853197861",
+                    "side": "red"
+                  }
+                ],
+                "vods": []
+              },
+              {
+                "number": 5,
+                "id": "117030752644841642",
+                "state": "unstarted",
+                "teams": [
+                  {
+                    "id": "98767991853197861",
+                    "side": "blue"
+                  },
+                  {
+                    "id": "100205573496804586",
+                    "side": "red"
+                  }
+                ],
+                "vods": []
+              }
+            ]
+          },
+          "streams": [
+            {
+              "parameter": "lck",
+              "locale": "en-US",
+              "mediaLocale": {
+                "locale": "en-US",
+                "englishName": "English (North America)",
+                "translatedName": "English (North America)"
+              },
+              "provider": "twitch",
+              "countries": [],
+              "offset": -30000,
+              "statsStatus": "enabled"
+            },
+            {
+              "parameter": "aflol",
+              "locale": "ko-KR",
+              "mediaLocale": {
+                "locale": "ko-KR",
+                "englishName": "Korean (Korea)",
+                "translatedName": "\ud55c\uad6d\uc5b4"
+              },
+              "provider": "afreecatv",
+              "countries": [],
+              "offset": 0,
+              "statsStatus": "disabled"
+            },
+            {
+              "parameter": "otplol_",
+              "locale": "fr-FR",
+              "mediaLocale": {
+                "locale": "fr-FR",
+                "englishName": "French (France)",
+                "translatedName": "Fran\u00e7ais"
+              },
+              "provider": "twitch",
+              "countries": [
+                "FR"
+              ],
+              "offset": 0,
+              "statsStatus": "disabled"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

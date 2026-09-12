@@ -237,6 +237,10 @@ so they are not mistaken for bugs.
    code exists.
 4. **Undocumented and unstable.** The feed can change without notice. All
    parsing is tolerant of missing and null fields (NFR-6).
+5. **Anti-spoiler buffer on the window feed.** Requests for windows ending
+   less than ~20 seconds ago return HTTP 400 (`BAD_QUERY_PARAMETER`,
+   "ahead of broadcast"). The poller must offset its `startingTime` into
+   the past. This is an anti-spoiler buffer, not an error.
 
 ### 7.4 A note on payload verification
 

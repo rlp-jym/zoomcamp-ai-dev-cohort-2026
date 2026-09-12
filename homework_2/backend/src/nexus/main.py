@@ -10,6 +10,7 @@ import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Literal, Protocol, cast
 
 import uvicorn
@@ -210,6 +211,36 @@ def require_api_key(settings: Settings) -> None:
         raise SystemExit(1)
 
 
+def resolve_replay_file(raw: str) -> Path:
+    """Locate the replay file for POLL_SOURCE=replay.
+
+    Relative paths resolve against the working directory first, then the
+    repo root, so `REPLAY_FILE=replays/...` works whether the server
+    starts from backend/ or the repo root.
+    """
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        for base in (Path.cwd(), repo_root):
+            hit = base / candidate
+            if hit.exists():
+                return hit
+    if candidate.exists():
+        return candidate
+    sys.stderr.write(f"REPLAY_FILE not found: {raw}\n")
+    raise SystemExit(1)
+
+
+def load_replay_data(path: Path) -> dict[str, Any]:
+    """Read and parse the replay file once at startup (demo mode only)."""
+    try:
+        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        return data
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"Cannot load REPLAY_FILE {path}: {exc}\n")
+        raise SystemExit(1) from exc
+
+
 def create_repository(settings: Settings) -> PreferencesRepository:
     """Select the preferences adapter from STORAGE_BACKEND."""
     if settings.storage_backend == "json":
@@ -234,14 +265,30 @@ def run() -> None:
     from nexus.poller import Poller
 
     settings = load_settings()
-    require_api_key(settings)
+    if settings.poll_source == "live":
+        require_api_key(settings)
     try:
         repo = create_repository(settings)
     except ValueError as exc:
         sys.stderr.write(str(exc) + "\n")
         raise SystemExit(1) from exc
     store = AppState()
-    client = RiotClient(api_key=settings.riot_api_key)
-    poller = Poller(client=client, store=store, settings=settings)
+    if settings.poll_source == "replay":
+        logger.info("Replay mode: no Riot calls will be made")
+        replay_path = resolve_replay_file(settings.replay_file)
+        poller = Poller(
+            client=None,
+            store=store,
+            settings=settings,
+            replay=load_replay_data(replay_path),
+        )
+    else:
+        client = RiotClient(api_key=settings.riot_api_key)
+        poller = Poller(
+            client=client,
+            store=store,
+            settings=settings,
+            get_pinned=lambda: read_preferences(repo).pinned_match_id,
+        )
     app = create_app(store=store, repo=repo, poller=poller)
     uvicorn.run(app, host="127.0.0.1", port=settings.nexus_port)

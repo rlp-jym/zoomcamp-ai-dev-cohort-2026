@@ -27,6 +27,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "POLL_BETWEEN_SECONDS",
         "POLL_IDLE_SECONDS",
         "POLL_MAX_BACKOFF_SECONDS",
+        "POLL_SOURCE",
+        "REPLAY_FILE",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -43,6 +45,8 @@ def test_defaults_with_empty_env_file(tmp_path: Path, clean_env: None) -> None:
     assert settings.poll_between_seconds == 30
     assert settings.poll_idle_seconds == 60
     assert settings.poll_max_backoff_seconds == 300
+    assert settings.poll_source == "live"
+    assert settings.replay_file == ""
 
 
 def test_env_file_values_are_read(tmp_path: Path, clean_env: None) -> None:
@@ -68,3 +72,18 @@ def test_process_env_beats_env_file(
     settings = _isolated_settings_class(env_file)()
     assert settings.nexus_port == 9002
     assert os.environ["NEXUS_PORT"] == "9002"
+
+
+def test_replay_source_values_are_read(
+    tmp_path: Path,
+    clean_env: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "POLL_SOURCE=replay\nREPLAY_FILE=replays/demo.json\n",
+        encoding="utf-8",
+    )
+    settings = _isolated_settings_class(env_file)()
+    assert settings.poll_source == "replay"
+    assert settings.replay_file == "replays/demo.json"

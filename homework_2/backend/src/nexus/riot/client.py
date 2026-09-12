@@ -8,7 +8,7 @@ header and is never written to logs.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -16,6 +16,14 @@ import httpx
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT_SECONDS = 10.0
+
+# The window feed rejects windows ending less than ~20s ago (HTTP 400
+# BAD_QUERY_PARAMETER, "ahead of broadcast"). Requesting the current 10s
+# boundary lands inside that buffer, so window calls step this far into
+# the past first: a 10s window starting at T ends at T+10, and with a 40s
+# offset that end is 30-40s old — clear of the buffer with margin left
+# for request latency.
+ANTI_SPOILER_OFFSET_SECONDS = 40
 
 _LIVE_BASE_URL = "https://esports-api.lolesports.com/persisted/gw"
 _FEED_BASE_URL = "https://feed.lolesports.com/livestats/v1"
@@ -39,6 +47,19 @@ def aligned_starting_time(now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)  # noqa: UP017 - spelling matches root AGENTS.md §6 verbatim
     floored = now.replace(microsecond=0, second=now.second - (now.second % 10))
     return floored.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def window_starting_time(now: datetime | None = None) -> str:
+    """startingTime for livestats window calls.
+
+    Same 10s flooring as aligned_starting_time, but offset
+    ANTI_SPOILER_OFFSET_SECONDS into the past so the requested window
+    ends clear of the feed's ~20s anti-spoiler buffer (specs §7.3 item 5).
+    The poller must use this, never the raw aligned time.
+    """
+    now = now or datetime.now(timezone.utc)  # noqa: UP017 - spelling matches aligned_starting_time
+    shifted = now - timedelta(seconds=ANTI_SPOILER_OFFSET_SECONDS)
+    return aligned_starting_time(shifted)
 
 
 class RiotClient:

@@ -13,12 +13,18 @@ failed. HTTP 204 is ok-without-data, never an error.
 import logging
 import re
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
 
-from nexus.riot.client import FetchResult, RiotClient, aligned_starting_time
+from nexus.riot.client import (
+    ANTI_SPOILER_OFFSET_SECONDS,
+    FetchResult,
+    RiotClient,
+    aligned_starting_time,
+    window_starting_time,
+)
 
 
 def _transport(
@@ -230,4 +236,28 @@ def test_aligned_starting_time_boundaries() -> None:
 def test_aligned_starting_time_defaults_to_now() -> None:
     assert re.fullmatch(
         r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d0\.000Z", aligned_starting_time()
+    )
+
+
+def test_anti_spoiler_offset_is_40_seconds() -> None:
+    assert ANTI_SPOILER_OFFSET_SECONDS == 40
+
+
+def test_window_starting_time_is_aligned_minus_offset() -> None:
+    assert window_starting_time(_dt(0)) == "2026-05-01T12:33:20.000Z"
+    assert window_starting_time(_dt(9)) == "2026-05-01T12:33:20.000Z"
+    assert window_starting_time(_dt(10)) == "2026-05-01T12:33:30.000Z"
+    assert window_starting_time(_dt(59)) == "2026-05-01T12:34:10.000Z"
+
+
+def test_window_starting_time_tracks_aligned_time() -> None:
+    moment = _dt(25)
+    assert window_starting_time(moment) == aligned_starting_time(
+        moment - timedelta(seconds=ANTI_SPOILER_OFFSET_SECONDS)
+    )
+
+
+def test_window_starting_time_defaults_to_now() -> None:
+    assert re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d0\.000Z", window_starting_time()
     )

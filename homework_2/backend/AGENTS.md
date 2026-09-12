@@ -85,6 +85,15 @@ This is where bugs live and where tests pay off.
   the API is reading.
 - The tick sequence is root §4, verbatim. Do not add steps.
 
+### Replay mode (dev/demo only, not part of the product contract)
+
+- `POLL_SOURCE=replay` with `REPLAY_FILE=<path>` replays a recorded file
+  instead of calling Riot: frames walk oldest-first at one per 2s and loop.
+- Demo only. No Riot calls happen in this mode, and it is unreachable when
+  `POLL_SOURCE=live` (the default).
+- The poller never reads files; `main.run()` loads the replay JSON once at
+  startup and hands the parsed dict to the poller.
+
 ## `main.py`
 
 - FastAPI with a `lifespan` that starts and stops the poller task.
