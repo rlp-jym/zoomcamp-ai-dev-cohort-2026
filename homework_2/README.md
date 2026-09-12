@@ -23,22 +23,33 @@ File is gitignored. Riot may rotate this free and public key without notice (403
 
 ## Modes
 Live Mode:
-    Requires a real RIOT_API_KEY in backend/.env.
-    If no match is live, shows "No live match".
+```
+Requires a real RIOT_API_KEY in backend/.env.
+If no match is live, shows "No live match".
+```
 
-Terminal 1:
-    Replay Mode:
-        cd homework_2\backend
-        $env:POLL_SOURCE="replay"
-        $env:REPLAY_FILE="replays/lck-2026-09-12-hle-vs-t1-g3.json"
-        uv run nexus
-    Live Mode:
-        cd homework_2\backend
-        uv run nexus
-Terminal 2:
-    cd homework_2\frontend
-    $env:VITE_USE_MOCK="false"
-    npm run dev
+### Terminal 1
+
+#### Replay Mode
+```powershell
+cd homework_2\backend
+$env:POLL_SOURCE="replay"
+$env:REPLAY_FILE="replays/lck-2026-09-12-hle-vs-t1-g3.json"
+uv run nexus
+```
+
+#### Live Mode
+```powershell
+cd homework_2\backend
+uv run nexus
+```
+
+### Terminal 2
+```powershell
+cd homework_2\frontend
+$env:VITE_USE_MOCK="false"
+npm run dev
+```
 
 Open http://localhost:5173.
 
