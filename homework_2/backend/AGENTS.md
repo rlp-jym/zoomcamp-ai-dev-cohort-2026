@@ -39,6 +39,17 @@ uv run mypy src
 
 ---
 
+## Layout (beyond `src/`)
+
+- `scripts/` — dev tools, not shipped code. `record_fixtures.py` records
+  live Riot responses to `replays/` and `tests/fixtures/` (root §12 step
+  4). Rerunnable; see its docstring.
+- `tests/fixtures/` — raw recorded payloads (`event_details.json`,
+  `window_single.json`, `window_sequence.json`, `get_live.json`). Tests
+  load these; never hit the live Riot API from a test.
+
+---
+
 ## `riot/client.py`
 
 - Every request has an **explicit 10s timeout.** Omitting one is a bug —

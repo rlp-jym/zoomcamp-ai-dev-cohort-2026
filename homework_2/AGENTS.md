@@ -203,6 +203,11 @@ retry at full rate.
 **Timeouts:** every request uses an explicit 10s timeout. `httpx` has no
 default timeout; omitting one is a bug.
 
+**Anti-spoiler buffer:** the window feed returns HTTP 400
+(`BAD_QUERY_PARAMETER`, "ahead of broadcast") for windows ending less
+than ~20s ago. Window calls use `window_starting_time()`, offset 40s into
+the past — never the raw aligned time. See `_docs/specs.md` §7.3 item 5.
+
 ---
 
 ## 6. Polling and time alignment
@@ -307,6 +312,11 @@ POLL_LIVE_SECONDS=10
 POLL_BETWEEN_SECONDS=30
 POLL_IDLE_SECONDS=60
 POLL_MAX_BACKOFF_SECONDS=300
+# Data source: live (Riot API) or replay (recorded file, demo only).
+POLL_SOURCE=live
+# Path to a replay JSON for POLL_SOURCE=replay. Relative paths resolve
+# against the working directory, then the repo root.
+REPLAY_FILE=replays/lck-2026-09-12-hle-vs-t1-g3.json
 ```
 
 | Var | Default | Notes |
@@ -319,6 +329,8 @@ POLL_MAX_BACKOFF_SECONDS=300
 | `POLL_BETWEEN_SECONDS` | `30` | |
 | `POLL_IDLE_SECONDS` | `60` | |
 | `POLL_MAX_BACKOFF_SECONDS` | `300` | |
+| `POLL_SOURCE` | `live` | `live` \| `replay`. `replay` is demo-only: no Riot calls, frames walk from `REPLAY_FILE` |
+| `REPLAY_FILE` | *(none)* | Path to a replay JSON for `replay` mode; required when `POLL_SOURCE=replay` |
 
 ---
 
@@ -363,11 +375,14 @@ Build in this sequence. Do not start a step before the previous one runs.
 2. **Storage** — `base.py`, `json_file.py`, tests. Wire into `main.py`.
 3. **Riot client** — `client.py` with `get_live`, `get_event_details`,
    `get_window`, and `aligned_starting_time`. No parsing yet.
-4. **Record fixtures** — run the client once against a live match, save raw
-   JSON to `tests/fixtures/`. **Do this before writing any parser.**
-5. **Models + normalize** — `models.py` and `normalize.py` written against
-   the recorded fixtures, not against guesses. Tests use the fixtures.
-6. **Poller** — `poller.py` per §4 and §6. Wire into lifespan.
+4. **Record fixtures** — ✅ done. `replays/lck-2026-09-12-hle-vs-t1-g3.json`
+   (145 thinned windows) plus `tests/fixtures/` slices. Recorder kept at
+   `backend/scripts/record_fixtures.py` for re-recordings.
+5. **Models + normalize** — ✅ done. `models.py` and `normalize.py` written
+   against the recorded fixtures. 31 fixture-based tests.
+6. **Poller** — ✅ done. `poller.py` per §4 and §6, wired into lifespan,
+   plus `window_starting_time()` (40s anti-spoiler offset) and demo-only
+   replay mode (`POLL_SOURCE=replay`).
 7. **Frontend skeleton** — Vite + React + TS, `types.ts` mirroring
    `_docs/specs.md` §9, `api.ts` polling `/api/state` once per second,
    rendering raw JSON.
@@ -421,8 +436,8 @@ wait
 ### Dependency lists — these exact packages, nothing else
 
 **`backend/pyproject.toml`** runtime: `fastapi`, `uvicorn[standard]`, `httpx`,
-`pydantic`, `pydantic-settings`. Dev: `pytest`, `pytest-asyncio`, `ruff`,
-`mypy`.
+`pydantic`, `pydantic-settings`, `sqlalchemy`. Dev: `pytest`, `pytest-asyncio`,
+`ruff`, `mypy`.
 
 **`frontend/package.json`** runtime: `react`, `react-dom`. Dev: `vite`,
 `@vitejs/plugin-react`, `typescript`, `@types/react`, `@types/react-dom`.
