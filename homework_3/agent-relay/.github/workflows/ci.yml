@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (SQLite + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agent_relay
+          POSTGRES_PASSWORD: agent-relay-ci-password
+          POSTGRES_DB: agent_relay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agent_relay -d agent_relay"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet \
+            "fastapi>=0.141.1" \
+            "uvicorn[standard]>=0.52.4" \
+            "sqlalchemy>=2.0.52" \
+            "pydantic-settings>=2.15.0" \
+            "psycopg[binary]>=3.3.5" \
+            "httpx>=0.28.1" \
+            "pytest>=9.1.1"
+
+      - name: Starter tests (SQLite)
+        run: pytest -q test_agent_relay.py
+
+      - name: Full suite (PostgreSQL)
+        env:
+          RELAY_DATABASE_URL: postgresql+psycopg://agent_relay:agent-relay-ci-password@127.0.0.1:5432/agent_relay
+        run: pytest -q
+
+  deploy:
+    name: Deploy to ephemeral kind cluster
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kind and kubectl
+        run: |
+          mkdir -p /tmp/ci-bin
+          curl -sSLo /tmp/ci-bin/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64
+          curl -sSLo /tmp/ci-bin/kubectl https://dl.k8s.io/release/v1.36.1/bin/linux/amd64/kubectl
+          chmod +x /tmp/ci-bin/kind /tmp/ci-bin/kubectl
+          echo "/tmp/ci-bin" >> "$GITHUB_PATH"
+          /tmp/ci-bin/kind version
+          /tmp/ci-bin/kubectl version --client
+
+      - name: Build image with unique tag
+        id: build
+        run: |
+          export PATH="/tmp/ci-bin:$PATH"
+          TAG="ci-$(date +%s)-${GITHUB_SHA}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          docker build -t "agent-relay:${TAG}" .
+
+      - name: Deploy and smoke test (only when tests passed)
+        run: |
+          export PATH="/tmp/ci-bin:$PATH"
+          bash ci/kind-smoke.sh "${{ steps.build.outputs.tag }}"
