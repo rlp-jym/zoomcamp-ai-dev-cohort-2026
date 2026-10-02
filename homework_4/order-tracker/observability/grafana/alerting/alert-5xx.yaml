@@ -1,0 +1,62 @@
+# Grafana-managed alert: fires on any 5xx order-lookup response in 5m.
+# UI state only (Normal/Pending/Firing in Alerting > Alert rules).
+# The incident responder webhook will be wired to this rule later.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: order-tracker
+    folder: Order Tracker
+    interval: 30s
+    rules:
+      - uid: order-tracker-5xx
+        title: Order Tracker 5xx errors
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: sum(increase(otel_http_server_request_count_total{http_response_status_code=~"5.."}[5m]))
+              refId: A
+              range: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $B > 0
+              refId: C
+              type: math
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          __dashboardUid__: order-tracker-requests
+          __panelId__: "2"
+          summary: 5xx responses detected on the order tracker API
+          description: >-
+            One or more HTTP 5xx responses in the last 5m on endpoint
+            GET /api/orders/{order_id}. Reproduce with
+            curl.exe -i http://127.0.0.1:8000/api/orders/express-1002
+            (intentional bug, see AGENTS.md). Time window: 5m increase,
+            evaluated every 30s, fires after 1m pending. Dashboard:
+            /d/order-tracker-requests/order-tracker-requests-and-errors
+        labels:
+          severity: critical
+          service: order-tracker

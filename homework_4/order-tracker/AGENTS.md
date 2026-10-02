@@ -41,6 +41,12 @@ Plus Collector stack (this session, in working tree — see `git status`):
   (e.g. `standard-1002` does not exist), `500` for `express-1002`.
   (Note: Windows PowerShell `curl` is an `Invoke-WebRequest` alias —
   always use `curl.exe`.)
+- Alert done (this session, in working tree): Grafana-managed
+  `Order Tracker 5xx errors` (`uid: order-tracker-5xx`,
+  `observability/grafana/alerting/alert-5xx.yaml`), file-provisioned,
+  30s eval / 1m `for`, `noDataState: OK`. Verified live:
+  Normal (empty window) → Firing (after `express-1002` traffic).
+  No receiver wired yet — responder task connects to it later.
 
 ## 3. Intentional bug — DO NOT FIX
 
@@ -73,8 +79,9 @@ order-tracker/
 │   ├── loki.yaml
 │   ├── tempo.yaml
 │   └── grafana/
-│       ├── datasources.yaml
+│       ├── datasources.yaml       # Prometheus pinned to uid: prometheus (alert queries need it)
 │       ├── dashboard-provider.yaml
+│       ├── alerting/alert-5xx.yaml  # Grafana-managed 5xx rule (30s/1m, noData OK)
 │       └── dashboards/orders.json
 ├── app/
 │   ├── __init__.py
@@ -181,14 +188,27 @@ Gotchas learned this session:
 - Python: `ruff` + strict typing where practical, `logging` never `print`
   (OTel logging goes through `order.lookup` logger).
 
-## 8. Next steps (Q3+)
+## 8. Next steps (responder)
 
-Check the homework prompt for exact thresholds before implementing:
+Alert is done and verified (Normal → Firing → Normal). What remains:
 
-- Alerts on 5xx rate / lookup latency (likely on the counter + histogram above).
-- Incident responder runbook / automation.
-- Reproduce via `express-1002` lookup, confirm span shows
-  `StatusCode.ERROR` + 500 log line, then wire alert on that signal.
+- Incident responder runbook / automation wired to rule
+  `order-tracker-5xx` (no contact point provisioned yet — deliberate).
+- Reproduce via `express-1002` lookup, confirm the alert fires, then
+  connect the responder to that signal.
+
+Alert-rule gotchas learned:
+
+- The `threshold` expression type does not parse in Grafana 11.6 file
+  provisioning (`no variable specified to reference`). Use
+  query A (PromQL range) → B (`reduce`, `last`, on A) → C (`math`, `$B > 0`),
+  condition C. A bare `math` on range data fails with
+  `only reduced data can be alerted on` — the reduce step is mandatory.
+- Like all provisioning, new alert files need a Grafana
+  `--force-recreate` (bind-mounts don't trigger reloads).
+- Rule state API (no UI needed):
+  `GET /api/prometheus/grafana/api/v1/rules` → `state`/`health`/`alerts`;
+  rule detail: `GET /api/v1/provisioning/alert-rules/order-tracker-5xx`.
 
 ## 9. Definition of done (for telemetry changes)
 

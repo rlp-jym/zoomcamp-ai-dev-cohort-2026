@@ -44,6 +44,16 @@ status, 5xx errors, error rate, and 404-vs-500 split, backed by
 `otel_http_server_request_count_total`. To generate an error, open
 `GET /api/orders/express-1002` (intentional 500, see `AGENTS.md`).
 
+## Alert
+
+Grafana ships a file-provisioned alert, `Order Tracker 5xx errors`
+(`observability/grafana/alerting/alert-5xx.yaml`), on any 5xx in a 5m
+window (evaluated every 30s, fires after 1m pending). Empty windows resolve
+to Normal (`noDataState: OK`), so quiet periods never page. The alert
+annotation names the endpoint, the 5m window, and links the dashboard.
+Check its state under Alerting → Alert rules in Grafana; no notification
+receiver is wired yet — the incident responder will connect to it later.
+
 ## API
 
 | Method | Path | Purpose |
