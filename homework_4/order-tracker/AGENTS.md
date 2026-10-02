@@ -11,14 +11,14 @@ The main user flow is creating an order and checking its status. Three sample
 orders are seeded on first startup. The course exercise is detecting and
 handling an incident, not scaling the database.
 
-## 2. Current progress (Q2 done + observability stack)
+## 2. Current progress (stack + alert + responder on-call; bug FIXED)
 
 Commit `c51abe8` — `saving progress after question 2`:
 
 > coding agent added OTel for order lookups, bug was detected and intentionally
 > left intact for testing (homework objective)
 
-Plus Collector stack (this session, in working tree — see `git status`):
+Since then (committed across Q3–Q5 pushes — see `git log`):
 
 - OTel traces / metrics / logs for order lookups implemented in
   `app/telemetry.py` + `app/main.py`, dual-export: console (for
@@ -36,9 +36,10 @@ Plus Collector stack (this session, in working tree — see `git status`):
   404-vs-500). Verified live: counts for 200/404/500, Loki streams with
   trace correlation incl. `day is out of range for month` stacktrace,
   Tempo traces with root `order.lookup`, Grafana auto-loads the dashboard.
-- Follow-up verification (same session): `curl.exe` against the running
-  stack returns `200` for `standard-1001`, `404` for unknown ids
-  (e.g. `standard-1002` does not exist), `500` for `express-1002`.
+- Follow-up verification: `curl.exe` against the running stack returns
+  `200` for `standard-1001`, `404` for unknown ids
+  (e.g. `standard-1002` does not exist), and — since the responder's fix —
+  `200` with `estimated_delivery` for `express-1002` (was 500).
   (Note: Windows PowerShell `curl` is an `Invoke-WebRequest` alias —
   always use `curl.exe`.)
 - Alert done (this session, in working tree): Grafana-managed
@@ -46,30 +47,36 @@ Plus Collector stack (this session, in working tree — see `git status`):
   `observability/grafana/alerting/alert-5xx.yaml`), file-provisioned,
   30s eval / 1m `for`, `noDataState: OK`. Verified live:
   Normal (empty window) → Firing (after `express-1002` traffic).
-- Responder done (this session, in working tree): `homework_4/incident-response/`
-  (FastAPI, own compose on shared `order-tracker_default` network, `:8001`).
-  `POST /alerts` saves bundle (`incidents/<id>.json`: labels, endpoint,
-  Loki logs, Tempo traces) + headless prompt (`PROMPT_<id>.md`, run by hand —
-  nothing auto-executes). `test=true` alerts are log-only. Grafana webhook
-  contact point (`notify-webhook.yaml`, `severity=critical` → responder)
-  verified: ResponderTest → 200 skipped; drill firing → bundle with
-  10 Loki streams + 2 Tempo traces.
+- Responder on-call (`homework_4/incident-response/`, FastAPI, own compose
+  on shared `order-tracker_default` network, `:8001`): `POST /alerts`
+  saves bundle (`incidents/<id>.json`: labels, endpoint, Loki logs,
+  Tempo traces) + brief (`PROMPT_<id>.md`) and auto-launches the
+  headless agent (`opencode run`, Zen free model, single-flight, 10-min
+  cap, `RESULT_<id>.md`). `test=true` alerts are log-only. Grafana
+  webhook contact point (`notify-webhook.yaml`, `severity=critical` →
+  responder) verified live, including the first real incident (see §8).
 
-## 3. Intentional bug — DO NOT FIX
+## 3. Past bug — FIXED by the responder agent (2026-10-02)
 
-`order_detail()` in `app/main.py:64-70`:
+`order_detail()` in `app/main.py:68` used to read:
 
 ```python
 placed_at.replace(day=placed_at.day + 2)
 ```
 
-- Raises for `express` orders placed near end-of-month (day + 2 overflows).
+- It raised `ValueError: day is out of range for month` for `express`
+  orders placed near end-of-month (a day that does not exist in that month).
 - Seeded order `express-1002` uses `previous_month_end`, so
-  `GET /api/orders/express-1002` reliably returns 500.
-- `app/telemetry.py:1-5` docstring explicitly says to leave it in place so the
-  500 is observable via telemetry.
-- Use it to verify spans / metrics / logs and later alerts. Do not patch it
-  unless the homework prompt explicitly says to.
+  `GET /api/orders/express-1002` reliably returned 500 — the incident
+  the 5xx alert fired on.
+- The responder agent diagnosed and fixed it (1 line):
+  `placed_at + timedelta(days=2)`, plus regression test
+  `test_express_order_placed_at_end_of_month`. Full story in §8.
+- Ownership rule going forward: **humans and builder-agents do NOT
+  hand-fix production incidents.** Diagnosis and minimal fixes belong to
+  the incident-responder agent (`homework_4/incident-response/`).
+  Review its `RESULT_<id>.md` and `git diff` instead of patching code
+  yourself.
 
 ## 4. Architecture + file map
 
@@ -157,7 +164,8 @@ docker compose down
 Trigger paths (seeded ids: `standard-1001`, `express-1002`, `standard-1003`):
 
 - OK (200): `GET /api/orders/standard-1001`
-- Bug (500): `GET /api/orders/express-1002`
+- Fixed (200, was 500 before §8): `GET /api/orders/express-1002`
+  returns `estimated_delivery` rolling into the next month
 - Not found (404): `GET /api/orders/missing` (any unknown id, e.g. `standard-1002` does not exist)
 
 Windows PowerShell: `curl` is an `Invoke-WebRequest` alias that swallows
@@ -191,15 +199,36 @@ Gotchas learned this session:
 - Keep `setup_telemetry` idempotent and test-safe (`PYTEST_CURRENT_TEST`).
 - Keep middleware lookup-only. Do not instrument list/create/patch paths
   unless the homework asks.
-- Do not fix the `estimated_delivery` bug (§3). Do not add auth, multi-user,
+- Do not hand-fix production incidents (§3, §8) — they belong to the
+  incident-responder agent. Do not add auth, multi-user,
   scaling, or Postgres — out of scope for this exercise.
 - Python: `ruff` + strict typing where practical, `logging` never `print`
   (OTel logging goes through `order.lookup` logger).
 
-## 8. Next steps (responder done — verify/polish)
+## 8. On-call run outcome (responder FIXED it — 2026-10-02)
 
-Alert + responder are built and verified (Normal → Firing → Normal;
-webhook → bundle + prompt). Remaining polish if the homework asks:
+First real incident (`Order Tracker 5xx errors` → webhook → agent) is
+resolved by the responder agent. Scorecard:
+
+- Root cause (agent's diagnosis, correct): `order_detail()` used
+  `placed_at.replace(day=placed_at.day + 2)` → `ValueError` at month-end.
+- Fix (1 line, `app/main.py:68`): `placed_at + timedelta(days=2)`.
+  Regression test added (`test_express_order_placed_at_end_of_month`,
+  verified to fail on the old line). Host `pytest`: 4 passed.
+- Redeployed by the agent; `express-1002` → 200 with
+  `estimated_delivery` rolling into next month; alert back to Normal.
+  No commit — diff left in working tree for review.
+
+Round-1 failure (fixed in launcher/brief since): evidence paths were
+outside the agent's sandbox (bundle in `/data`, cwd in `/work`) and
+opencode auto-rejected them. Now: evidence copy under
+`order-tracker/.agent/<id>/` (gitignored), agent cwd `/work`.
+
+Known side effects of in-container `compose up` (brief warns the agent):
+runtime bind-mounts resolve daemon-side, so rebuilding from inside can
+recreate collector/loki/tempo with empty-dir mounts (crash loop) — heal
+with host-side `docker compose up -d`. Same for `uv run` in-container:
+keep the venv at `/tmp` (`UV_PROJECT_ENVIRONMENT`), never in the bind.
 
 Alert-rule gotchas learned:
 
@@ -216,11 +245,11 @@ Alert-rule gotchas learned:
 
 ## 9. Definition of done (for telemetry changes)
 
-1. `uv run --frozen pytest -q` passes.
+1. `uv run --frozen pytest -q` passes (incl. the end-of-month regression test).
 2. `docker compose up --build -d --wait` healthy, `/healthz` returns ok.
-3. `GET /api/orders/express-1002` → 500 with `order.lookup` error span +
-   exception log in `docker compose logs app`, log stream in Loki, trace in
-   Tempo, 500 bump in Prometheus `otel_http_server_request_count_total` and
-   Grafana dashboard.
+3. `GET /api/orders/express-1002` → 200 with `estimated_delivery`;
+   the 500 path is still fully instrumented (`order.lookup` error span +
+   exception log, Loki stream, Tempo trace, 5xx bump in Prometheus and
+   Grafana) and covered by the regression test.
 4. `GET /api/orders/<valid-id>` → 200 with `order.found=true` span + info log.
 5. No new dependency added without asking.

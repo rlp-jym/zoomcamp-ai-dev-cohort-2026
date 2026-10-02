@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 incidents/
 !incidents/.gitkeep
+.env
+.zen-auth.json

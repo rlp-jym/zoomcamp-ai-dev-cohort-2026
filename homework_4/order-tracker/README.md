@@ -41,8 +41,10 @@ Port overrides: `GRAFANA_PORT`, `PROMETHEUS_PORT`, `LOKI_PORT`, `TEMPO_PORT`
 
 The dashboard `Order Tracker - Requests and Errors` shows request counts by
 status, 5xx errors, error rate, and 404-vs-500 split, backed by
-`otel_http_server_request_count_total`. To generate an error, open
-`GET /api/orders/express-1002` (intentional 500, see `AGENTS.md`).
+`otel_http_server_request_count_total`. The 5xx panels were proven live by
+the month-end `estimated_delivery` bug (`GET /api/orders/express-1002`
+used to 500; fixed by the responder agent, now 200 — see `AGENTS.md` §8);
+the 404 path (`GET /api/orders/missing`) still exercises the error panels.
 
 ## Alert
 
@@ -54,7 +56,10 @@ annotation names the endpoint, the 5m window, and links the dashboard.
 Check its state under Alerting → Alert rules in Grafana. Firing
 `severity=critical` alerts are delivered to the incident responder
 (`../incident-response`, `POST /alerts` on port 8001), which saves an
-incident bundle (endpoint, logs, traces) plus a headless-assistant prompt.
+incident bundle (endpoint, logs, traces) and auto-launches the on-call
+coding assistant to diagnose and fix. This loop already closed one real
+incident: the month-end 500 on `express-1002`, fixed and redeployed by
+the agent with a regression test (see `AGENTS.md` §8).
 
 ## API
 

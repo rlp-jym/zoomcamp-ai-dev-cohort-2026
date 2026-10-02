@@ -1,16 +1,18 @@
-"""Incident responder: Grafana webhook receiver.
+"""Incident responder: Grafana webhook receiver and on-call agent launcher.
 
 On POST /alerts it saves an incident bundle (alert labels/annotations,
-affected endpoint, recent Loki logs, Tempo traces) plus a ready-to-run
-headless coding-assistant prompt. Nothing is executed automatically:
-starting the assistant means running the `opencode run` command from the
-generated PROMPT_<id>.md. Alerts labelled test=true are log-only.
+affected endpoint, recent Loki logs, Tempo traces) plus the agent brief
+(PROMPT_<id>.md), then launches a headless coding assistant (`opencode run`)
+in a background thread. The agent owns diagnosis and the minimal fix;
+alerts labelled test=true are log-only and never launch anything.
 """
 
 import json
 import logging
 import os
 import re
+import subprocess
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,12 @@ INCIDENTS_DIR = Path(os.getenv("INCIDENTS_DIR", "incidents"))
 LOKI_URL = os.getenv("LOKI_URL", "http://loki:3100").rstrip("/")
 TEMPO_URL = os.getenv("TEMPO_URL", "http://tempo:3200").rstrip("/")
 FETCH_TIMEOUT = float(os.getenv("EVIDENCE_TIMEOUT_SECONDS", "5"))
+WORK_DIR = Path(os.getenv("WORK_DIR", "/work/order-tracker"))
+WORK_ROOT = Path(os.getenv("WORK_ROOT", "/work"))
+AGENT_EVIDENCE_SUBDIR = ".agent"
+AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT_SECONDS", "600"))
+AGENT_ENABLED = os.getenv("AGENT_ENABLED", "true").lower() == "true"
+LOCK_NAME = ".agent.lock"
 
 DEFAULT_ENDPOINT = "GET /api/orders/{order_id}"
 DASHBOARD_PATH = "/d/order-tracker-requests/order-tracker-requests-and-errors"
@@ -121,27 +129,139 @@ def _fetch_tempo_traces() -> dict[str, Any]:
 def _prompt_text(incident_id: str, alert: Alert, endpoint: str) -> str:
     dashboard = alert.annotations.get(
         "dashboard", f"http://127.0.0.1:3000{DASHBOARD_PATH}")
-    return f"""# Incident {incident_id} — headless assistant prompt
+    return f"""# Incident {incident_id} — on-call agent brief (executed headless)
 
-Alert `{alert.labels.get("alertname", "unknown")}` is {alert.status}.
+You are the first on-call engineer. Your working directory is the repo root
+(`{WORK_ROOT}`); everything you need is inside it. Alert
+`{alert.labels.get("alertname", "unknown")}` is {alert.status}.
 Affected endpoint: {endpoint}
 Summary: {alert.annotations.get("summary", "")}
 Dashboard: {dashboard}
 
-Evidence: see `incidents/{incident_id}.json` in this folder
-(logs, traces, labels, annotations).
+Evidence (read these first, all inside your working directory):
+- `./order-tracker/{AGENT_EVIDENCE_SUBDIR}/{incident_id}/bundle.json`
+  (alert labels/annotations, recent Loki logs, Tempo traces)
+- this brief: `./order-tracker/{AGENT_EVIDENCE_SUBDIR}/{incident_id}/PROMPT.md`
 
-Do NOT fix the intentional `estimated_delivery` bug in
-order-tracker unless the homework says so. Diagnose first:
-confirm the 5xx in Prometheus (`otel_http_server_request_count_total`),
-correlate the Loki error stream via trace_id, open the Tempo trace.
+## Mission
 
-Simulated headless launch (run by a human — nothing auto-executes):
+Diagnose the 5xx and fix it with the MINIMAL code change. You own this fix.
 
-```
-opencode run "Investigate incident {incident_id} using incidents/{incident_id}.json and report root cause"
-```
+## Rules
+
+1. Read the bundle first. Confirm the failing endpoint and the error.
+2. Edit ONLY under `./order-tracker/app` and `./order-tracker/tests`.
+   Touch nothing else (no observability configs, no credentials, no `.agent`
+   evidence copies, no other homework).
+3. Keep the change minimal — fix the defect, do not refactor or add features.
+4. Gate: run the service test suite in `{WORK_DIR}` and make it pass
+   (`UV_PROJECT_ENVIRONMENT=/tmp/ot-venv uv run --frozen pytest -q` —
+   the venv MUST live in /tmp, never in the bind-mounted work tree).
+   Add a regression test for this exact failure if one does not exist.
+5. Redeploy: `docker compose -f {WORK_DIR}/compose.yaml up -d --build app`
+   and verify the endpoint no longer 5xx. NOTE — networking from THIS
+   container: host-published ports (`http://127.0.0.1:8000`) are NOT
+   reachable here; talk to the app as `http://app:8000` (compose DNS),
+   e.g. `curl -s http://app:8000/api/orders/express-1002` must not
+   return 500. ALSO NOTE — bind mounts: this daemon resolves `-v`
+   host-paths on ITS OWN filesystem, so `up` may recreate sibling
+   containers (collector/loki/tempo) with broken config mounts. Build
+   contexts stream client-side and are safe. After redeploying, check
+   `docker compose -f {WORK_DIR}/compose.yaml ps`; if siblings are
+   restarting, SAY SO in your report and do NOT touch their configs —
+   a human re-runs `up` from the host to heal mounts.
+6. NEVER commit or push. Leave the diff in the working tree for human review.
+7. NEVER print secrets. If no model credentials are available, stop and say
+   so in your final message, changing nothing.
+
+## Report
+
+Do NOT write any RESULT file yourself. Put your final report as your LAST
+message: root cause, files changed, test results, verification output.
+The launcher saves it as `RESULT_{incident_id}.md`.
 """
+
+
+def _try_acquire_lock() -> bool:
+    """Single-flight: only one agent run at a time. Returns True if acquired."""
+    INCIDENTS_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(INCIDENTS_DIR / LOCK_NAME, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        return True
+    except FileExistsError:
+        return False
+
+
+def _release_lock() -> None:
+    try:
+        (INCIDENTS_DIR / LOCK_NAME).unlink()
+    except FileNotFoundError:
+        pass
+
+
+def run_agent(incident_id: str, brief: str) -> dict[str, Any]:
+    """Execute `opencode run` headless on the brief. Blocking. Never raises."""
+    result_path = INCIDENTS_DIR / f"RESULT_{incident_id}.md"
+    try:
+        proc = subprocess.run(
+            ["opencode", "run", brief],
+            cwd=str(WORK_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=AGENT_TIMEOUT,
+        )
+        outcome = {
+            "incident_id": incident_id,
+            "returncode": proc.returncode,
+            "stdout_tail": proc.stdout[-4000:],
+            "stderr_tail": proc.stderr[-2000:],
+        }
+    except FileNotFoundError:
+        outcome = {"incident_id": incident_id,
+                   "error": "opencode binary not found in container"}
+    except subprocess.TimeoutExpired:
+        outcome = {"incident_id": incident_id,
+                   "error": f"agent timed out after {AGENT_TIMEOUT}s"}
+    except Exception as exc:
+        outcome = {"incident_id": incident_id, "error": str(exc)}
+    try:
+        lines = [f"# Result {incident_id}", ""]
+        for key, value in outcome.items():
+            lines.append(f"## {key}")
+            lines.append("")
+            lines.append(f"```\n{value}\n```")
+            lines.append("")
+        result_path.write_text("\n".join(lines), encoding="utf-8")
+    except Exception as exc:
+        logger.exception("failed to write result file: %s", exc)
+    logger.info("agent run finished for %s: %s", incident_id, result_path)
+    return outcome
+
+
+def _launch_in_background(incident_id: str, brief: str) -> bool:
+    """Start the on-call agent unless disabled or one is already running."""
+    if not AGENT_ENABLED:
+        logger.info("agent launch disabled (AGENT_ENABLED=false) for %s",
+                    incident_id)
+        return False
+    if not _try_acquire_lock():
+        logger.info("agent already running — skipping launch for %s",
+                    incident_id)
+        return False
+
+    def _run() -> None:
+        try:
+            run_agent(incident_id, brief)
+        finally:
+            _release_lock()
+
+    threading.Thread(target=_run, daemon=True,
+                     name=f"agent-{incident_id}").start()
+    logger.info("on-call agent launched for %s (workdir=%s)",
+                incident_id, WORK_DIR)
+    return True
 
 
 def handle_alert(alert: Alert) -> dict[str, Any]:
@@ -172,18 +292,26 @@ def handle_alert(alert: Alert) -> dict[str, Any]:
     bundle_path = INCIDENTS_DIR / f"{incident_id}.json"
     bundle_path.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
     prompt_path = INCIDENTS_DIR / f"PROMPT_{incident_id}.md"
-    prompt_path.write_text(
-        _prompt_text(incident_id, alert, endpoint), encoding="utf-8")
+    brief = _prompt_text(incident_id, alert, endpoint)
+    prompt_path.write_text(brief, encoding="utf-8")
+    # Agent-visible evidence copy inside its project root (/work), so the
+    # sandbox allows reads. Canonical bundle stays in INCIDENTS_DIR.
+    agent_dir = WORK_DIR / AGENT_EVIDENCE_SUBDIR / incident_id
+    try:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        (agent_dir / "bundle.json").write_text(
+            json.dumps(bundle, indent=2), encoding="utf-8")
+        (agent_dir / "PROMPT.md").write_text(brief, encoding="utf-8")
+    except Exception as exc:
+        logger.exception("failed to write agent evidence copy: %s", exc)
 
     logger.info(
         "incident %s saved (alert=%s endpoint=%s bundle=%s)",
         incident_id, alert.labels.get("alertname"), endpoint, bundle_path,
     )
-    logger.info(
-        "headless assistant launch simulated for %s — run the command in %s",
-        incident_id, prompt_path,
-    )
-    return {"incident_id": incident_id, "endpoint": endpoint}
+    launched = _launch_in_background(incident_id, brief)
+    return {"incident_id": incident_id, "endpoint": endpoint,
+            "agent_launched": launched}
 
 
 app = FastAPI(title="Incident Response")

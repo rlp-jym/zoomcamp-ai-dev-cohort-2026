@@ -1,3 +1,6 @@
+import subprocess
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -10,8 +13,27 @@ def client(tmp_path, monkeypatch):
     # Loki/Tempo unreachable in tests -> evidence fetchers return {"error": ...}
     monkeypatch.setattr(main, "LOKI_URL", "http://127.0.0.1:9")
     monkeypatch.setattr(main, "TEMPO_URL", "http://127.0.0.1:9")
+    monkeypatch.setattr(main, "WORK_DIR", tmp_path / "work")
+    monkeypatch.setattr(main, "AGENT_ENABLED", True)
+    calls = []
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: calls.append((a, k)) or subprocess.CompletedProcess(
+            a[0], 0, stdout="agent-ok", stderr=""),
+    )
     with TestClient(main.app) as test_client:
+        test_client.calls = calls
         yield test_client
+
+
+def _wait_for(path, timeout=10.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if path.is_file():
+            return True
+        time.sleep(0.1)
+    return False
 
 
 def firing_payload():
@@ -37,12 +59,13 @@ def test_health(client):
     assert client.get("/healthz").json() == {"status": "ok"}
 
 
-def test_firing_alert_saves_bundle_and_prompt(client):
+def test_firing_alert_saves_bundle_and_prompt(client, tmp_path):
     resp = client.post("/alerts", json=firing_payload())
     assert resp.status_code == 200
     body = resp.json()
     assert body["received"] == 1
     assert body["skipped_tests"] == 0
+    assert body["incidents"][0]["agent_launched"] is True
     incident_id = body["incidents"][0]["incident_id"]
     assert body["incidents"][0]["endpoint"] == "GET /api/orders/{order_id}"
 
@@ -50,6 +73,34 @@ def test_firing_alert_saves_bundle_and_prompt(client):
     assert bundle["endpoint"] == "GET /api/orders/{order_id}"
     assert "loki" in bundle["evidence"] and "tempo" in bundle["evidence"]
     assert client.get("/incidents").json() == [incident_id]
+
+    # stubbed agent ran once with the opencode headless command ...
+    assert len(client.calls) == 1
+    assert client.calls[0][0][0][:2] == ["opencode", "run"]
+    # ... and wrote its result file, releasing the lock.
+    incidents = tmp_path / "incidents"
+    assert _wait_for(incidents / f"RESULT_{incident_id}.md")
+    assert not (incidents / ".agent.lock").exists()
+
+    # ... and left an agent-readable evidence copy inside the work tree.
+    agent_dir = tmp_path / "work" / ".agent" / incident_id
+    assert (agent_dir / "bundle.json").is_file()
+    assert (agent_dir / "PROMPT.md").is_file()
+
+
+def test_agent_disabled_launches_nothing(client, monkeypatch):
+    monkeypatch.setattr(main, "AGENT_ENABLED", False)
+    body = client.post("/alerts", json=firing_payload()).json()
+    assert body["incidents"][0]["agent_launched"] is False
+    assert client.calls == []
+
+
+def test_single_flight_skips_second_launch(client, tmp_path):
+    (tmp_path / "incidents").mkdir()
+    (tmp_path / "incidents" / ".agent.lock").write_text("123")
+    body = client.post("/alerts", json=firing_payload()).json()
+    assert body["incidents"][0]["agent_launched"] is False
+    assert client.calls == []
 
 
 def test_test_label_is_log_only(client, tmp_path):

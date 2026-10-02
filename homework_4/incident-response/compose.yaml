@@ -10,8 +10,17 @@ services:
       INCIDENTS_DIR: /data/incidents
       LOKI_URL: http://loki:3100
       TEMPO_URL: http://tempo:3200
+      WORK_DIR: /work/order-tracker
+      AGENT_TIMEOUT_SECONDS: "600"
+      OPENCODE_MODEL: opencode/muse-spark-1.3-contributor-free
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - incidents:/data/incidents
+      - ..:/work:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.zen-auth.json:/root/.local/share/opencode/auth.json:ro
     networks:
       - order-tracker_default
     restart: unless-stopped

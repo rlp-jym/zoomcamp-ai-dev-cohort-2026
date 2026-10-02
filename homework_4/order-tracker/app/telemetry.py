@@ -1,7 +1,9 @@
 """OpenTelemetry setup for order lookups. Console + OTLP dual export.
 
-Intentionally leaves the estimated_delivery bug in place so the
-500 on express end-of-month orders is observable via telemetry.
+The estimated_delivery month-end bug in app/main.py was owned and fixed by the
+incident-responder agent (see AGENTS.md sections 3 and 8): humans and
+builder-agents do not hand-fix production incidents. Its 5xx on express
+end-of-month orders is what the 5xx alert fired on.
 """
 
 import logging
