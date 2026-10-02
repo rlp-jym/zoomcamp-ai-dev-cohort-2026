@@ -1,0 +1,22 @@
+# Webhook receiver for the incident responder + routing for critical alerts.
+# The responder lives on the shared order-tracker_default network as
+# service `incident-response` (own compose in homework_4/incident-response/).
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: incident-response
+    receivers:
+      - uid: incident-response-webhook
+        type: webhook
+        settings:
+          url: http://incident-response:8001/alerts
+          httpMethod: POST
+policies:
+  - orgId: 1
+    receiver: incident-response
+    group_by: ["alertname"]
+    matchers:
+      - severity = critical
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

@@ -46,7 +46,14 @@ Plus Collector stack (this session, in working tree — see `git status`):
   `observability/grafana/alerting/alert-5xx.yaml`), file-provisioned,
   30s eval / 1m `for`, `noDataState: OK`. Verified live:
   Normal (empty window) → Firing (after `express-1002` traffic).
-  No receiver wired yet — responder task connects to it later.
+- Responder done (this session, in working tree): `homework_4/incident-response/`
+  (FastAPI, own compose on shared `order-tracker_default` network, `:8001`).
+  `POST /alerts` saves bundle (`incidents/<id>.json`: labels, endpoint,
+  Loki logs, Tempo traces) + headless prompt (`PROMPT_<id>.md`, run by hand —
+  nothing auto-executes). `test=true` alerts are log-only. Grafana webhook
+  contact point (`notify-webhook.yaml`, `severity=critical` → responder)
+  verified: ResponderTest → 200 skipped; drill firing → bundle with
+  10 Loki streams + 2 Tempo traces.
 
 ## 3. Intentional bug — DO NOT FIX
 
@@ -82,6 +89,7 @@ order-tracker/
 │       ├── datasources.yaml       # Prometheus pinned to uid: prometheus (alert queries need it)
 │       ├── dashboard-provider.yaml
 │       ├── alerting/alert-5xx.yaml  # Grafana-managed 5xx rule (30s/1m, noData OK)
+│       ├── alerting/notify-webhook.yaml  # webhook contact point + critical routing
 │       └── dashboards/orders.json
 ├── app/
 │   ├── __init__.py
@@ -188,14 +196,10 @@ Gotchas learned this session:
 - Python: `ruff` + strict typing where practical, `logging` never `print`
   (OTel logging goes through `order.lookup` logger).
 
-## 8. Next steps (responder)
+## 8. Next steps (responder done — verify/polish)
 
-Alert is done and verified (Normal → Firing → Normal). What remains:
-
-- Incident responder runbook / automation wired to rule
-  `order-tracker-5xx` (no contact point provisioned yet — deliberate).
-- Reproduce via `express-1002` lookup, confirm the alert fires, then
-  connect the responder to that signal.
+Alert + responder are built and verified (Normal → Firing → Normal;
+webhook → bundle + prompt). Remaining polish if the homework asks:
 
 Alert-rule gotchas learned:
 

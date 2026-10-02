@@ -1,0 +1,29 @@
+name: incident-response
+
+services:
+  incident-response:
+    image: incident-response:${INCIDENT_RESPONSE_TAG:-local}
+    build: .
+    ports:
+      - "127.0.0.1:${INCIDENT_RESPONSE_PORT:-8001}:8001"
+    environment:
+      INCIDENTS_DIR: /data/incidents
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+    volumes:
+      - incidents:/data/incidents
+    networks:
+      - order-tracker_default
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  incidents:
+
+networks:
+  order-tracker_default:
+    external: true

@@ -51,8 +51,10 @@ Grafana ships a file-provisioned alert, `Order Tracker 5xx errors`
 window (evaluated every 30s, fires after 1m pending). Empty windows resolve
 to Normal (`noDataState: OK`), so quiet periods never page. The alert
 annotation names the endpoint, the 5m window, and links the dashboard.
-Check its state under Alerting → Alert rules in Grafana; no notification
-receiver is wired yet — the incident responder will connect to it later.
+Check its state under Alerting → Alert rules in Grafana. Firing
+`severity=critical` alerts are delivered to the incident responder
+(`../incident-response`, `POST /alerts` on port 8001), which saves an
+incident bundle (endpoint, logs, traces) plus a headless-assistant prompt.
 
 ## API
 
