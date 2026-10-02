@@ -1,4 +1,4 @@
-"""OpenTelemetry setup for order lookups. Console exporters only.
+"""OpenTelemetry setup for order lookups. Console + OTLP dual export.
 
 Intentionally leaves the estimated_delivery bug in place so the
 500 on express end-of-month orders is observable via telemetry.
@@ -17,12 +17,19 @@ from opentelemetry.sdk.metrics.export import (
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 )
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 ORDER_LOOKUP_ROUTE = "/api/orders/{order_id}"
 SERVICE_NAME = "order-tracker"
+
+
+def _otlp_endpoint() -> str:
+    return os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318").rstrip("/")
 
 _tracer = None
 _histogram = None
@@ -35,7 +42,7 @@ def _is_testing() -> bool:
 
 
 def setup_telemetry(app):
-    """Configure traces/metrics/logs with console export. Idempotent."""
+    """Configure traces/metrics/logs with console + OTLP export. Idempotent."""
     global _tracer, _histogram, _counter, _order_logger
 
     if getattr(app.state, "otel_initialized", False):
@@ -43,30 +50,42 @@ def setup_telemetry(app):
 
     resource = Resource.create({"service.name": SERVICE_NAME})
     testing = _is_testing()
+    otlp_endpoint = _otlp_endpoint()
 
-    # Traces -> console (docker compose logs app)
+    # Traces -> console (docker compose logs app) + OTLP collector
     try:
         tracer_provider = TracerProvider(resource=resource)
         if not testing:
             tracer_provider.add_span_processor(
                 BatchSpanProcessor(ConsoleSpanExporter())
             )
+            try:
+                tracer_provider.add_span_processor(
+                    BatchSpanProcessor(
+                        OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")
+                    )
+                )
+            except Exception:
+                pass
         trace.set_tracer_provider(tracer_provider)
     except Exception:  # provider already set (e.g. repeated lifespan in tests)
         pass
     _tracer = trace.get_tracer(SERVICE_NAME)
 
-    # Metrics -> console every 5s so `docker compose logs` shows them fast
+    # Metrics -> console every 5s so `docker compose logs` shows them fast,
+    # plus OTLP to collector every 15s for Prometheus.
     try:
-        readers = (
-            []
-            if testing
-            else [
+        readers = []
+        if not testing:
+            readers = [
                 PeriodicExportingMetricReader(
                     ConsoleMetricExporter(), export_interval_millis=5000
-                )
+                ),
+                PeriodicExportingMetricReader(
+                    OTLPMetricExporter(endpoint=f"{otlp_endpoint}/v1/metrics"),
+                    export_interval_millis=15000,
+                ),
             ]
-        )
         metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=readers))
     except Exception:
         pass
@@ -82,13 +101,22 @@ def setup_telemetry(app):
         description="Order lookup request count",
     )
 
-    # Logs -> console via OTel LoggingHandler + ConsoleLogExporter
+    # Logs -> console via OTel LoggingHandler + ConsoleLogExporter,
+    # plus OTLP to collector (Loki via collector).
     try:
         logger_provider = LoggerProvider(resource=resource)
         if not testing:
             logger_provider.add_log_record_processor(
                 BatchLogRecordProcessor(ConsoleLogExporter())
             )
+            try:
+                logger_provider.add_log_record_processor(
+                    BatchLogRecordProcessor(
+                        OTLPLogExporter(endpoint=f"{otlp_endpoint}/v1/logs")
+                    )
+                )
+            except Exception:
+                pass
         set_logger_provider(logger_provider)
     except Exception:
         pass

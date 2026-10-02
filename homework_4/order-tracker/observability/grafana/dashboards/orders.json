@@ -1,0 +1,110 @@
+{
+  "title": "Order Tracker - Requests and Errors",
+  "uid": "order-tracker-requests",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request counts by status",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (http_response_status_code) (otel_http_server_request_count_total)",
+          "legendFormat": "{{http_response_status_code}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Errors (5xx)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(otel_http_server_request_count_total{http_response_status_code=~\"5..\"})",
+          "legendFormat": "5xx",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Error rate (5xx / total, 5m)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(otel_http_server_request_count_total{http_response_status_code=~\"5..\"}[5m])) / sum(rate(otel_http_server_request_count_total[5m]))",
+          "legendFormat": "error rate",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "404 vs 500",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(otel_http_server_request_count_total{http_response_status_code=\"404\"})",
+          "legendFormat": "404",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(otel_http_server_request_count_total{http_response_status_code=\"500\"})",
+          "legendFormat": "500",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        }
+      }
+    }
+  ]
+}
