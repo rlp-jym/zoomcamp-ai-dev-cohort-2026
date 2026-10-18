@@ -1,0 +1,26 @@
+table: order_lines
+columns:
+- name: order_line_id
+  type: int64
+  nullable: true
+- name: order_id
+  type: int64
+  nullable: true
+- name: item_id
+  type: int64
+  nullable: true
+- name: qty_ordered
+  type: int64
+  nullable: true
+- name: qty_shipped
+  type: int64
+  nullable: true
+- name: unit_price
+  type: double
+  nullable: true
+- name: extended_price
+  type: double
+  nullable: true
+- name: substitution_flag
+  type: int64
+  nullable: true

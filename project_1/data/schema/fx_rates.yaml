@@ -1,0 +1,11 @@
+table: fx_rates
+columns:
+- name: currency
+  type: string
+  nullable: false
+- name: period
+  type: string
+  nullable: false
+- name: rate_to_usd
+  type: double
+  nullable: false

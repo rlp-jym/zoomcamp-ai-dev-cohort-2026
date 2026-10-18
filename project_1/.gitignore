@@ -1,5 +1,9 @@
 # Generated Files
+Tests.ipynb
+Notes.txt
 *.parquet
+sample/
+notes/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

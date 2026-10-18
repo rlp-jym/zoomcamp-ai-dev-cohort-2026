@@ -1,0 +1,245 @@
+```
+# Task: Build Synthetic Revenue Dataset Generator
+
+## Context
+
+This is a data-foundation step, not the project itself. It produces test
+fixtures a later Revenue Data Reliability Platform will validate against.
+Keep it simple, config-driven, reproducible. Do not over-engineer.
+
+Everything in this task lives under the `data/` directory of the parent
+project.
+
+Reference sample (PrimaForja Supply, June 2025) is used ONLY as a
+structural template. Do not use its numbers, generator, seed, or license.
+Replicate structure and timing behavior; generate my own numbers.
+
+`data/Sources.txt` lists the 13 source tables and traceability
+relationships. Treat it as the specification.
+
+## Repo layout — under `data/`
+
+```
+data/
+├── config.yaml
+├── generate.py
+├── timeline.py
+├── defects.py
+├── manifest.py
+├── Sources.txt
+├── README.md
+├── schema/
+│   └── <table>.yaml        # one per table, columns from reference dict
+└── runs/
+    └── <scenario_name>/
+        ├── <table>.parquet
+        ├── defects.json
+        └── manifest.json
+```
+
+No framework, no plugin system, no CLI library. Single entry point:
+
+```
+python data/generate.py --config data/config.yaml
+```
+
+Output directory = `data/runs/<config.name>/`.
+
+## Tables
+
+Generate exactly the 13 tables in `data/Sources.txt`, plus:
+
+- `gl_revenue` — grain `(period, account_id, customer_id, item_category)`,
+  columns `recognized_revenue_amt`, `load_date`, `version`
+- `fx_rates` — grain `(currency, period)`, column `rate_to_usd`
+
+Column names, types, nullability, FKs must match the reference
+`data_dictionary.md` for the 13 source tables. `gl_revenue` and `fx_rates`
+are new; design minimally. Do not add other tables.
+
+## data/config.yaml — required structure
+
+```yaml
+name: baseline_run
+seed: 42
+
+timeline:
+  start_month: "2024-01"
+  n_months: 36
+  phases:
+    - {name: growth,  months: 14, driver: customer_adds}
+    - {name: plateau, months: 10, driver: none}
+    - {name: decline, months: 12, driver: churn}
+  seasonality:
+    spring_peak_multiplier: 1.15
+    summer_peak_multiplier: 1.10
+    q4_lift_multiplier: 1.05
+    january_dip_multiplier: 0.85
+
+scale:
+  orders_per_month_base: 30000
+  customers: 2000
+  items: 5000
+  distribution_centers: 12
+  manufacturers: 400
+
+dimension_drift:
+  sku_retirements: 2
+  sku_renames: 2
+  segment_remaps: 2
+  dc_ownership_changes: 1
+
+defects:
+  enabled_from_month: 7
+  toggles:
+    orphaned_item_id: true
+    duplicate_invoice_line: true
+    missing_customer_mapping: true
+    stale_load: true
+    billings_gl_variance: true
+    restatement: true
+    fx_gap: true
+    orphaned_backorder: true
+    phantom_return: true
+  counts_per_type_per_month: 2
+
+reconciliation:
+  billings_gl_tolerance_pct: 0.5
+
+output:
+  format: parquet
+```
+
+Every parameter above must be read from config. Do not hardcode.
+
+## data/timeline.py — behavior
+
+Compute monthly target volumes from `phases` and `seasonality`:
+
+- Growth: base × (1 + 0.02 × month_index) × seasonal multiplier
+- Plateau: base × 1.28 × seasonal multiplier
+- Decline: base × 1.28 × (1 − 0.015 × decline_month_index) × seasonal multiplier
+
+`driver` determines source of volume change:
+- `customer_adds`: new `customers` rows each month
+- `churn`: `customers.customer_status` flips to churned; orders stop
+- `none`: no net adds or churn
+
+Single seeded RNG per run. Same seed + same config = same output.
+
+## Structural invariants (enforce in generation)
+
+- `ar_ledger` has exactly one row per invoice.
+- `(order_id, item_id)` unique in `order_lines`.
+- `shipment_lines.order_line_id` always resolves in clean months.
+- `returns.order_line_id` and `returns.shipment_id` always resolve in clean
+  months.
+- `backorders.order_line_id` always resolves in clean months.
+- Month-end spillover: orders in last 3 days of month ship/invoice in the
+  following month. `order_date` stays in origin month; `invoice_date` moves
+  forward.
+- Returns post 1–2 months after the referenced shipment.
+- Dimension values on transactions snapshotted at transaction time — drift
+  does not rewrite history.
+
+## Clean baseline (months 1–6)
+
+All invariants hold. `defects.json` empty for these months.
+
+## Defect injection (months ≥ `enabled_from_month`)
+
+Read toggles and counts from config. Each injected defect logged to
+`defects.json` with exactly these fields:
+
+```json
+{
+  "defect_id": "D-0001",
+  "type": "orphaned_item_id",
+  "table": "invoice_lines",
+  "row_key": {"invoice_line_id": 847233},
+  "severity": "high",
+  "injected_month": 9,
+  "expected_detection_rule": "VAL_FK_ITEM_EXISTS"
+}
+```
+
+### Defect specs — implement exactly
+
+| Type | What to do | Severity | expected_detection_rule |
+|---|---|---|---|
+| `orphaned_item_id` | Set `item_id` on N random `invoice_lines` rows to an ID not in `items` | high | `VAL_FK_ITEM_EXISTS` |
+| `duplicate_invoice_line` | Duplicate N `invoice_lines` rows with same `invoice_id`, same `item_id`, different `line_total` | medium | `VAL_DUPLICATE_INVOICE_LINE` |
+| `missing_customer_mapping` | Set `customer_id` on N `invoices` to a value not in `customers` | critical | `VAL_FK_CUSTOMER_EXISTS` |
+| `stale_load` | Drop `load_date` refresh for N `gl_revenue` periods | high | `VAL_FRESHNESS_GL` |
+| `billings_gl_variance` | Inflate one month's `gl_revenue.recognized_revenue_amt` by 1.5–3% above billings | high | `VAL_RECON_BILLINGS_GL` |
+| `restatement` | Re-emit an earlier month's `gl_revenue` with `version+1`, new `load_date`, amount ±2–5% different | medium | `VAL_RESTATEMENT_DETECTED` |
+| `fx_gap` | Add a customer whose `currency` is absent from `fx_rates`; put invoices on that customer | high | `VAL_FX_RATE_EXISTS` |
+| `orphaned_backorder` | Create a backorder whose `order_line_id` doesn't exist | high | `VAL_FK_BACKORDER_ORDER_LINE` |
+| `phantom_return` | Create a return with `shipment_id` referencing a shipment not in `shipments` | high | `VAL_FK_RETURN_SHIPMENT` |
+
+Distribute defects: month-end days, source handoff points (order→invoice,
+invoice→AR), and near phase transitions (months 14–15, 24–25). Pick 2–3
+days per month to concentrate defects. Do not scatter uniformly.
+
+## data/manifest.json — required fields
+
+```json
+{
+  "name": "baseline_run",
+  "seed": 42,
+  "generated_at": "<ISO timestamp>",
+  "month_range": ["2024-01", "2026-12"],
+  "tables": {
+    "<table>": {"rows": <int>, "size_bytes": <int>, "sha256": "<hex>"}
+  },
+  "defects_by_type": {"<type>": <count>}
+}
+```
+
+Exclude `generated_at` when comparing manifests across runs.
+
+## Acceptance criteria
+
+- `python data/generate.py --config data/config.yaml` produces
+  `data/runs/<name>/` with all 15 Parquet tables, `defects.json`,
+  `manifest.json`.
+- Months 1–6: zero defect entries.
+- Months 7+: at least `counts_per_type_per_month × n_months × n_enabled_types`
+  entries.
+- Rerunning same config produces byte-identical Parquet and identical
+  manifest except `generated_at`.
+- Changing only `seed` produces different data, same defect counts per type.
+- Changing only `timeline.phases` produces a different monthly volume arc.
+- All structural invariants hold in clean months.
+- Total dataset size < 2 GB.
+- `ar_ledger` row count == `invoices` row count.
+- Every defect `row_key` points to a real row in the named table.
+
+## data/README.md — required sections
+
+1. How to run: `python data/generate.py --config data/config.yaml`
+2. How to create a new scenario: copy `config.yaml`, change `name` and any
+   phase/defect params.
+3. Verification queries: the spot checks listed above.
+4. Scenario examples: 3 example configs (`baseline_run`, `severe_decline`,
+   `churn_spike`) demonstrating that seed and phase configs produce
+   different shapes.
+
+## Out of scope
+
+- No application, UI, API, validation engine, or agent.
+- No reconciliation logic.
+- No forecasting.
+- No tables outside `data/Sources.txt`, `gl_revenue`, `fx_rates`.
+- No plugin system, DI framework, CLI library, or config validation library
+  beyond `pyyaml` and `pandas`/`pyarrow`.
+- No use of the reference sample's actual data or seed.
+
+## Coding discipline
+
+- One module per concern: `timeline`, `defects`, `manifest`, `generate`.
+- Pure functions where possible; pass seeded RNG explicitly.
+- No global state.
+- No silent fallbacks — missing config key fails loudly.
+- Target < 1,500 lines of Python total.
+```

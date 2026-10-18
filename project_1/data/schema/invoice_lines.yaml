@@ -1,0 +1,32 @@
+table: invoice_lines
+columns:
+- name: invoice_line_id
+  type: int64
+  nullable: true
+- name: invoice_id
+  type: int64
+  nullable: true
+- name: item_id
+  type: int64
+  nullable: true
+- name: qty_shipped
+  type: int64
+  nullable: true
+- name: unit_price
+  type: double
+  nullable: true
+- name: line_subtotal
+  type: double
+  nullable: true
+- name: freight_allocated
+  type: double
+  nullable: true
+- name: tax_allocated
+  type: double
+  nullable: true
+- name: discount_allocated
+  type: double
+  nullable: true
+- name: line_total
+  type: double
+  nullable: true
