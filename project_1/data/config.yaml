@@ -3,11 +3,11 @@ seed: 42
 
 timeline:
   start_month: "2024-01"
-  n_months: 36
+  n_months: 60
   phases:
-    - {name: growth,  months: 14, driver: customer_adds}
-    - {name: plateau, months: 10, driver: none}
-    - {name: decline, months: 12, driver: churn}
+    - {name: growth,  months: 24, driver: customer_adds}
+    - {name: plateau, months: 18, driver: none}
+    - {name: decline, months: 18, driver: churn}
   seasonality:
     spring_peak_multiplier: 1.15
     summer_peak_multiplier: 1.10
