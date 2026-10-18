@@ -1,5 +1,10 @@
 **Source tables — 13**
 
+## budget (reference only)
+
+Grain `(period, account_id, item_category, customer_id)`. Reference table for
+budget-vs-actual variance. Not validated, not defect-injected.
+
 | # | Table | Role | Why it's a source |
 |---|---|---|---|
 | 1 | `orders` | Transactional — origin | Revenue cycle starts here. `order_date` sets the period; `order_type`, `ship_via`, `order_status` are segment/filter fields. Header-level anchor for invoice and shipment joins. |

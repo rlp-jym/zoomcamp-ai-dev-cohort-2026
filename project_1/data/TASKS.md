@@ -61,6 +61,14 @@ Project path: `data/` (this project only; reference sample is `data/sample/`).
 - [x] Generate returns (sampled lines).
 - [x] Ensure clean months (1-6) have zero defects (defects not yet implemented).
 
+## 6b. Budget table (`data/budget.py`)
+- [x] Generate `budget` reference table (16th table).
+- [x] Annual base from trailing-12M billings × growth target.
+- [x] Monthly split via seasonality, normalized.
+- [x] Breakdown by (account, category) and top-N customer + NULL remainder.
+- [x] Sum invariant and annual invariant hold.
+- [x] No defects in budget.
+
 ## 6. GL and FX tables (`data/gl_fx.py`)
 - [x] Generate `gl_revenue` at `(period, account_id, item_category)` grain
   with nullable `customer_id` (top-N only); rows derived from
@@ -93,7 +101,7 @@ Project path: `data/` (this project only; reference sample is `data/sample/`).
 
 ## 9. Output writing (`data/output.py`)
 - [x] Create `data/runs/<name>/` directory.
-- [x] Write all 15 Parquet tables (sorted, index=False) with all months.
+- [x] Write all 16 Parquet tables (sorted, index=False) with all months.
 - [x] Write `defects.json`.
 - [x] Write `manifest.json`.
 - [x] Ensure output < 2 GB.

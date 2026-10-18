@@ -24,6 +24,12 @@ scale:
   currencies: 6
   gl_accounts: 3
   item_categories: 5
+  budget_growth_target_by_year:
+    2024: 1.08
+    2025: 1.05
+    2026: 1.05
+    2027: 1.02
+    2028: 1.00
 
 dimension_drift:
   sku_retirements: 2

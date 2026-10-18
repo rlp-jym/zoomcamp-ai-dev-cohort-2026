@@ -38,8 +38,8 @@ for a later Revenue Data Reliability Platform.
   ├── defects.json
   └── manifest.json
   ```
-- Exactly 15 tables: 13 from `data/SOURCES.md` + `gl_revenue` + `fx_rates`.
-  No other tables.
+- Exactly 16 tables: 13 from `data/SOURCES.md` + `gl_revenue` + `fx_rates` + `budget`.
+  `budget` is reference-only (no defects, no validation). No other tables.
 - Column names, types, nullability, FKs must match
   `data/sample/data_dictionary.md` and `data/sample/*.parquet` for the 13
   source tables.

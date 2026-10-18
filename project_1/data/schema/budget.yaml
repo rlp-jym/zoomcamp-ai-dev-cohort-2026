@@ -1,0 +1,26 @@
+table: budget
+columns:
+- name: budget_id
+  type: int64
+  nullable: false
+- name: period
+  type: date32[day]
+  nullable: false
+- name: account_id
+  type: int64
+  nullable: false
+- name: item_category
+  type: int64
+  nullable: false
+- name: customer_id
+  type: int64
+  nullable: true
+- name: budget_revenue_amt
+  type: double
+  nullable: false
+- name: load_date
+  type: date32[day]
+  nullable: false
+- name: version
+  type: int64
+  nullable: false

@@ -23,6 +23,7 @@ TABLE_ORDER = [
     "distribution_centers",
     "manufacturers",
     "gl_revenue",
+    "budget",
     "fx_rates",
 ]
 

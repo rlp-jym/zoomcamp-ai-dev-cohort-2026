@@ -9,8 +9,9 @@ fixtures for the Revenue Data Reliability Platform.
 uv run --project data python data/generate.py --config data/config.yaml
 ```
 
-Output is written to `data/runs/<config.name>/` and contains 15 Parquet tables
-plus `defects.json` and `manifest.json`.
+Output is written to `data/runs/<config.name>/` and contains 16 Parquet tables
+(including `budget`, reference-only, no defects) plus `defects.json` and
+`manifest.json`.
 
 Requirements: Python with `pandas`, `pyarrow`, `pyyaml` (see `data/pyproject.toml`).
 

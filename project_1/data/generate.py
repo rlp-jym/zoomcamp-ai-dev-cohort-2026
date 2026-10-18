@@ -46,8 +46,12 @@ def main() -> None:
 
     from gl_fx import generate_fx_rates, generate_gl_revenue
     gl = generate_gl_revenue(cfg, rng, tx)
+    from budget import generate_budget
+    months = month_list(cfg["timeline"]["start_month"], int(cfg["timeline"]["n_months"]))
+    bud = generate_budget(cfg, rng, tx, dims, gl, months)
     fx = generate_fx_rates(cfg, rng)
     print("gl_revenue", len(gl))
+    print("budget", len(bud))
     print("fx_rates", len(fx))
 
     data = {
@@ -57,6 +61,7 @@ def main() -> None:
         "manufacturers": dims["manufacturers"],
         **tx,
         "gl_revenue": gl,
+        "budget": bud,
         "fx_rates": fx,
     }
 
