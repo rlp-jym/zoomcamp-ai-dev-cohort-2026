@@ -1,9 +1,3 @@
-Locked: budget is reference-only in the generator, L3 CI/CD.
-
-All 10 decisions are closed. Here's `SPEC.md`.
-
----
-
 ```markdown
 # SPEC.md — Revenue Data Reliability Platform
 
@@ -108,6 +102,11 @@ project_1/
 │   │   ├── dq.py
 │   │   ├── fa.py
 │   │   └── controller.py
+│   ├── skills/
+│   │   ├── fa_impact_narrative/SKILL.md
+│   │   ├── de_remediation_explanation/SKILL.md
+│   │   ├── dq_validation_summary/SKILL.md
+│   │   └── controller_triage_note/SKILL.md
 │   └── db/
 ├── data/                # generator + runs (existing)
 ├── infra/               # Docker, Render config
@@ -248,6 +247,42 @@ deterministic Python; LLM is used only for prose.
 - Fallback: template render if key missing or call fails
 - LLM is called for: triage note prose, thread summaries, FA's impact narrative
 - LLM is never called for: numeric calculation, rule execution, action decision
+
+### Skills (LLM prose layer only)
+
+Four skills, one per agent that generates prose. Skills shape *how* a
+message is written; they never shape *what* is computed or *which* action
+is taken.
+
+| Skill | Used by | Shapes |
+|---|---|---|
+| `fa_impact_narrative` | FA | Impact narrative on exception and analysis threads |
+| `de_remediation_explanation` | DE | Explanation accompanying a remediation proposal |
+| `dq_validation_summary` | DQ | Summary posted after a validation run |
+| `controller_triage_note` | Controller | Triage note posted when an alert fires |
+
+Each `SKILL.md` contains:
+
+- Role framing for that agent persona
+- The context fields the deterministic code will pass in (numbers, IDs,
+  period, severity, evidence)
+- Output structure and length
+- Hard constraints: "Use only the provided values. Do not invent numbers.
+  Do not recommend actions outside the versioned playbook."
+
+**Boundary (non-negotiable):**
+
+- Skills are loaded only when an LLM call is made.
+- Skill output is prose only. It does not feed back into rule execution,
+  remediation choice, or any numeric field.
+- If the LLM is unavailable, the template fallback produces equivalent
+  content from the same context object. The `SKILL.md` and the template
+  must stay in sync; a mismatch is a bug.
+- A skill cannot introduce a new remediation step, a new alert type, or a
+  new rule. Those live in `SPEC.md` only.
+
+**Loader:** one function `load_skill(name) -> str` reads
+`backend/skills/<name>/SKILL.md`. No framework, no registry.
 
 ### Playbook (DE, bounded)
 
@@ -390,4 +425,6 @@ If listed here, do not build it.
 - Prompt engineering framework or agent chain library
 - Custom ML models
 - WebSocket live updates (HTMX polling is sufficient)
+- Skills that compute or decide anything (skills are prose-only)
+- Skill framework, registry, or discovery beyond `load_skill(name)`
 ```
