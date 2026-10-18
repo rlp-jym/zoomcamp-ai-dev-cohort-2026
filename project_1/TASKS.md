@@ -1,0 +1,233 @@
+# TASKS.md — Revenue Data Reliability Platform
+
+Project path: repository root (`project_1/`). Tracks the application build
+against `SPECS.md` (locked). Check boxes as work completes. Do not build
+anything listed in `SPECS.md §20 (Explicit non-goals)`.
+
+## 0. Prerequisites before build (`SPECS.md §19`)
+- [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
+- [ ] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
+- [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
+- [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
+- [ ] Root `README.md` updated with project overview + link to `SPECS.md`.
+
+## 1. Repository scaffolding
+- [ ] Create directory structure from `SPECS.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
+- [ ] Add `backend/__init__.py` and package layout (or flat modules) per locked layout.
+- [ ] Add `.env.example` listing `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`.
+- [ ] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
+- [ ] Configure lint/format (ruff) and pytest.
+- [ ] Add `backend/main.py` application entry point.
+
+## 2. Database schema and seed data
+- [ ] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.
+- [ ] Define columns, PKs, FKs, and indexes for discussion threads and trace lookup.
+- [ ] Add `backend/db/seed.py` to seed 8 personas (`analyst`, `manager`, `director`, `orchestrator`, `de`, `dq`, `fa`, `controller`).
+- [ ] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`.
+- [ ] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
+- [ ] Apply schema on boot; run seeds idempotently.
+- [ ] Implement backfill: if `scenarios` empty, trigger GitHub Action to generate `baseline_run` (seed=9) and wait for webhook.
+
+## 3. Storage (R2 + DuckDB)
+- [ ] Implement R2 client (boto3, S3-compatible) from env.
+- [ ] Implement DuckDB connection with `httpfs` for reading Parquet from R2.
+- [ ] Implement scenario bundle path convention `scenarios/<name>/`.
+- [ ] Implement SHA-256 manifest verification helper.
+- [ ] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`.
+
+## 4. Backend foundation
+- [ ] FastAPI app factory with routers mounted.
+- [ ] Settings/env loading (pydantic or simple) with validation.
+- [ ] Persona selection via header dropdown (cookie or header `X-Persona`); no auth.
+- [ ] Jinja2 templates + static files wiring.
+- [ ] HTMX-friendly partial responses.
+- [ ] Global error handling and structured logging.
+- [ ] Health/readiness endpoint.
+
+## 5. Observability (OTEL)
+- [ ] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB.
+- [ ] Implement custom Postgres exporter batching to `otel_spans`, `otel_logs`, `otel_metrics`.
+- [ ] Propagate `trace_id` into app state and agent actions.
+- [ ] No PII/credentials in telemetry.
+- [ ] Retention job deleting spans/logs older than 30 days (APScheduler).
+- [ ] `/observability` route rendering trace list + span tree + linked logs.
+
+## 6. Scheduler
+- [ ] Integrate APScheduler in-process.
+- [ ] Register Controller verification job (every N minutes).
+- [ ] Register OTEL retention job.
+- [ ] Ensure scheduler starts/stops with app lifecycle.
+
+## 7. Scenarios and scenario creation flow
+- [ ] Scenario CRUD service and repository (raw SQL).
+- [ ] `/scenarios` route: list + "New Scenario" button (Analyst only).
+- [ ] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
+- [ ] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
+- [ ] Store manifest, file hashes, and scenario metadata.
+- [ ] Display scenario list with status.
+
+## 8. Runs and pipeline orchestration
+- [ ] Run CRUD service and repository.
+- [ ] `/runs` and `/runs/{id}` routes (Analyst, Manager).
+- [ ] Run detail thread and approve/reject actions.
+- [ ] Orchestrator service: posts "run started", runs pipeline, posts finish.
+- [ ] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
+- [ ] Run status tracking and trace correlation.
+
+## 9. Validation rules (11)
+- [ ] Implement rule loader from `rules` table.
+- [ ] Implement DuckDB SQL execution over Parquet.
+- [ ] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
+- [ ] `VAL_DUPLICATE_INVOICE_LINE` (duplicate_invoice_line).
+- [ ] `VAL_FK_CUSTOMER_EXISTS` (missing_customer_mapping).
+- [ ] `VAL_FRESHNESS_GL` (stale_load).
+- [ ] `VAL_RECON_BILLINGS_GL` (billings_gl_variance).
+- [ ] `VAL_RESTATEMENT_DETECTED` (restatement).
+- [ ] `VAL_FX_RATE_EXISTS` (fx_gap).
+- [ ] `VAL_FK_BACKORDER_ORDER_LINE` (orphaned_backorder).
+- [ ] `VAL_FK_RETURN_SHIPMENT` (phantom_return).
+- [ ] `VAL_AR_INVOICE_1TO1` (invariant).
+- [ ] `VAL_ORDER_LINE_UNIQUE` (invariant).
+- [ ] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON).
+- [ ] DQ posts validation summary to run thread.
+
+## 10. Reconciliation
+- [ ] Implement reconciliation at grain `(run_id, period, account_id, item_category)` + top-N customers.
+- [ ] Billings from `invoice_lines`, GL from `gl_revenue`.
+- [ ] Variance % = (billings − gl) / gl.
+- [ ] Status pass/fail by tolerance.
+- [ ] Materiality threshold from config.
+- [ ] Store in `reconciliations`.
+- [ ] Create exceptions for material gaps.
+
+## 11. Exceptions
+- [ ] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
+- [ ] Fields: `exception_id`, `run_id`, `type`, `severity`, `period`, `title`, `status`, `trace_id`.
+- [ ] Status flow: open → in_discussion → remediation_proposed → approved → resolved.
+- [ ] `/exceptions` queue route.
+- [ ] `/exceptions/{id}` detail + thread route.
+- [ ] Exception creation from failed rules and material recon gaps.
+
+## 12. Discussion model
+- [ ] `discussions` and `messages` tables with anchor types `run`, `exception`, `analysis`.
+- [ ] Ordered messages with `persona_id`, `trace_id`, optional `evidence` JSON.
+- [ ] Single reusable thread UI component (template partial).
+- [ ] Post message endpoint (human + agent).
+- [ ] Agent posts visually distinguished (badge, muted background).
+- [ ] Analysis thread creation from dashboard KPI cards.
+
+## 13. Agent team
+- [ ] Base agent helpers: logging to `agent_actions`, trace correlation.
+- [ ] LLM client: Groq primary (`GROQ_API_KEY`), template fallback on missing key/failure.
+- [ ] Skill loader `load_skill(name) -> str` reading `backend/skills/<name>/SKILL.md`.
+- [ ] Orchestrator agent: run pipeline; read-only on data.
+- [ ] DQ agent: execute rules; post validation results.
+- [ ] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
+- [ ] FA agent: financial impact; may open analysis threads.
+- [ ] Controller agent: verification findings; read-only published state.
+- [ ] Approval gates: go-live, remediation, critical escalation.
+
+## 14. Skills (LLM prose layer)
+- [ ] Create `backend/skills/fa_impact_narrative/SKILL.md`.
+- [ ] Create `backend/skills/de_remediation_explanation/SKILL.md`.
+- [ ] Create `backend/skills/dq_validation_summary/SKILL.md`.
+- [ ] Create `backend/skills/controller_triage_note/SKILL.md`.
+- [ ] Each SKILL.md: role framing, context fields, output structure/length, hard constraints.
+- [ ] Template fallbacks equivalent to skill output from same context.
+
+## 15. DE playbook
+- [ ] Re-run same pipeline for affected month.
+- [ ] Quarantine N records with reason code.
+- [ ] Reload FX rates from source (if applicable).
+- [ ] Open issue-style note on exception.
+- [ ] Escalate to Manager.
+- [ ] Each step logged as one `agent_actions` row.
+
+## 16. Alerting (6 types)
+- [ ] `STALE_PUBLISHED` (high).
+- [ ] `SOURCE_HASH_MISMATCH` (critical).
+- [ ] `AUDIT_ROW_MISSING` (high).
+- [ ] `THREAD_ANCHOR_ORPHANED` (medium).
+- [ ] `PUBLISHED_RECORD_FAILS_REVALIDATION` (critical).
+- [ ] `RECON_DRIFT` (critical).
+- [ ] Dedup by `(alert_type, anchor_id)` in 1-hour window.
+- [ ] Destinations: `alerts` row + Controller message on anchor thread + dashboard badge.
+- [ ] Critical alerts escalate to Director via thread message.
+
+## 17. Publication and quarantine
+- [ ] Manager approves go-live in run thread → create `publication` row.
+- [ ] Set published pointer.
+- [ ] Quarantine overlay model (`quarantines`).
+- [ ] Manager approves remediation in exception thread → DE executes → logs `agent_actions`.
+- [ ] Published data derived at query time with quarantine filter.
+
+## 18. Controller continuous verification
+- [ ] Verify published state on schedule.
+- [ ] Detect stale published (SLA).
+- [ ] Source hash mismatch check.
+- [ ] Audit row missing check.
+- [ ] Thread anchor orphaned check.
+- [ ] Sample revalidation of published records.
+- [ ] Post-publication recon drift check.
+- [ ] Open alerts and post to anchored threads; escalate critical.
+
+## 19. Frontend routes and templates
+- [ ] `/` Dashboard with KPI cards + inline analysis threads (all personas).
+- [ ] `/exceptions` queue (all).
+- [ ] `/exceptions/{id}` detail + thread (all).
+- [ ] `/runs` history (Analyst, Manager).
+- [ ] `/runs/{id}` detail + thread + approve/reject (Analyst, Manager).
+- [ ] `/scenarios` list + New Scenario (Analyst).
+- [ ] `/audit` agent_actions/approvals/publications filter by trace_id (Manager, Director).
+- [ ] `/observability` trace list + span tree + logs (all).
+- [ ] Persona selector in header on every page.
+- [ ] Base layout, HTMX partials, static CSS.
+
+## 20. Audit and compliance
+- [ ] `/audit` query filters by trace_id.
+- [ ] Ensure every agent action has `agent_actions` row and shared `trace_id`.
+- [ ] Display approvals and publications.
+
+## 21. CI/CD (Level 3)
+- [ ] `.github/workflows/test.yml`: lint, unit, integration on PRs and pushes.
+- [ ] `.github/workflows/deploy-staging.yml`: push to `staging`.
+- [ ] `.github/workflows/deploy-prod.yml`: push to `main` with manual approval via GitHub Environments.
+- [ ] `.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.
+- [ ] Integration tests use Postgres service container.
+- [ ] `main` requires green tests + manual approval.
+
+## 22. Infra and deployment
+- [ ] `infra/Dockerfile`.
+- [ ] `infra/render.yaml` (or Render config) for staging/prod services.
+- [ ] Neon DB setup docs (staging/prod DBs).
+- [ ] R2 bucket/prefix and lifecycle policy docs.
+- [ ] Secrets documentation.
+
+## 23. Testing
+- [ ] Unit tests for validation rules SQL.
+- [ ] Unit tests for reconciliation math.
+- [ ] Unit tests for agent deterministic computations.
+- [ ] Integration tests for routes with Postgres.
+- [ ] Integration test for pipeline happy path.
+- [ ] Test template fallback when LLM unavailable.
+
+## 24. Documentation
+- [ ] Update root `README.md`.
+- [ ] Ensure `definitions.md` present.
+- [ ] Document OTEL deviation (no external Grafana).
+- [ ] Document persona switch and demo flow.
+
+## 25. Success criteria verification (`SPECS.md §18`)
+- [ ] Reviewer sees populated dashboard with `baseline_run` published.
+- [ ] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
+- [ ] Persona selection + posting in thread works.
+- [ ] Analyst triggers "New Scenario"; appears in `/scenarios`.
+- [ ] Analyst "Run Pipeline"; thread shows Orchestrator, DQ, DE, FA posts.
+- [ ] Manager approves in run thread; published pointer updates.
+- [ ] Controller alert fires on documented trigger.
+- [ ] `/observability` shows trace spanning web request → pipeline → agent action.
+- [ ] CI runs tests on PR; `main` requires approval.
+- [ ] Every agent action has `agent_actions` row and shared `trace_id`.
+
+## Non-goals guardrail
+Do not implement anything in `SPECS.md §20`. If unsure, add to non-goals first.
