@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Scenario {{ scenario.title }}{% endblock %}
+{% block content %}
+{% if not scenario %}
+<p class="empty">Scenario not found.</p>
+<p><a class="btn" href="/scenarios">Back to scenarios</a></p>
+{% else %}
+<h1>Scenario #{{ scenario.scenario_id }}</h1>
+<dl class="meta">
+  <dt>Title</dt><dd>{{ scenario.title }}</dd>
+  <dt>Baseline Run</dt><dd>{{ scenario.baseline_run }}</dd>
+</dl>
+<h2>Outcome / Projection</h2>
+<p class="evidence">{{ scenario.outcome }}</p>
+<h2>Assessment</h2>
+<p>{{ scenario.assessment }}</p>
+
+<h2>Thread</h2>
+{% set anchor_type = "analysis" %}
+{% set anchor_id = scenario.scenario_id %}
+{% set messages = messages %}
+{% include "partials/thread.html" %}
+
+<h3>Post a message</h3>
+<form method="post" action="/threads/analysis/{{ scenario.scenario_id }}/messages" style="max-width:40rem;">
+  <label>Message <textarea name="content" rows="3" style="width:100%; margin:0.25rem 0;" required></textarea></label>
+  <button class="btn" type="submit">Post</button>
+</form>
+<p><a class="btn" href="/scenarios">Back to scenarios</a></p>
+{% endif %}
+{% endblock %}

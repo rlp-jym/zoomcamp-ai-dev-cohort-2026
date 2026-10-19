@@ -277,9 +277,32 @@ async def run_detail(request: Request, run_id: int):
 
 @router.get("/scenarios")
 async def scenarios(request: Request):
-    scen_svc.ensure_baseline_registered()
     return templates.TemplateResponse(
-        request, "scenarios.html", _ctx(request, scenarios=scen_svc.list_scenarios())
+        request, "scenarios.html", _ctx(request, scenarios=scen_svc.list_analysis_scenarios())
+    )
+
+
+@router.post("/scenarios/create")
+async def create_analysis_scenario(request: Request):
+    form = await request.form()
+    title = form.get("title")
+    outcome = form.get("outcome")
+    assessment = form.get("assessment")
+    baseline_run = form.get("baseline_run") or "baseline_run"
+    sid = scen_svc.create_analysis_scenario(title, outcome, assessment, baseline_run)
+    return RedirectResponse(url=f"/scenarios/{sid}", status_code=303)
+
+
+@router.get("/scenarios/{scenario_id}")
+async def scenario_detail(request: Request, scenario_id: int):
+    s = scen_svc.get_analysis_scenario(scenario_id)
+    if not s:
+        return templates.TemplateResponse(
+            request, "scenario_detail.html", _ctx(request, scenario=None, messages=[])
+        )
+    msgs = messages.get_messages("analysis", str(scenario_id))
+    return templates.TemplateResponse(
+        request, "scenario_detail.html", _ctx(request, scenario=s, messages=msgs)
     )
 
 

@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS scenarios (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS analysis_scenarios (
+    scenario_id   SERIAL PRIMARY KEY,
+    title         TEXT NOT NULL,
+    outcome       TEXT,
+    assessment    TEXT,
+    baseline_run  TEXT NOT NULL DEFAULT 'baseline_run',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id               SERIAL PRIMARY KEY,
     scenario_name        TEXT REFERENCES scenarios(name) ON DELETE SET NULL,

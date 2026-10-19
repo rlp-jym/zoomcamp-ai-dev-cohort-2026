@@ -2,26 +2,30 @@
 {% block title %}Scenarios{% endblock %}
 {% block content %}
 <h1>Scenarios</h1>
-<p class="page-description">Data scenarios available for pipeline runs — select a scenario to trigger a new validation and reconciliation run.</p>
+<p class="page-description">Sensitivity analysis — explore "what if" scenarios based on the latest published data. Each scenario has an outcome, assessment, and discussion thread.</p>
+
 <table class="table">
   <thead>
-    <tr><th>Name</th><th>Status</th><th>Tables</th><th>Seed</th><th>Created</th><th>Action</th></tr>
+    <tr><th>Title</th><th>Baseline Run</th><th>Outcome</th><th>Assessment</th><th></th></tr>
   </thead>
   <tbody>
     {% for s in scenarios %}
     <tr>
-      <td>{{ s.name }}</td>
-      <td>{{ s.status }}</td>
-      <td>{{ s.tables }}</td>
-      <td>{{ s.seed }}</td>
-      <td>{{ s.created_at }}</td>
-      <td>
-        <form method="post" action="/scenarios/{{ s.name }}/run">
-          <button class="btn" type="submit">Run Pipeline</button>
-        </form>
-      </td>
+      <td>{{ s.title }}</td>
+      <td>{{ s.baseline_run }}</td>
+      <td>{{ s.outcome }}</td>
+      <td>{{ s.assessment }}</td>
+      <td><a class="btn" href="/scenarios/{{ s.scenario_id }}">View</a></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<h2 style="margin-top:1.5rem;">New Scenario</h2>
+<form method="post" action="/scenarios/create" style="max-width:40rem;">
+  <label>Title <input type="text" name="title" required style="width:100%; margin:0.25rem 0 0.75rem;"></label>
+  <label>Outcome / Projection <input type="text" name="outcome" placeholder="e.g., Revenue drops 5% if EMEA stays flat" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
+  <label>Assessment <textarea name="assessment" rows="3" style="width:100%; margin:0.25rem 0 0.75rem;"></textarea></label>
+  <button class="btn" type="submit">Create Scenario</button>
+</form>
 {% endblock %}

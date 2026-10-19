@@ -36,6 +36,57 @@ def list_scenarios():
     return out
 
 
+def list_analysis_scenarios():
+    rows = fetch_all(
+        "SELECT s.scenario_id, s.title, s.outcome, s.assessment, "
+        "s.baseline_run, s.created_at "
+        "FROM analysis_scenarios s ORDER BY s.created_at DESC"
+    )
+    out = []
+    for r in rows:
+        out.append(
+            {
+                "scenario_id": str(r["scenario_id"]),
+                "title": r["title"],
+                "outcome": r["outcome"] or "",
+                "assessment": r["assessment"] or "",
+                "baseline_run": r["baseline_run"],
+                "created_at": _fmt_dt(r["created_at"]),
+            }
+        )
+    return out
+
+
+def create_analysis_scenario(title, outcome, assessment, baseline_run):
+    row = fetch_one(
+        """
+        INSERT INTO analysis_scenarios (title, outcome, assessment, baseline_run)
+        VALUES (%s, %s, %s, %s)
+        RETURNING scenario_id
+        """,
+        (title, outcome, assessment, baseline_run),
+    )
+    return str(row["scenario_id"])
+
+
+def get_analysis_scenario(scenario_id):
+    r = fetch_one(
+        "SELECT scenario_id, title, outcome, assessment, baseline_run, created_at "
+        "FROM analysis_scenarios WHERE scenario_id = %s",
+        (scenario_id,),
+    )
+    if not r:
+        return None
+    return {
+        "scenario_id": str(r["scenario_id"]),
+        "title": r["title"],
+        "outcome": r["outcome"],
+        "assessment": r["assessment"],
+        "baseline_run": r["baseline_run"],
+        "created_at": _fmt_dt(r["created_at"]),
+    }
+
+
 def get_scenario(name):
     r = fetch_one(
         "SELECT name, status, seed, table_count, manifest, file_hashes, created_at "
