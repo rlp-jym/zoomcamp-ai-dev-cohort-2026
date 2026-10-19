@@ -10,6 +10,24 @@
   <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
   <dt>Title</dt><dd>{{ exception.title }}</dd>
 </dl>
+
+{% if persona.id == "manager" and exception.status != "resolved" %}
+<form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
+  <button class="btn" type="submit">Approve</button>
+</form>
+{% endif %}
+{% if persona.id == "de" and exception.status != "resolved" %}
+<form method="post" action="/exceptions/{{ exception.id }}/quarantine" style="margin:1rem 0;">
+  <button class="btn" type="submit">Quarantine</button>
+</form>
+{% endif %}
+
+<h2>Thread</h2>
+{% set anchor_type = anchor_type %}
+{% set anchor_id = anchor_id %}
+{% set messages = messages %}
+{% include "partials/thread.html" %}
+
 {% if exception.type == 'reconciliation' %}
 <h2>Reconciliation Rows</h2>
 {% if reconciliation_rows %}
@@ -38,16 +56,7 @@
 <h2>Sampled Failures</h2>
 <pre class="evidence">{{ sampled_failures | tojson(indent=2) }}</pre>
 {% endif %}
-{% if persona.id == "manager" and exception.status != "resolved" %}
-<form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
-  <button class="btn" type="submit">Approve</button>
-</form>
-{% endif %}
-{% if persona.id == "de" and exception.status != "resolved" %}
-<form method="post" action="/exceptions/{{ exception.id }}/quarantine" style="margin:1rem 0;">
-  <button class="btn" type="submit">Quarantine</button>
-</form>
-{% endif %}
+
 <h2>Quarantine Records</h2>
 {% if quarantines %}
 <table class="table">
@@ -75,9 +84,4 @@
 {% else %}
 <p class="empty">No quarantined records for this exception.</p>
 {% endif %}
-<h2>Thread</h2>
-{% set anchor_type = anchor_type %}
-{% set anchor_id = anchor_id %}
-{% set messages = messages %}
-{% include "partials/thread.html" %}
 {% endblock %}
