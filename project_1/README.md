@@ -1,10 +1,17 @@
 # Revenue Data Reliability Platform
 
-## Synthetic data generator
+## Problem Statement
+A platform that ingests synthetic B2B-distribution revenue data, validates it,
+reconciles billings to GL, and surfaces exceptions via a team of AI agents and
+human discussion.
 
-Hypothetical test fixtures live under `data/`. They are not part of the application itself.
+## Current Status
+Frontend skeleton complete with stub data; backend and database wiring in progress.
 
-- Run: `uv run --project data python data/generate.py --config data/config.yaml`
-  (or double-click `run_generator.bat` and enter a seed)
-- Output: `data/runs/<name>/` — 16 Parquet tables (incl. `budget`) + `defects.json` + `manifest.json`
-- See `data/README.md` for full usage, scenarios, and verification queries.
+## How to Run (Local)
+`uvicorn backend.main:app --reload`
+
+## Documentation Links
+- Architecture & Scope: `SPEC.md`
+- Metric Definitions & KPI Rationale: `definitions.md`
+- Build Roadmap: `TASKS.md`
