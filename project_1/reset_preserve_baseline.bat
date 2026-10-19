@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 
 echo WARNING: This will truncate non-baseline app data.
-echo Preserved: personas, rules, scenarios (including baseline_run), baseline runs/publications, and baseline fixture rows.
+echo Preserved: personas, rules, scenarios (including baseline_run), baseline runs/publications.
 set /p CONFIRM=Type YES to continue: 
 if /I not "%CONFIRM%"=="YES" (
     echo Aborted.
@@ -12,7 +12,21 @@ if /I not "%CONFIRM%"=="YES" (
 
 call stop_app.bat
 
-.venv\Scripts\python.exe -c "import os; from dotenv import load_dotenv; load_dotenv(); import psycopg; c=psycopg.connect(os.getenv('DATABASE_URL')); cur=c.cursor(); cur.execute(\"TRUNCATE TABLE validations, reconciliations, exceptions, quarantines, approvals, alerts, agent_actions, otel_spans, otel_logs, otel_metrics, dashboard_cache CASCADE; DELETE FROM messages WHERE discussion_id NOT IN (SELECT discussion_id FROM discussions d JOIN runs r ON r.run_id::text=d.anchor_id WHERE d.anchor_type='run' AND r.scenario_name='baseline_run'); DELETE FROM discussions WHERE anchor_type='run' AND anchor_id NOT IN (SELECT run_id::text FROM runs WHERE scenario_name='baseline_run'); DELETE FROM runs WHERE scenario_name <> 'baseline_run'; DELETE FROM publications WHERE run_id NOT IN (SELECT run_id FROM runs WHERE scenario_name='baseline_run');\"); c.commit(); cur.close(); c.close(); print('Reset complete (baseline preserved).')"
+.venv\Scripts\python.exe -c "
+import os
+from dotenv import load_dotenv
+load_dotenv()
+from backend.db import init_pool, execute, fetch_all
+init_pool()
+execute('TRUNCATE TABLE validations, reconciliations, exceptions, quarantines, approvals, alerts, agent_actions, otel_spans, otel_logs, otel_metrics, dashboard_cache CASCADE')
+execute(\"DELETE FROM messages WHERE discussion_id NOT IN (SELECT discussion_id FROM discussions d JOIN runs r ON r.run_id::text=d.anchor_id WHERE d.anchor_type='run' AND r.scenario_name='baseline_run')\")
+execute(\"DELETE FROM discussions WHERE anchor_type='run' AND anchor_id NOT IN (SELECT run_id::text FROM runs WHERE scenario_name='baseline_run')\")
+execute(\"DELETE FROM runs WHERE scenario_name <> 'baseline_run'\")
+execute(\"DELETE FROM publications WHERE run_id NOT IN (SELECT run_id FROM runs WHERE scenario_name='baseline_run')\")
+execute(\"DELETE FROM scenarios WHERE name <> 'baseline_run'\")
+print('done')
+"
+
 if errorlevel 1 (
     echo DB reset failed.
     pause
