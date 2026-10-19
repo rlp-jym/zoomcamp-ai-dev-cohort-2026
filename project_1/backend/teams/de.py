@@ -113,7 +113,9 @@ class DEAgent(BaseAgent):
         This is a bounded-write stub: no actual data is deleted or quarantined.
         Each call logs exactly one agent_actions row with a step description.
         """
-        exc_id = exc["exception_id"]
+        exc_id = exc.get("exception_id", exc.get("id"))
+        if exc_id is None:
+            raise ValueError("Exception dict is missing an id.")
         details = exc.get("details") or {}
         count = details.get("count", 0) if isinstance(details, dict) else 0
 
