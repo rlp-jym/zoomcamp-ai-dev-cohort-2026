@@ -69,9 +69,15 @@ async def dashboard_refresh(request: Request):
 
 
 @router.get("/exceptions")
-async def exceptions_list(request: Request):
+async def exceptions_list(request: Request, status: str | None = None):
     return templates.TemplateResponse(
-        request, "exceptions_list.html", _ctx(request, exceptions=exc_svc.list_exceptions())
+        request,
+        "exceptions_list.html",
+        _ctx(request,
+             exceptions=exc_svc.list_exceptions(status),
+             status_filter=status or "open",
+             counts=exc_svc.exception_counts(),
+             trend=exc_svc.exception_trend()),
     )
 
 

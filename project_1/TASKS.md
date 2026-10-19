@@ -311,7 +311,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Discussion upsert collapsed to one `INSERT ... ON CONFLICT ... RETURNING`.
 - [x] DE and FA message loops run concurrently.
 - [ ] Reduce per-run wall time further (currently ~286s for `baseline_run`; dominated by remote DB round-trip latency).
-- [ ] Validation exception volume (334 for `baseline_run`) — consider rule-level grouping or a per-run time budget.
+- [x] Exception lifecycle: only the latest data period stays `open`; earlier periods are inserted as `resolved` (auto-closed within period) so the list is a pending work queue. Validation and recon both honour this.
+- [x] `/exceptions` filters by status (default `open`) with counts; trend chart (detected / resolved / open backlog / cumulative-if-unresolved) on the page.
+- [ ] Dashboard's `open_exceptions` series removed (it grouped by `created_at` and mismatched month labels); current open count remains a KPI.
 - [ ] Reset should also delete anchor discussions for removed exceptions/analysis (currently leaves orphan threads).
 
 ## Non-goals guardrail

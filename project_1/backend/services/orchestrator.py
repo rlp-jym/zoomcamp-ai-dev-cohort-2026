@@ -5,14 +5,15 @@ import time
 import uuid
 from datetime import datetime
 
-from backend.db.connection import execute, execute_many
+from backend.config import settings
+from backend.db.connection import execute, execute_many, fetch_one
 from backend.services import dq as dq_svc
 from backend.services import messages as msg_svc
 from backend.services import reconciliations as recon_svc
 from backend.services import runs as runs_svc
 from backend.services import stub_data
 from backend.services import validations as val_svc
-from backend.storage.duckdb_client import open_connection
+from backend.storage.duckdb_client import open_connection, query_dicts_on
 from backend.teams.de import DEAgent
 from backend.teams.fa import FAAgent
 
@@ -38,8 +39,40 @@ def _log_action(agent_id, action, anchor_type, anchor_id, trace_id, payload=None
     )
 
 
-def _create_rule_exceptions(run_id, result, trace_id):
-    """Create one exception per affected period (month) for a failed rule."""
+def _period_key(value):
+    """Normalize a period value to a 'YYYY-MM' key when possible."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if len(s) >= 7 and s[4] == "-":
+        return s[:7]
+    return s
+
+
+def _latest_data_period(conn, scenario_name):
+    """Return the latest period present in the GL revenue data."""
+    try:
+        rows = query_dicts_on(
+            conn,
+            f"SELECT MAX(period) AS period "
+            f"FROM read_parquet('s3://{settings.r2_bucket}/scenarios/{scenario_name}/gl_revenue.parquet') "
+            f"WHERE version = 1",
+        )
+        if rows and rows[0].get("period") is not None:
+            return _period_key(rows[0]["period"])
+    except Exception:
+        pass
+    return None
+
+
+def _create_rule_exceptions(run_id, result, trace_id, latest_period=None):
+    """Create one exception per affected period (month) for a failed rule.
+
+    Only the current (latest) period stays 'open'; earlier periods are
+    inserted as 'resolved' with details.auto_resolved=true so the
+    exceptions list stays a pending work queue while the historical
+    record remains available for trend analysis.
+    """
     if result["status"] == "pass":
         return 0
 
@@ -59,6 +92,13 @@ def _create_rule_exceptions(run_id, result, trace_id):
             title = f"{base_title} ({count} record(s) in {period})"
         else:
             title = f"{base_title} ({count} record(s))"
+        p_key = _period_key(period)
+        is_current = (p_key is None) or (latest_period is None) or (p_key == latest_period)
+        status = "open" if is_current else "resolved"
+        details = {"count": count, "sample": rows[:5]}
+        if status == "resolved":
+            details["auto_resolved"] = True
+            details["resolution"] = "closed within period"
         params.append(
             (
                 run_id,
@@ -66,10 +106,10 @@ def _create_rule_exceptions(run_id, result, trace_id):
                 severity,
                 str(period) if period else None,
                 title,
-                "open",
+                status,
                 trace_id,
                 rule_id,
-                json.dumps({"count": count, "sample": rows[:5]}, default=str),
+                json.dumps(details, default=str),
             )
         )
 
@@ -114,6 +154,7 @@ def run_pipeline(run_id):
     validations_total = 0
     validations_failed = 0
     exceptions_created = 0
+    open_exceptions = 0
 
     execute(
         "DELETE FROM exceptions WHERE run_id = %s AND type IN ('validation', 'reconciliation')",
@@ -123,16 +164,20 @@ def run_pipeline(run_id):
     try:
         conn = open_connection()
         try:
+            latest_period = _latest_data_period(conn, scenario_name)
             results = val_svc.execute_all_rules(conn, run_id, scenario_name)
-            recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id)
+            recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id, latest_period)
         finally:
             conn.close()
 
         validations_total = len(results)
         validations_failed = sum(1 for r in results if r["status"] != "pass")
         for result in results:
-            exceptions_created += _create_rule_exceptions(run_id, result, trace_id)
+            exceptions_created += _create_rule_exceptions(run_id, result, trace_id, latest_period)
         exceptions_created += recon["exceptions_created"]
+
+        row = fetch_one("SELECT COUNT(*) AS c FROM exceptions WHERE run_id = %s AND status = 'open'", (run_id,))
+        open_exceptions = row["c"] if row else 0
 
         dq_svc.post_validation_summary(run_id, results, recon, trace_id)
 
@@ -167,7 +212,8 @@ def run_pipeline(run_id):
             anchor_id,
             _persona("orchestrator"),
             f"Run finished: {validations_total} validation(s) executed, {validations_failed} failed, "
-            f"{exceptions_created} exception(s) created. "
+            f"{exceptions_created} exception(s) recorded ({open_exceptions} open, "
+            f"{exceptions_created - open_exceptions} auto-closed). "
             f"Reconciliation: {recon['rows']} rows, {recon['failed']} above tolerance.",
             trace_id=trace_id,
         )
@@ -181,6 +227,7 @@ def run_pipeline(run_id):
                 "validations_total": validations_total,
                 "validations_failed": validations_failed,
                 "exceptions_created": exceptions_created,
+                "open_exceptions": open_exceptions,
                 "reconciliation": recon,
             },
         )

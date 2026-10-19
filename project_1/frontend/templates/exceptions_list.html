@@ -1,7 +1,43 @@
 {% extends "base.html" %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
 {% block title %}Exceptions{% endblock %}
 {% block content %}
 <h1>Exceptions</h1>
+
+<div class="tab-row" style="margin-bottom:1rem;">
+  <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open">Open ({{ counts.open }})</a>
+  <a class="btn {% if status_filter == 'resolved' %}btn-active{% endif %}" href="/exceptions?status=resolved">Resolved ({{ counts.resolved }})</a>
+  <a class="btn {% if status_filter == 'all' %}btn-active{% endif %}" href="/exceptions?status=all">All ({{ counts.total }})</a>
+</div>
+
+{% if trend.labels %}
+<div class="chart-card" style="margin-bottom:1.5rem;">
+  <h2>Exception Trend (latest run #{{ trend.run_id }})</h2>
+  <canvas id="exceptionTrendChart" height="160"></canvas>
+</div>
+<script>
+  (function () {
+    const t = {{ trend | tojson }};
+    if (!t || !t.labels || !t.labels.length) return;
+    new Chart(document.getElementById("exceptionTrendChart"), {
+      type: "bar",
+      data: {
+        labels: t.labels,
+        datasets: [
+          { label: "Detected", data: t.detected, backgroundColor: "rgba(31,42,68,0.55)", order: 2 },
+          { label: "Resolved (closed in period)", data: t.resolved, type: "line", borderColor: "#1a7f37", tension: 0.3, order: 1, fill: false },
+          { label: "Open backlog", data: t.open, type: "line", borderColor: "#cf222e", tension: 0.3, order: 1, fill: false },
+          { label: "Cumulative if never resolved", data: t.cumulative, type: "line", borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, order: 0, fill: false }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    });
+  })();
+</script>
+{% endif %}
+
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Type</th><th>Severity</th><th>Period</th><th>Title</th><th>Status</th><th>Trace</th></tr>
@@ -17,6 +53,8 @@
       <td>{{ e.status }}</td>
       <td>{{ e.trace_id }}</td>
     </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No exceptions in this view.</td></tr>
     {% endfor %}
   </tbody>
 </table>

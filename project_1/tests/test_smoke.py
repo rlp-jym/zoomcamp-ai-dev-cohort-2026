@@ -31,3 +31,53 @@ def test_htmx_post_message():
     r = c.post("/threads/analysis/kpi-revenue/messages", data={"content": "smoke msg"})
     assert r.status_code == 200
     assert "smoke msg" in r.text
+
+
+def test_exceptions_status_filter_and_trend():
+    from backend.db import init_pool, fetch_one
+    from backend.services import exceptions as exc_svc
+
+    init_pool()
+    run = fetch_one("SELECT run_id FROM runs ORDER BY run_id DESC LIMIT 1")
+    assert run is not None
+    run_id = run["run_id"]
+
+    # Insert a controlled set of exceptions for this run.
+    from backend.db.connection import execute
+
+    execute(
+        "DELETE FROM exceptions WHERE run_id = %s AND trace_id = 'test-lifecycle'",
+        (run_id,),
+    )
+    execute(
+        """
+        INSERT INTO exceptions (run_id, type, severity, period, title, status, trace_id)
+        VALUES (%s, 'validation', 'high', '2024-01', 'Old issue', 'resolved', 'test-lifecycle'),
+               (%s, 'validation', 'critical', '2024-02', 'Old issue 2', 'resolved', 'test-lifecycle'),
+               (%s, 'validation', 'medium', '2028-12', 'Current issue', 'open', 'test-lifecycle'),
+               (%s, 'reconciliation', 'medium', '2028-12', 'Current recon', 'open', 'test-lifecycle')
+        """,
+        (run_id, run_id, run_id, run_id),
+    )
+
+    open_exc = exc_svc.list_exceptions("open")
+    resolved_exc = exc_svc.list_exceptions("resolved")
+    all_exc = exc_svc.list_exceptions("all")
+
+    test_open = [e for e in open_exc if e["trace_id"] == "test-lifecycle"]
+    test_resolved = [e for e in resolved_exc if e["trace_id"] == "test-lifecycle"]
+    assert len(test_open) == 2, test_open
+    assert len(test_resolved) == 2, test_resolved
+    assert len(all_exc) >= 4
+
+    # Only non-resolved rows are open by default; default list ≤ 20.
+    default_open = exc_svc.list_exceptions()
+    assert all(e["status"] != "resolved" for e in default_open)
+    assert len(default_open) <= 20
+
+    trend = exc_svc.exception_trend(run_id)
+    assert set(trend.keys()) >= {"labels", "detected", "resolved", "open", "cumulative"}
+    assert len(trend["labels"]) == len(trend["detected"]) == len(trend["resolved"]) == len(trend["open"])
+
+    # Cleanup.
+    execute("DELETE FROM exceptions WHERE trace_id = 'test-lifecycle'")

@@ -46,11 +46,16 @@ def _severity(variance_pct):
     return "medium"
 
 
-def run_reconciliation(conn, run_id, scenario_name, trace_id=None):
+def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None):
     """Compute reconciliation rows, persist them, and open material-gap exceptions."""
     sql = RECON_SQL.format(bucket=settings.r2_bucket, scenario=scenario_name)
     rows = query_dicts_on(conn, sql)
     tolerance = settings.recon_tolerance_pct
+    if latest_period is None:
+        try:
+            latest_period = max((str(r["period"])[:7] for r in rows), default=None)
+        except Exception:
+            latest_period = None
 
     # Idempotent re-run for this run.
     execute("DELETE FROM exceptions WHERE run_id = %s AND type = 'reconciliation'", (run_id,))
@@ -113,18 +118,26 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None):
             f"Billings vs GL variance across {bucket['count']} grain(s) "
             f"in {period} (worst {bucket['worst'] * 100:+.2f}%)"
         )
-        details = json.dumps(
-            {
-                "period": period,
-                "grain_count": bucket["count"],
-                "aggregate_billings": bucket["billings"],
-                "aggregate_gl": bucket["gl"],
-                "worst_variance_pct": bucket["worst"],
-                "tolerance": tolerance,
-                "grains": bucket["grains"],
-            },
-            default=str,
+        p_key = str(period)[:7] if period else None
+        latest_key = str(latest_period)[:7] if latest_period else None
+        is_current = (
+            p_key is None
+            or latest_period is None
+            or p_key == latest_key
         )
+        status = "open" if is_current else "resolved"
+        details = {
+            "period": period,
+            "grain_count": bucket["count"],
+            "aggregate_billings": bucket["billings"],
+            "aggregate_gl": bucket["gl"],
+            "worst_variance_pct": bucket["worst"],
+            "tolerance": tolerance,
+            "grains": bucket["grains"],
+        }
+        if status == "resolved":
+            details["auto_resolved"] = True
+            details["resolution"] = "closed within period"
         exc_params.append(
             (
                 run_id,
@@ -132,10 +145,10 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None):
                 bucket["severity"],
                 period,
                 title,
-                "open",
+                status,
                 trace_id,
                 "VAL_RECON_BILLINGS_GL",
-                details,
+                json.dumps(details, default=str),
             )
         )
 

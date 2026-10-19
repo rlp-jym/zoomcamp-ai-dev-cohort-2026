@@ -15,7 +15,7 @@ run thread. The UI is wired to real Postgres/DuckDB data on every route.
 Implemented in this phase:
 - 11 DuckDB validation rules over Parquet on Filebase (`backend/db/seed.py`).
 - Generic rule execution + result storage (`validations` table).
-- Rule-to-exception grouping by `period` (one exception per affected month).
+- Rule-to-exception grouping by `period` (one exception per affected month). Only the latest data period stays `open`; earlier periods are inserted `resolved` so `/exceptions` stays a pending work queue while history remains available for trend analysis.
 - DQ agent summary (template fallback, no LLM) on the run thread.
 - Reconciliation job writing `reconciliations` and opening material-gap exceptions.
 - `/runs/{id}` renders all 11 validation results; `/exceptions/{id}` drills into
@@ -43,7 +43,7 @@ Single command (app + Postgres via Docker): `docker compose up` — see `infra/`
 - Analyst selects a persona in the header and can "Run Pipeline" on a scenario.
 - The run thread shows Orchestrator start/finish, the DQ validation summary, and a
   reconciliation line.
-- `/exceptions` lists validation and reconciliation exceptions with their period.
+- `/exceptions` lists validation and reconciliation exceptions with their period; defaults to `open` (pending work queue) with `Resolved` and `All` views and a trend chart (detected / resolved / open backlog / cumulative-if-never-resolved).
 - `/runs/{id}` shows pass/fail/count for all 11 rules.
 - `/exceptions/{id}` on a reconciliation exception shows the monthly rows behind it.
 - Debug routes `/debug/db`, `/debug/storage`, `/debug/query` remain available.

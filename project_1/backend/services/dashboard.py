@@ -255,18 +255,6 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         """,
         (q["run_id"],),
     )
-    exc_trend = fetch_one(
-        """
-        SELECT array_agg(c) AS series FROM (
-            SELECT COUNT(*) AS c
-            FROM exceptions
-            WHERE status <> 'resolved'
-            GROUP BY date_trunc('month', created_at)
-            ORDER BY date_trunc('month', created_at)
-        )
-        """
-    )
-
     data["charts"] = {
         "revenue_budget": {
             "labels": months,
@@ -293,9 +281,6 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                 round(billings_month.get(m, 0.0) / 1e6, 3) for m in months
             ],
             "gl": [round(gl_month.get(m, 0.0) / 1e6, 3) for m in months],
-            "open_exceptions": (
-                (exc_trend["series"] or []) if exc_trend else []
-            ),
         },
         "billings_mtd": _fmt_m(billings_mtd),
     }

@@ -66,9 +66,10 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] All 11 rules execute; results stored in `validations`.
 - [x] Reconciliation rows stored; material gaps create exceptions.
 - [x] One exception per affected month per failed rule.
+- [x] Exception lifecycle: only the latest data period stays `open`; earlier periods are inserted `resolved` so the list is a pending queue (≤ ~12 open).
 - [x] DQ posts a validation summary to the run thread.
-- [ ] DE posts a remediation proposal per open exception. (capped at `MAX_AGENT_MESSAGES_PER_RUN`)
-- [ ] FA posts an impact narrative per open exception. (capped at `MAX_AGENT_MESSAGES_PER_RUN`)
+- [x] DE posts a remediation proposal per open exception.
+- [x] FA posts an impact narrative per open exception.
 - [x] Run ends completed with counts; Orchestrator posts a "run finished" message.
 - [ ] On exception, run is marked failed and a failure message is posted.
 

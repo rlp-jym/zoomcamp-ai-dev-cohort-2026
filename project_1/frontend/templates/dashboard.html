@@ -128,16 +128,14 @@
         labels: c.kpi_trend.labels,
         datasets: [
           { label: "Billings ($M)", data: c.kpi_trend.billings, borderColor: "#1f2a44", tension: 0.3, yAxisID: "y" },
-          { label: "GL Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" },
-          { label: "Open Exceptions", data: c.kpi_trend.open_exceptions, borderColor: "#cf222e", tension: 0.3, yAxisID: "y1" }
+          { label: "GL Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: "bottom" } },
         scales: {
-          y: { type: "linear", position: "left", title: { display: true, text: "$M" } },
-          y1: { type: "linear", position: "right", title: { display: true, text: "Open Exceptions" }, grid: { drawOnChartArea: false } }
+          y: { type: "linear", position: "left", title: { display: true, text: "$M" } }
         }
       }
     });
