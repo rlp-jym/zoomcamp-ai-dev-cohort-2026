@@ -117,31 +117,32 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ## 9. Validation rules (11)
 > Depends on §8 scaffold. After implementing rules, wire them into the Orchestrator pipeline built in §8.
-- [x] Implement rule loader from `rules` table. (VAL_FK_ITEM_EXISTS)
+- [x] Implement rule loader from `rules` table. (all 11 rules)
 - [x] Implement DuckDB SQL execution over Parquet.
 - [x] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
-- [ ] `VAL_DUPLICATE_INVOICE_LINE` (duplicate_invoice_line).
-- [ ] `VAL_FK_CUSTOMER_EXISTS` (missing_customer_mapping).
-- [ ] `VAL_FRESHNESS_GL` (stale_load).
-- [ ] `VAL_RECON_BILLINGS_GL` (billings_gl_variance).
-- [ ] `VAL_RESTATEMENT_DETECTED` (restatement).
-- [ ] `VAL_FX_RATE_EXISTS` (fx_gap).
-- [ ] `VAL_FK_BACKORDER_ORDER_LINE` (orphaned_backorder).
-- [ ] `VAL_FK_RETURN_SHIPMENT` (phantom_return).
-- [ ] `VAL_AR_INVOICE_1TO1` (invariant).
-- [ ] `VAL_ORDER_LINE_UNIQUE` (invariant).
-- [x] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON). (VAL_FK_ITEM_EXISTS)
-- [ ] DQ posts validation summary to run thread.
+- [x] `VAL_DUPLICATE_INVOICE_LINE` (duplicate_invoice_line).
+- [x] `VAL_FK_CUSTOMER_EXISTS` (missing_customer_mapping).
+- [x] `VAL_FRESHNESS_GL` (stale_load).
+- [x] `VAL_RECON_BILLINGS_GL` (billings_gl_variance).
+- [x] `VAL_RESTATEMENT_DETECTED` (restatement).
+- [x] `VAL_FX_RATE_EXISTS` (fx_gap).
+- [x] `VAL_FK_BACKORDER_ORDER_LINE` (orphaned_backorder).
+- [x] `VAL_FK_RETURN_SHIPMENT` (phantom_return).
+- [x] `VAL_AR_INVOICE_1TO1` (invariant).
+- [x] `VAL_ORDER_LINE_UNIQUE` (invariant).
+- [x] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON). (all 11 rules)
+- [x] Group failed-rule exceptions by `period` (one exception per affected month).
+- [x] DQ posts validation summary to run thread.
 **Done when:** All 11 rules execute against a scenario, results are stored in `validations`, and DQ posts a summary to the run thread.
 
 ## 10. Reconciliation
-- [ ] Implement reconciliation at grain `(run_id, period, account_id, item_category)` + top-N customers.
-- [ ] Billings from `invoice_lines`, GL from `gl_revenue`.
-- [ ] Variance % = (billings − gl) / gl.
-- [ ] Status pass/fail by tolerance.
-- [ ] Materiality threshold from config.
-- [ ] Store in `reconciliations`.
-- [ ] Create exceptions for material gaps.
+- [x] Implement reconciliation at grain `(run_id, period, account_id, item_category)` + top-N customers.
+- [x] Billings from `invoice_lines`, GL from `gl_revenue`.
+- [x] Variance % = (billings − gl) / gl.
+- [x] Status pass/fail by tolerance.
+- [x] Materiality threshold from config.
+- [x] Store in `reconciliations`.
+- [x] Create exceptions for material gaps.
 
 ## 11. Exceptions
 - [x] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
