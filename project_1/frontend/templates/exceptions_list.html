@@ -29,10 +29,14 @@
           { label: "Detected", data: t.detected, backgroundColor: "rgba(31,42,68,0.55)", order: 2 },
           { label: "Resolved (closed in period)", data: t.resolved, type: "line", borderColor: "#1a7f37", tension: 0.3, order: 1, fill: false },
           { label: "Open backlog", data: t.open, type: "line", borderColor: "#cf222e", tension: 0.3, order: 1, fill: false },
-          { label: "Cumulative if never resolved", data: t.cumulative, type: "line", borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, order: 0, fill: false }
+          { label: "Cumulative if never resolved", data: t.cumulative, type: "line", borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, order: 0, fill: false, yAxisID: "y1" }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+        scales: {
+          y: { type: "linear", position: "left", title: { display: true, text: "Count" }, beginAtZero: true },
+          y1: { type: "linear", position: "right", title: { display: true, text: "Cumulative" }, grid: { drawOnChartArea: false }, beginAtZero: true }
+        } }
     });
   })();
 </script>
