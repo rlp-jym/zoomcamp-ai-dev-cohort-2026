@@ -9,7 +9,14 @@ from fastapi.staticfiles import StaticFiles
 from opentelemetry.instrumentation.utils import suppress_instrumentation
 
 from backend.config import STATIC_DIR, TEMPLATES_DIR
-from backend.db import apply_schema, close_pool, get_connection, init_pool, seed
+from backend.db import (
+    apply_schema,
+    close_pool,
+    ensure_baseline_fixture,
+    get_connection,
+    init_pool,
+    seed,
+)
 from backend.routes import debug, pages, personas, scenarios, threads
 from backend.services.backfill import trigger_backfill
 from backend.services.scheduler import shutdown_scheduler, start_scheduler
@@ -44,6 +51,7 @@ async def lifespan(app: FastAPI):
             trigger_backfill()
         from backend.services import scenarios as scen_svc
         scen_svc.ensure_baseline_registered()
+        ensure_baseline_fixture()
     except Exception as exc:
         logger.error("Backfill check failed: %s", exc)
 

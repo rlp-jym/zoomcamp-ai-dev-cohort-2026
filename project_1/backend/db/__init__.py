@@ -8,6 +8,7 @@ from backend.db.connection import (
     get_pool,
     init_pool,
 )
+from backend.db.fixture import ensure_baseline_fixture
 from backend.db.seed import seed
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "get_pool",
     "init_pool",
     "seed",
+    "ensure_baseline_fixture",
 ]
