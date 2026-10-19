@@ -34,17 +34,17 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Thread renders and HTMX post works.
 
 ## `/runs`
-- [ ] Lists runs with id, scenario, status, started, duration, published flag.
-- [ ] Each row links to `/runs/{id}`.
+- [x] Lists runs with id, scenario, status, started, duration, published flag.
+- [x] Each row links to `/runs/{id}`.
 
 ## `/runs/{id}`
-- [ ] Shows run metadata, validations table (rule, status, count, severity, description).
-- [ ] Publication block shows publication_id, published_at, pointer, published_by when published.
-- [ ] Manager sees Approve Go-Live button only for completed, unpublished runs.
-- [ ] Non-manager sees "Go-Live approval requires the Manager persona."
-- [ ] Approve creates a publication row, moves the published pointer, posts a thread message, writes an approvals row.
-- [ ] Reject sets status to rejected, writes an approvals row, posts a message (no persona gate).
-- [ ] Thread renders and HTMX post works.
+- [x] Shows run metadata, validations table (rule, status, count, severity, description).
+- [x] Publication block shows publication_id, published_at, pointer, published_by when published.
+- [x] Manager sees Approve Go-Live button only for completed, unpublished runs.
+- [x] Non-manager sees "Go-Live approval requires the Manager persona."
+- [ ] Approve creates a publication row, moves the published pointer, posts a thread message, writes an approvals row. (POST behavior — not exercised, pages-only pass)
+- [ ] Reject sets status to rejected, writes an approvals row, posts a message (no persona gate). (POST behavior — not exercised, pages-only pass)
+- [x] Thread renders and HTMX post works. (thread renders; HTMX post not exercised, pages-only pass)
 
 ## `/scenarios`
 - [ ] Lists scenarios with name, status, tables, seed, created_at.
