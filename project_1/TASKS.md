@@ -1,18 +1,19 @@
 # TASKS.md — Revenue Data Reliability Platform
 
 Project path: repository root (`project_1/`). Tracks the application build
-against `SPECS.md` (locked). Check boxes as work completes. Do not build
-anything listed in `SPECS.md §20 (Explicit non-goals)`.
+against `SPEC.md` (locked). Check boxes as work completes. Do not build
+anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
-## 0. Prerequisites before build (`SPECS.md §19`)
+## 0. Prerequisites before build (`SPEC.md §19`)
+> §1, §2, and §4 can proceed in parallel with the unchecked prerequisites. §5 onwards depends on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9).
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [ ] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
 - [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
-- [ ] Root `README.md` updated with project overview + link to `SPECS.md`.
+- [ ] Root `README.md` updated with project overview + link to `SPEC.md`.
 
 ## 1. Repository scaffolding
-- [ ] Create directory structure from `SPECS.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
+- [ ] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
 - [ ] Add `backend/__init__.py` and package layout (or flat modules) per locked layout.
 - [ ] Add `.env.example` listing `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`.
 - [ ] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
@@ -22,6 +23,7 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 ## 2. Database schema and seed data
 - [ ] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.
 - [ ] Define columns, PKs, FKs, and indexes for discussion threads and trace lookup.
+- [ ] `discussions` and `messages` tables include `anchor_type` (enum: `run` | `exception` | `analysis`) and `anchor_id` columns with indexes for thread lookup.
 - [ ] Add `backend/db/seed.py` to seed 8 personas (`analyst`, `manager`, `director`, `orchestrator`, `de`, `dq`, `fa`, `controller`).
 - [ ] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`.
 - [ ] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
@@ -34,6 +36,8 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Implement scenario bundle path convention `scenarios/<name>/`.
 - [ ] Implement SHA-256 manifest verification helper.
 - [ ] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`.
+- [ ] Install DuckDB `httpfs` extension at boot; fail loudly if unavailable.
+- [ ] Document startup sequence: webhook endpoint must be accepting requests before backfill triggers the GitHub Action.
 
 ## 4. Backend foundation
 - [ ] FastAPI app factory with routers mounted.
@@ -66,7 +70,8 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Store manifest, file hashes, and scenario metadata.
 - [ ] Display scenario list with status.
 
-## 8. Runs and pipeline orchestration
+## 8. Runs and pipeline orchestration (scaffold)
+> This section builds the run record, Orchestrator skeleton, and routes. The actual rule execution is wired in §9. Do not attempt to run a pipeline with rules until §9 is complete.
 - [ ] Run CRUD service and repository.
 - [ ] `/runs` and `/runs/{id}` routes (Analyst, Manager).
 - [ ] Run detail thread and approve/reject actions.
@@ -75,6 +80,7 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Run status tracking and trace correlation.
 
 ## 9. Validation rules (11)
+> Depends on §8 scaffold. After implementing rules, wire them into the Orchestrator pipeline built in §8.
 - [ ] Implement rule loader from `rules` table.
 - [ ] Implement DuckDB SQL execution over Parquet.
 - [ ] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
@@ -139,7 +145,7 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Re-run same pipeline for affected month.
 - [ ] Quarantine N records with reason code.
 - [ ] Reload FX rates from source (if applicable).
-- [ ] Open issue-style note on exception.
+- [ ] Post a message on the exception thread tagged `type = proposal` (do not create a new table or a separate note entity).
 - [ ] Escalate to Manager.
 - [ ] Each step logged as one `agent_actions` row.
 
@@ -155,6 +161,7 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Critical alerts escalate to Director via thread message.
 
 ## 17. Publication and quarantine
+> This section wires together publication, quarantine, and approval flows defined in §8, §11, and §13. Do not duplicate logic here; reference and connect.
 - [ ] Manager approves go-live in run thread → create `publication` row.
 - [ ] Set published pointer.
 - [ ] Quarantine overlay model (`quarantines`).
@@ -210,6 +217,10 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Integration tests for routes with Postgres.
 - [ ] Integration test for pipeline happy path.
 - [ ] Test template fallback when LLM unavailable.
+- [ ] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
+- [ ] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
+- [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
+- [ ] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
 
 ## 24. Documentation
 - [ ] Update root `README.md`.
@@ -217,7 +228,7 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Document OTEL deviation (no external Grafana).
 - [ ] Document persona switch and demo flow.
 
-## 25. Success criteria verification (`SPECS.md §18`)
+## 25. Success criteria verification (`SPEC.md §18`)
 - [ ] Reviewer sees populated dashboard with `baseline_run` published.
 - [ ] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
 - [ ] Persona selection + posting in thread works.
@@ -230,4 +241,4 @@ anything listed in `SPECS.md §20 (Explicit non-goals)`.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
 
 ## Non-goals guardrail
-Do not implement anything in `SPECS.md §20`. If unsure, add to non-goals first.
+Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
