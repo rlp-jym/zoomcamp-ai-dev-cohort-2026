@@ -30,6 +30,20 @@ class Settings:
         # config uses a percentage (0.5 == 0.5%); we store it as a fraction.
         self.recon_tolerance_pct = float(os.getenv("RECON_TOLERANCE_PCT", "0.5")) / 100.0
 
+        # OTEL (SPEC §13): Postgres exporter is always on; intervals only
+        # tune the batch cadence. No external telemetry endpoint required.
+        self.otel_service_name = os.getenv("OTEL_SERVICE_NAME", "rlp-platform")
+        self.otel_metric_interval_seconds = int(
+            os.getenv("OTEL_METRIC_INTERVAL_SECONDS", "60")
+        )
+        self.otel_retention_days = int(os.getenv("OTEL_RETENTION_DAYS", "30"))
+
+        # Scheduler (SPEC §6) + Controller verification (SPEC §18).
+        self.controller_interval_minutes = int(
+            os.getenv("CONTROLLER_INTERVAL_MINUTES", "15")
+        )
+        self.controller_stale_hours = float(os.getenv("CONTROLLER_STALE_HOURS", "24"))
+
         missing = []
         for name, value in (
             ("DATABASE_URL", self.database_url),

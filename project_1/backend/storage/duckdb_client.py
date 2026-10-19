@@ -1,10 +1,19 @@
-"""DuckDB connection with httpfs for reading Parquet from S3."""
+"""DuckDB connection with httpfs for reading Parquet from S3.
+
+DuckDB has no OTEL auto-instrumentor, so every query batch is wrapped in a
+manual span (``duckdb.query``) with the statement recorded, which keeps the
+span tree readable in ``/observability`` without leaking credentials (the
+S3 connection ``SET`` commands are never traced).
+"""
 
 from urllib.parse import urlparse
 
 import duckdb
+from opentelemetry import trace
 
 from backend.config import settings
+
+_TRACER = trace.get_tracer("backend.duckdb")
 
 
 def _normalized_host() -> str:
@@ -61,10 +70,25 @@ def open_connection():
 
 
 def run_query_on(conn, sql: str):
-    cur = conn.execute(sql)
-    cols = [d[0] for d in cur.description] if cur.description else []
-    rows = cur.fetchall()
-    return cols, rows
+    """Execute one DuckDB SQL statement inside a manual OTEL span."""
+    with _TRACER.start_as_current_span(
+        "duckdb.query",
+        attributes={
+            "db.system": "duckdb",
+            "db.operation.name": sql.split(None, 1)[0].upper() if sql else "",
+            "db.statement": sql[:2000],
+        },
+    ) as span:
+        try:
+            cur = conn.execute(sql)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc)))
+            raise
+        cols = [d[0] for d in cur.description] if cur.description else []
+        rows = cur.fetchall()
+        span.set_attribute("duckdb.rows_returned", len(rows))
+        return cols, rows
 
 
 def query_dicts_on(conn, sql: str) -> list[dict]:

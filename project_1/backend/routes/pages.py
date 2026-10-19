@@ -1,26 +1,21 @@
 """Page routes rendering templates with real data."""
 
-import json
 import uuid
-from datetime import datetime
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from fastapi import HTTPException
-
 from backend.config import settings
-from backend.db.connection import execute, fetch_one
+from backend.db.connection import execute
 from backend.services import exceptions as exc_svc
-from backend.services import messages
+from backend.services import messages, stub_data
 from backend.services import publications as pub_svc
 from backend.services import quarantines as quarantines_svc
 from backend.services import runs as runs_svc
 from backend.services import scenarios as scen_svc
-from backend.services import stub_data
 from backend.services import validations as val_svc
-from backend.templating import templates
 from backend.teams.de import DEAgent
+from backend.templating import templates
 
 router = APIRouter()
 
@@ -266,14 +261,24 @@ async def audit(request: Request):
 
 
 @router.get("/observability")
-async def observability(request: Request):
+async def observability(request: Request, trace_id: str | None = None):
+    """Render real OTEL traces from the otel_spans / otel_logs tables."""
+    from backend.services import observability as obs_svc
+
+    traces = obs_svc.list_traces()
+    selected = trace_id or (traces[0]["trace_id"] if traces else None)
+    spans = obs_svc.get_span_tree(selected) if selected else []
+    logs = obs_svc.get_trace_logs(selected) if selected else []
+    summary = obs_svc.telemetry_summary()
     return templates.TemplateResponse(
         request,
         "observability.html",
         _ctx(
             request,
-            traces=stub_data.TRACES,
-            expanded_trace=stub_data.EXPANDED_TRACE,
-            expanded_spans=stub_data.EXPANDED_SPANS,
+            traces=traces,
+            expanded_trace=selected,
+            expanded_spans=spans,
+            trace_logs=logs,
+            summary=summary,
         ),
     )
