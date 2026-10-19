@@ -16,7 +16,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 0. Prerequisites before build (`SPEC.md §19`)
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
-- [ ] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
+- [x] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
 - [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
 - [ ] Root `README.md` updated with project overview + link to `SPEC.md`.
