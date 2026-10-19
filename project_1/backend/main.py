@@ -13,6 +13,7 @@ from backend.routes import debug, pages, personas, scenarios, threads
 from backend.services.backfill import trigger_backfill
 from backend.services.scheduler import shutdown_scheduler, start_scheduler
 from backend.storage import init_duckdb
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from observability.telemetry import setup_telemetry, shutdown_telemetry
 
 # Ensure templates dir exists (no-op if present)
@@ -25,9 +26,12 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.basicConfig(level=logging.INFO)
-    init_pool()
-    apply_schema()
-    seed()
+    # Boot-time schema/seed writes are one-off statements that would emit a
+    # cloud of single-span traces on every start; keep them out of OTEL.
+    with suppress_instrumentation():
+        init_pool()
+        apply_schema()
+        seed()
     # Fail loudly if httpfs is unavailable.
     init_duckdb()
 

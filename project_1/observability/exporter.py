@@ -18,6 +18,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Sequence
 
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from opentelemetry.sdk._logs._internal import ReadableLogRecord
 from opentelemetry.sdk._logs.export import (
     LogRecordExporter,
@@ -105,16 +106,20 @@ class PostgresSpanExporter(SpanExporter):
         try:
             from backend.db.connection import execute_many
 
-            execute_many(
-                """
-                INSERT INTO otel_spans
-                    (span_id, trace_id, parent_span_id, name, start_time, end_time,
-                     duration_ms, status, attributes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (span_id) DO NOTHING
-                """,
-                rows,
-            )
+            # Exporter self-writes must not become spans/logs/metrics
+            # themselves — otherwise every flush creates standalone noise
+            # traces that bury real pipeline traces in /observability.
+            with suppress_instrumentation():
+                execute_many(
+                    """
+                    INSERT INTO otel_spans
+                        (span_id, trace_id, parent_span_id, name, start_time, end_time,
+                         duration_ms, status, attributes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (span_id) DO NOTHING
+                    """,
+                    rows,
+                )
             return SpanExportResult.SUCCESS
         except Exception as exc:
             _logger.warning("Span export failed: %s", exc)
@@ -157,13 +162,14 @@ class PostgresLogRecordExporter(LogRecordExporter):
         try:
             from backend.db.connection import execute_many
 
-            execute_many(
-                """
-                INSERT INTO otel_logs (trace_id, span_id, level, message, created_at, attributes)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                rows,
-            )
+            with suppress_instrumentation():
+                execute_many(
+                    """
+                    INSERT INTO otel_logs (trace_id, span_id, level, message, created_at, attributes)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    rows,
+                )
             return LogRecordExportResult.SUCCESS
         except Exception as exc:
             _logger.warning("Log export failed: %s", exc)
@@ -190,13 +196,14 @@ class PostgresMetricExporter(MetricExporter):
                 return MetricExportResult.SUCCESS
             from backend.db.connection import execute_many
 
-            execute_many(
-                """
-                INSERT INTO otel_metrics (name, value, labels, recorded_at)
-                VALUES (%s, %s, %s, %s)
-                """,
-                rows,
-            )
+            with suppress_instrumentation():
+                execute_many(
+                    """
+                    INSERT INTO otel_metrics (name, value, labels, recorded_at)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    rows,
+                )
             return MetricExportResult.SUCCESS
         except Exception as exc:
             _logger.warning("Metric export failed: %s", exc)
