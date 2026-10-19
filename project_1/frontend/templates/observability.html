@@ -2,6 +2,7 @@
 {% block title %}Observability{% endblock %}
 {% block content %}
 <h1>Observability</h1>
+<p class="page-description">Trace list — select a trace to view its span tree and linked logs. All telemetry is exported in-app to Postgres.</p>
 <p class="empty">
   {{ summary.span_count if summary else 0 }} spans across
   {{ summary.trace_count if summary else 0 }} traces,
