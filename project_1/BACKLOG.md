@@ -47,9 +47,9 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Thread renders and HTMX post works. (thread renders; HTMX post not exercised, pages-only pass)
 
 ## `/scenarios`
-- [ ] Lists scenarios with name, status, tables, seed, created_at.
-- [ ] Run Pipeline button triggers the pipeline and redirects to the run detail page.
-- [ ] When `baseline_run` Parquet keys exist in R2, `ensure_baseline_registered` registers the scenario row on page load.
+- [x] Lists scenarios with name, status, tables, seed, created_at.
+- [x] Run Pipeline button triggers the pipeline and redirects to the run detail page.
+- [x] When `baseline_run` Parquet keys exist in R2, `ensure_baseline_registered` registers the scenario row on page load.
 
 ## `/audit`
 - [ ] Renders agent_actions, approvals, publications.
