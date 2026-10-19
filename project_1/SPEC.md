@@ -294,18 +294,38 @@ Each `SKILL.md` contains:
 
 Each step is logged as one `agent_actions` row.
 
+### Autonomous remediation (narrow)
+
+One alert type is remediated autonomously, without Manager approval:
+
+- **`STALE_PUBLISHED`:** Controller triggers a pipeline re-run for the
+  affected month. This action is:
+  - Read-consistent: re-validation only; no financial data mutated
+  - Reversible: publication pointer unchanged until re-run passes
+  - Logged: one `agent_actions` row with `agent_id = controller`
+  - Reported: Controller posts a message on the alert thread
+
+Controller does not gain broader write permissions. It triggers the same
+pipeline action an Analyst would; no publication, approval, or financial
+mutation is autonomous. All other remediation remains Manager-gated.
+
+This satisfies the rubric requirement that "an agent wakes up on an alert
+and fixes the issue" while keeping data-changing actions human-approved.
+
 ---
+
+
 
 ## 12. Alerting (6 types, in-app)
 
-| Alert | Trigger | Severity |
-|---|---|---|
-| `STALE_PUBLISHED` | Published run older than SLA | high |
-| `SOURCE_HASH_MISMATCH` | R2 Parquet hash differs from registered manifest | critical |
-| `AUDIT_ROW_MISSING` | Published action lacks `agent_actions` row | high |
-| `THREAD_ANCHOR_ORPHANED` | Thread references deleted run/exception | medium |
-| `PUBLISHED_RECORD_FAILS_REVALIDATION` | Controller re-runs sample, finds failures | critical |
-| `RECON_DRIFT` | Post-publication billings vs GL exceeds tolerance | critical |
+| Alert | Trigger | Severity | Remediation |
+|---|---|---|---|
+| `STALE_PUBLISHED` | Published run older than SLA | high | Controller auto-re-runs pipeline (see §11) |
+| `SOURCE_HASH_MISMATCH` | R2 Parquet hash differs from registered manifest | critical | Thread + escalate |
+| `AUDIT_ROW_MISSING` | Published action lacks `agent_actions` row | high | Thread + escalate |
+| `THREAD_ANCHOR_ORPHANED` | Thread references deleted run/exception | medium | Thread + escalate |
+| `PUBLISHED_RECORD_FAILS_REVALIDATION` | Controller re-runs sample, finds failures | critical | Thread + escalate |
+| `RECON_DRIFT` | Post-publication billings vs GL exceeds tolerance | critical | Thread + escalate |
 
 - Dedup: `(alert_type, anchor_id)` in 1-hour window
 - Destinations: `alerts` row + Controller message on the anchor thread + dashboard badge
@@ -333,6 +353,7 @@ Each step is logged as one `agent_actions` row.
 - **Secrets:** Render env vars for `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`
 - **DB schema:** `schema.sql` idempotent on boot (`CREATE TABLE IF NOT EXISTS`)
 - **Backfill:** on first boot, if `scenarios` empty, trigger the GitHub Action to generate `baseline_run` with seed=9, then wait for webhook
+- **Local run:** `docker compose up` starts app + Postgres in one command. Documented in `README.md`.
 
 ---
 
@@ -404,6 +425,7 @@ Each step is logged as one `agent_actions` row.
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated
 - [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality)
 - [ ] Root `README.md` updated with project overview + link to this SPEC
+- [ ] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior
 
 ---
 

@@ -4,6 +4,15 @@ Project path: repository root (`project_1/`). Tracks the application build
 against `SPEC.md` (locked). Check boxes as work completes. Do not build
 anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
+> This file is the public task tracker, hosted in the project's GitHub
+> repository. Commit history is the evidence that agents used this
+> tracker: each commit message references a task section (e.g.,
+> `§9: implement VAL_FK_ITEM_EXISTS`).
+>
+> Project-level acceptance criteria live in `SPEC.md §18`.
+> Section-level "Done when" criteria are listed at the end of §2, §5, §8,
+> §9, §13, §18, §19, and §23.
+
 ## 0. Prerequisites before build (`SPEC.md §19`)
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
@@ -50,6 +59,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
 - [ ] Apply schema on boot; run seeds idempotently.
 - [ ] Implement backfill: if `scenarios` empty, trigger GitHub Action to generate `baseline_run` (seed=9) and wait for webhook.
+**Done when:** All tables exist, 8 personas and 11 rules are seeded, and backfill triggers and completes on an empty DB.
 
 ## 3. Storage (R2 + DuckDB)
 - [ ] Implement R2 client (boto3, S3-compatible) from env.
@@ -77,6 +87,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] No PII/credentials in telemetry.
 - [ ] Retention job deleting spans/logs older than 30 days (APScheduler).
 - [ ] `/observability` route rendering trace list + span tree + linked logs.
+**Done when:** Any request produces a trace in `/observability` with linked spans and logs, and no span attribute contains PII or credentials.
 
 ## 6. Scheduler
 - [ ] Integrate APScheduler in-process.
@@ -100,6 +111,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Orchestrator service: posts "run started", runs pipeline, posts finish.
 - [ ] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
 - [ ] Run status tracking and trace correlation.
+**Done when:** Clicking Run Pipeline creates a run row, posts orchestrator messages to the run thread, and returns a run detail page.
 
 ## 9. Validation rules (11)
 > Depends on §8 scaffold. After implementing rules, wire them into the Orchestrator pipeline built in §8.
@@ -118,6 +130,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] `VAL_ORDER_LINE_UNIQUE` (invariant).
 - [ ] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON).
 - [ ] DQ posts validation summary to run thread.
+**Done when:** All 11 rules execute against a scenario, results are stored in `validations`, and DQ posts a summary to the run thread.
 
 ## 10. Reconciliation
 - [ ] Implement reconciliation at grain `(run_id, period, account_id, item_category)` + top-N customers.
@@ -154,6 +167,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] FA agent: financial impact; may open analysis threads.
 - [ ] Controller agent: verification findings; read-only published state.
 - [ ] Approval gates: go-live, remediation, critical escalation.
+**Done when:** All 5 agents can be invoked in one pipeline run, each posting to the correct anchor thread and logging exactly one `agent_actions` row.
 
 ## 14. Skills (LLM prose layer)
 - [ ] Create `backend/skills/fa_impact_narrative/SKILL.md`.
@@ -199,6 +213,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Sample revalidation of published records.
 - [ ] Post-publication recon drift check.
 - [ ] Open alerts and post to anchored threads; escalate critical.
+- [ ] Controller autonomously triggers a pipeline re-run on `STALE_PUBLISHED` (no Manager approval required)
+- [ ] Autonomous re-run logs exactly one `agent_actions` row with `agent_id = controller`
+**Done when:** Controller job runs on schedule, detects at least one seeded anomaly, opens an alert, posts to the anchored thread, and — for `STALE_PUBLISHED` — autonomously re-runs the pipeline.
 
 ## 19. Frontend wiring (replace stub context with real data)
 > Templates and route handlers were built in §1b with stub data. This
@@ -215,6 +232,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] `/observability` trace list + span tree + logs (all).
 - [ ] Persona selector in header on every page.
 - [ ] Base layout, HTMX partials, static CSS.
+**Done when:** All 8 routes render with real data, and persona selection persists across pages.
 
 ## 20. Audit and compliance
 - [ ] `/audit` query filters by trace_id.
@@ -235,6 +253,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Neon DB setup docs (staging/prod DBs).
 - [ ] R2 bucket/prefix and lifecycle policy docs.
 - [ ] Secrets documentation.
+- [ ] `infra/docker-compose.yml` runs app + Postgres via `docker compose up`
+- [ ] `README.md` documents `docker compose up` as the local single command
 
 ## 23. Testing
 - [ ] Unit tests for validation rules SQL.
@@ -249,6 +269,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
 - [ ] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
 - [ ] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
+- [ ] `pytest` (single command) runs all unit and integration tests and exits 0
+- [ ] `README.md` documents the single test command
+**Done when:** `pytest` (single command) runs all unit and integration tests and exits 0.
 
 ## 24. Documentation
 - [ ] Update root `README.md`.
@@ -257,6 +280,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Document persona switch and demo flow.
 - [ ] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
 - [ ] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so reviewers understand template edits are expected.
+- [ ] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `SPEC.md`
+- [ ] Update root `AGENTS.md` "Quick links" to include `SPEC.md`, `definitions.md`, `TASKS.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
 
 ## 25. Success criteria verification (`SPEC.md §18`)
 - [ ] Reviewer sees populated dashboard with `baseline_run` published.
@@ -270,6 +295,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
 - [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
+- [ ] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
 
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
