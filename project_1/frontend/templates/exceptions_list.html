@@ -26,8 +26,7 @@
       data: {
         labels: t.labels,
         datasets: [
-          { label: "Resolved (closed in period)", data: t.resolved, borderColor: "#1a7f37", tension: 0.3, fill: false },
-          { label: "Open backlog", data: t.open, borderColor: "#cf222e", tension: 0.3, fill: false }
+          { label: "Exceptions detected", data: t.detected, borderColor: "#1f2a44", tension: 0.3, fill: false }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
