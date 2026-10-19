@@ -1,4 +1,4 @@
-name: baseline_run
+name: demo_run
 seed: 42
 
 timeline:
@@ -49,7 +49,7 @@ defects:
     fx_gap: true
     orphaned_backorder: true
     phantom_return: true
-  counts_per_type_per_month: 2
+  counts_per_type_per_month: 1
 
 reconciliation:
   billings_gl_tolerance_pct: 0.5

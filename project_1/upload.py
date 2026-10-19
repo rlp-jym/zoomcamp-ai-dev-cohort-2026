@@ -14,8 +14,8 @@ s3 = boto3.client(
 )
 
 bucket = os.getenv("R2_BUCKET")
-local_dir = Path("data/runs/baseline_run")
-s3_prefix = "scenarios/baseline_run/"
+local_dir = Path("data/runs/demo_run")
+s3_prefix = "scenarios/demo_run/"
 
 if not local_dir.exists():
     raise SystemExit(f"Local directory not found: {local_dir}")

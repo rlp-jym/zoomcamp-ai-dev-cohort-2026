@@ -28,8 +28,11 @@ from timeline import month_list, monthly_order_counts
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
+    parser.add_argument("--seed", type=int, default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
+    if args.seed is not None:
+        cfg["seed"] = args.seed
     rng = np.random.default_rng(int(cfg["seed"]))
 
     counts = monthly_order_counts(cfg)
