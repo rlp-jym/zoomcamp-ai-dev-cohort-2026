@@ -161,9 +161,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Analysis thread creation from dashboard KPI cards.
 
 ## 13. Agent team
-- [ ] Base agent helpers: logging to `agent_actions`, trace correlation.
-- [ ] LLM client: Groq primary (`GROQ_API_KEY`), template fallback on missing key/failure.
-- [ ] Skill loader `load_skill(name) -> str` reading `backend/skills/<name>/SKILL.md`.
+- [x] Base agent helpers: logging to `agent_actions`, trace correlation.
+- [x] LLM client: Groq primary (`GROQ_API_KEY`), template fallback on missing key/failure.
+- [x] Skill loader `load_skill(name) -> str` reading `backend/skills/<name>/SKILL.md`.
 - [ ] Orchestrator agent: run pipeline; read-only on data.
 - [ ] DQ agent: execute rules; post validation results.
 - [ ] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
@@ -173,12 +173,12 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 **Done when:** All 5 agents can be invoked in one pipeline run, each posting to the correct anchor thread and logging exactly one `agent_actions` row.
 
 ## 14. Skills (LLM prose layer)
-- [ ] Create `backend/skills/fa_impact_narrative/SKILL.md`.
-- [ ] Create `backend/skills/de_remediation_explanation/SKILL.md`.
-- [ ] Create `backend/skills/dq_validation_summary/SKILL.md`.
-- [ ] Create `backend/skills/controller_triage_note/SKILL.md`.
-- [ ] Each SKILL.md: role framing, context fields, output structure/length, hard constraints.
-- [ ] Template fallbacks equivalent to skill output from same context.
+- [x] Create `backend/skills/fa_impact_narrative/SKILL.md`.
+- [x] Create `backend/skills/de_remediation_explanation/SKILL.md`.
+- [x] Create `backend/skills/dq_validation_summary/SKILL.md`.
+- [x] Create `backend/skills/controller_triage_note/SKILL.md`.
+- [x] Each SKILL.md: role framing, context fields, output structure/length, hard constraints.
+- [x] Template fallbacks equivalent to skill output from same context.
 
 ## 15. DE playbook
 - [ ] Re-run same pipeline for affected month.
