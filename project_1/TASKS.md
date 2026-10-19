@@ -5,7 +5,7 @@ against `SPEC.md` (locked). Check boxes as work completes. Do not build
 anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ## 0. Prerequisites before build (`SPEC.md §19`)
-> §1, §2, and §4 can proceed in parallel with the unchecked prerequisites. §5 onwards depends on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9).
+> §1, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9).
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [ ] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
@@ -47,6 +47,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] HTMX-friendly partial responses.
 - [ ] Global error handling and structured logging.
 - [ ] Health/readiness endpoint.
+- [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
 ## 5. Observability (OTEL)
 - [ ] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB.
@@ -221,12 +222,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
 - [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
 - [ ] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
+- [ ] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
+- [ ] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
 
 ## 24. Documentation
 - [ ] Update root `README.md`.
 - [ ] Ensure `definitions.md` present.
 - [ ] Document OTEL deviation (no external Grafana).
 - [ ] Document persona switch and demo flow.
+- [ ] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
 
 ## 25. Success criteria verification (`SPEC.md §18`)
 - [ ] Reviewer sees populated dashboard with `baseline_run` published.
@@ -239,6 +243,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] `/observability` shows trace spanning web request → pipeline → agent action.
 - [ ] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
+- [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
 
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
