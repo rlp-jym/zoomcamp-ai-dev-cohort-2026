@@ -53,33 +53,33 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Extension 2: Add segment and KPI-trend charts plus KPI selection rationale doc
 
 ## 2. Database schema and seed data
-- [ ] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.
-- [ ] Define columns, PKs, FKs, and indexes for discussion threads and trace lookup.
-- [ ] `discussions` and `messages` tables include `anchor_type` (enum: `run` | `exception` | `analysis`) and `anchor_id` columns with indexes for thread lookup.
-- [ ] Add `backend/db/seed.py` to seed 8 personas (`analyst`, `manager`, `director`, `orchestrator`, `de`, `dq`, `fa`, `controller`).
-- [ ] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`.
-- [ ] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
-- [ ] Apply schema on boot; run seeds idempotently.
-- [ ] Implement backfill: if `scenarios` empty, trigger GitHub Action to generate `baseline_run` (seed=9) and wait for webhook.
+- [x] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.
+- [x] Define columns, PKs, FKs, and indexes for discussion threads and trace lookup.
+- [x] `discussions` and `messages` tables include `anchor_type` (enum: `run` | `exception` | `analysis`) and `anchor_id` columns with indexes for thread lookup.
+- [x] Add `backend/db/seed.py` to seed 8 personas (`analyst`, `manager`, `director`, `orchestrator`, `de`, `dq`, `fa`, `controller`).
+- [x] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`.
+- [x] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
+- [x] Apply schema on boot; run seeds idempotently.
+- [x] Implement backfill: if `scenarios` empty, trigger GitHub Action to generate `baseline_run` (seed=9) and wait for webhook.
 **Done when:** All tables exist, 8 personas and 11 rules are seeded, and backfill triggers and completes on an empty DB.
 
 ## 3. Storage (R2 + DuckDB)
-- [ ] Implement R2 client (boto3, S3-compatible) from env.
-- [ ] Implement DuckDB connection with `httpfs` for reading Parquet from R2.
-- [ ] Implement scenario bundle path convention `scenarios/<name>/`.
-- [ ] Implement SHA-256 manifest verification helper.
+- [x] Implement R2 client (boto3, S3-compatible) from env.
+- [x] Implement DuckDB connection with `httpfs` for reading Parquet from R2.
+- [x] Implement scenario bundle path convention `scenarios/<name>/`.
+- [x] Implement SHA-256 manifest verification helper.
 - [ ] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`.
-- [ ] Install DuckDB `httpfs` extension at boot; fail loudly if unavailable.
+- [x] Install DuckDB `httpfs` extension at boot; fail loudly if unavailable.
 - [ ] Document startup sequence: webhook endpoint must be accepting requests before backfill triggers the GitHub Action.
 
 ## 4. Backend foundation
 - [ ] FastAPI app factory with routers mounted.
-- [ ] Settings/env loading (pydantic or simple) with validation.
+- [x] Settings/env loading (pydantic or simple) with validation.
 - [ ] Persona selection via header dropdown (cookie or header `X-Persona`); no auth.
 - [ ] Jinja2 templates + static files wiring.
 - [ ] HTMX-friendly partial responses.
 - [ ] Global error handling and structured logging.
-- [ ] Health/readiness endpoint.
+- [x] Health/readiness endpoint.
 - [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
 ## 5. Observability (OTEL)
