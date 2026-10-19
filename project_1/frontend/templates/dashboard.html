@@ -4,18 +4,42 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 {% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
+<h1>
+  Dashboard
+  {% if published_run %}<span class="badge">{{ published_run }}</span>{% endif %}
+  {% if alert_count %}
+    <span class="alert-badge" title="Open alerts">⚠ {{ alert_count }} open alert{{ '' if alert_count == 1 else 's' }}</span>
+  {% endif %}
+</h1>
+
+{% if alerts %}
+<div class="alert-banner">
+  {% for a in alerts %}
+    <span class="badge badge-{{ 'critical' if a.severity == 'critical' else 'high' if a.severity == 'high' else 'low' }}">
+      {{ a.alert_type }} · {{ a.anchor_type }}:{{ a.anchor_id }} · {{ a.created_at }}
+    </span>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not available %}
+<div class="empty">
+  No published dataset for scenario <strong>{{ scenario }}</strong> yet.
+  Approve a run (Manager) to publish a dataset — KPIs and charts will light up.
+</div>
+{% endif %}
+
 <div class="charts-grid">
   <div class="chart-card">
     <h2>Revenue vs. Budget (Trailing 6 Months)</h2>
     <canvas id="revenueBudgetChart" height="120"></canvas>
   </div>
   <div class="chart-card">
-    <h2>Variances by Category</h2>
+    <h2>Variances by Category (avg variance %)</h2>
     <canvas id="varianceCategoryChart" height="120"></canvas>
   </div>
   <div class="chart-card">
-    <h2>Revenue by Customer Segment</h2>
+    <h2>Revenue by Customer Segment ($M, published)</h2>
     <canvas id="segmentChart" height="120"></canvas>
   </div>
   <div class="chart-card">
@@ -42,30 +66,28 @@
 
 <script>
   (function () {
-    const labels = ["Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026"];
-    const actual = [3.8, 4.0, 4.1, 3.9, 4.2, 4.3];
-    const budget = [3.7, 3.9, 4.0, 4.0, 4.1, 4.2];
+    const c = {{ charts | tojson }};
+    if (!c || !c.revenue_budget) return;
 
     new Chart(document.getElementById("revenueBudgetChart"), {
       type: "line",
       data: {
-        labels: labels,
+        labels: c.revenue_budget.labels,
         datasets: [
-          { label: "Actual Revenue ($M)", data: actual, borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.15)", tension: 0.3, fill: true },
-          { label: "Budget ($M)", data: budget, borderColor: "#9aa0a6", borderDash: [5, 5], tension: 0.3, fill: false }
+          { label: "Actual Revenue ($M)", data: c.revenue_budget.actual, borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.15)", tension: 0.3, fill: true },
+          { label: "Budget ($M)", data: c.revenue_budget.budget, borderColor: "#9aa0a6", borderDash: [5, 5], tension: 0.3, fill: false }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
     });
 
-    const cats = ["Contractors", "Hardware", "Software", "Services", "Logistics"];
-    const variances = [12, -5, 8, 3, -9];
     new Chart(document.getElementById("varianceCategoryChart"), {
       type: "bar",
       data: {
-        labels: cats,
+        labels: c.variance_category.labels,
         datasets: [
-          { label: "Variance ($K)", data: variances, backgroundColor: variances.map(v => v >= 0 ? "#1a7f37" : "#cf222e") }
+          { label: "Avg variance (%)", data: c.variance_category.values,
+            backgroundColor: c.variance_category.values.map(v => v >= 0 ? "#1a7f37" : "#cf222e") }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
@@ -74,9 +96,9 @@
     new Chart(document.getElementById("segmentChart"), {
       type: "doughnut",
       data: {
-        labels: ["Enterprise", "Mid-Market", "SMB", "Contractors"],
+        labels: c.segments.labels,
         datasets: [
-          { data: [45, 25, 20, 10], backgroundColor: ["#1f2a44", "#4a6fa5", "#9aa0a6", "#c9a227"] }
+          { data: c.segments.values, backgroundColor: ["#1f2a44", "#4a6fa5", "#9aa0a6", "#c9a227", "#1a7f37"] }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
@@ -85,17 +107,18 @@
     new Chart(document.getElementById("kpiTrendChart"), {
       type: "line",
       data: {
-        labels: labels,
+        labels: c.kpi_trend.labels,
         datasets: [
-          { label: "DQ Pass Rate (%)", data: [93.0, 94.0, 93.5, 94.2, 94.6, 95.0], borderColor: "#1a7f37", tension: 0.3, yAxisID: "y" },
-          { label: "Open Exceptions", data: [9, 8, 7, 8, 7, 6], borderColor: "#cf222e", tension: 0.3, yAxisID: "y1" }
+          { label: "Billings ($M)", data: c.kpi_trend.billings, borderColor: "#1f2a44", tension: 0.3, yAxisID: "y" },
+          { label: "GL Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" },
+          { label: "Open Exceptions", data: c.kpi_trend.open_exceptions, borderColor: "#cf222e", tension: 0.3, yAxisID: "y1" }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: "bottom" } },
         scales: {
-          y: { type: "linear", position: "left", title: { display: true, text: "DQ Pass Rate (%)" } },
+          y: { type: "linear", position: "left", title: { display: true, text: "$M" } },
           y1: { type: "linear", position: "right", title: { display: true, text: "Open Exceptions" }, grid: { drawOnChartArea: false } }
         }
       }

@@ -31,12 +31,11 @@ def _ctx(request, **extra):
 
 @router.get("/")
 async def dashboard(request: Request):
-    kpis = []
-    for k in stub_data.KPIS:
-        item = dict(k)
-        item["messages"] = messages.get_messages("analysis", k["thread_id"])
-        kpis.append(item)
-    return templates.TemplateResponse(request, "dashboard.html", _ctx(request, kpis=kpis))
+    """§19: real KPIs + charts from the published dataset."""
+    from backend.services import dashboard as dashboard_svc
+
+    data = dashboard_svc.get_dashboard_data()
+    return templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
 
 
 @router.get("/exceptions")
@@ -254,9 +253,48 @@ async def reject_run(request: Request, run_id: int):
 
 
 @router.get("/audit")
-async def audit(request: Request):
+async def audit(request: Request, trace_id: str | None = None):
+    """§20: real agent_actions / approvals / publications, trace filterable."""
+    from backend.db.connection import fetch_all
+
+    clause, params = "", ()
+    if trace_id:
+        clause = " WHERE trace_id = %s"
+        params = (trace_id,)
+    actions = fetch_all(
+        f"""
+        SELECT action_id, agent_id, action, anchor_type, anchor_id,
+               trace_id, payload, created_at
+        FROM agent_actions{clause}
+        ORDER BY action_id DESC
+        LIMIT 200
+        """,
+        params,
+    )
+    approvals = fetch_all(
+        f"""
+        SELECT approval_id, target_type, target_id, persona_id, decision,
+               trace_id, created_at
+        FROM approvals{clause}
+        ORDER BY approval_id DESC
+        LIMIT 100
+        """,
+        params,
+    )
+    publications = fetch_all(
+        """
+        SELECT p.publication_id, p.run_id, p.published_by, p.pointer,
+               p.published_at, r.trace_id
+        FROM publications p
+        LEFT JOIN runs r ON r.run_id = p.run_id
+        ORDER BY p.publication_id DESC
+        LIMIT 50
+        """
+    )
     return templates.TemplateResponse(
-        request, "audit.html", _ctx(request, rows=stub_data.AUDIT_ROWS)
+        request, "audit.html",
+        _ctx(request, actions=actions, approvals=approvals,
+             publications=publications, trace_id=trace_id),
     )
 
 
