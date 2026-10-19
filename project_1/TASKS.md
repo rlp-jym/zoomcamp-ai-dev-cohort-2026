@@ -68,7 +68,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Implement DuckDB connection with `httpfs` for reading Parquet from R2.
 - [x] Implement scenario bundle path convention `scenarios/<name>/`.
 - [x] Implement SHA-256 manifest verification helper.
-- [ ] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`.
+- [x] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`. (Consumed by §19 dashboard.)
 - [x] Install DuckDB `httpfs` extension at boot; fail loudly if unavailable.
 - [ ] Document startup sequence: webhook endpoint must be accepting requests before backfill triggers the GitHub Action.
 
@@ -158,7 +158,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Single reusable thread UI component (template partial).
 - [x] Post message endpoint (human + agent).
 - [x] Agent posts visually distinguished (badge, muted background).
-- [ ] Analysis thread creation from dashboard KPI cards.
+- [x] Analysis thread creation from dashboard KPI cards.
 
 ## 13. Agent team
 - [x] Base agent helpers: logging to `agent_actions`, trace correlation.
@@ -189,15 +189,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Each step logged as one `agent_actions` row.
 
 ## 16. Alerting (6 types)
-- [ ] `STALE_PUBLISHED` (high).
-- [ ] `SOURCE_HASH_MISMATCH` (critical).
-- [ ] `AUDIT_ROW_MISSING` (high).
-- [ ] `THREAD_ANCHOR_ORPHANED` (medium).
-- [ ] `PUBLISHED_RECORD_FAILS_REVALIDATION` (critical).
-- [ ] `RECON_DRIFT` (critical).
-- [ ] Dedup by `(alert_type, anchor_id)` in 1-hour window.
-- [ ] Destinations: `alerts` row + Controller message on anchor thread + dashboard badge.
-- [ ] Critical alerts escalate to Director via thread message.
+- [x] `STALE_PUBLISHED` (high). (`backend/teams/controller.py` → `backend/services/alerts.py`)
+- [x] `SOURCE_HASH_MISMATCH` (critical).
+- [x] `AUDIT_ROW_MISSING` (high).
+- [x] `THREAD_ANCHOR_ORPHANED` (medium).
+- [x] `PUBLISHED_RECORD_FAILS_REVALIDATION` (critical).
+- [x] `RECON_DRIFT` (critical).
+- [x] Dedup by `(alert_type, anchor_id)` in 1-hour window.
+- [x] Destinations: `alerts` row + Controller message on anchor thread + dashboard badge.
+- [x] Critical alerts escalate to Director via thread message.
 
 ## 17. Publication and quarantine
 > This section wires together publication, quarantine, and approval flows defined in §8, §11, and §13. Do not duplicate logic here; reference and connect.
@@ -210,14 +210,14 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 18. Controller continuous verification
 - [x] Verify published state on schedule. (Phase 2: `controller_verification` APScheduler job → `ControllerAgent.verify_stale_published`.)
 - [x] Detect stale published (SLA). (Phase 2 skeleton: logs one `agent_actions` finding; `alerts` wiring lands in Phase 3.)
-- [ ] Source hash mismatch check.
-- [ ] Audit row missing check.
-- [ ] Thread anchor orphaned check.
-- [ ] Sample revalidation of published records.
-- [ ] Post-publication recon drift check.
-- [ ] Open alerts and post to anchored threads; escalate critical.
-- [ ] Controller autonomously triggers a pipeline re-run on `STALE_PUBLISHED` (no Manager approval required)
-- [ ] Autonomous re-run logs exactly one `agent_actions` row with `agent_id = controller`
+- [x] Source hash mismatch check.
+- [x] Audit row missing check.
+- [x] Thread anchor orphaned check.
+- [x] Sample revalidation of published records.
+- [x] Post-publication recon drift check.
+- [x] Open alerts and post to anchored threads; escalate critical.
+- [x] Controller autonomously triggers a pipeline re-run on `STALE_PUBLISHED` (no Manager approval required)
+- [x] Autonomous re-run logs exactly one `agent_actions` row with `agent_id = controller`
 **Done when:** Controller job runs on schedule, detects at least one seeded anomaly, opens an alert, posts to the anchored thread, and — for `STALE_PUBLISHED` — autonomously re-runs the pipeline.
 
 ## 19. Frontend wiring (replace stub context with real data)
@@ -225,22 +225,22 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 > section replaces stub context with real queries against Postgres and
 > DuckDB. Do not rebuild templates; edit existing ones only where the real
 > data shape requires it.
-- [ ] `/` Dashboard with KPI cards + inline analysis threads (all personas).
+- [x] `/` Dashboard with KPI cards + inline analysis threads (all personas).
 - [x] `/exceptions` queue (all).
 - [x] `/exceptions/{id}` detail + thread (all).
 - [x] `/runs` history (Analyst, Manager).
 - [x] `/runs/{id}` detail + thread + approve/reject (Analyst, Manager).
 - [x] `/scenarios` list + New Scenario (Analyst).
-- [ ] `/audit` agent_actions/approvals/publications filter by trace_id (Manager, Director).
-- [ ] `/observability` trace list + span tree + logs (all).
-- [ ] Persona selector in header on every page.
-- [ ] Base layout, HTMX partials, static CSS.
+- [x] `/audit` agent_actions/approvals/publications filter by trace_id (Manager, Director).
+- [x] `/observability` trace list + span tree + logs (all). (Phase 2.)
+- [x] Persona selector in header on every page.
+- [x] Base layout, HTMX partials, static CSS.
 **Done when:** All 8 routes render with real data, and persona selection persists across pages.
 
 ## 20. Audit and compliance
-- [ ] `/audit` query filters by trace_id.
-- [ ] Ensure every agent action has `agent_actions` row and shared `trace_id`.
-- [ ] Display approvals and publications.
+- [x] `/audit` query filters by trace_id.
+- [x] Ensure every agent action has `agent_actions` row and shared `trace_id`.
+- [x] Display approvals and publications.
 
 ## 21. CI/CD (Level 3)
 - [ ] `.github/workflows/test.yml`: lint, unit, integration on PRs and pushes.
