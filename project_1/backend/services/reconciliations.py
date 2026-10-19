@@ -4,7 +4,6 @@ import json
 
 from backend.config import settings
 from backend.db.connection import execute, execute_many
-from backend.services import exceptions as exc_svc
 from backend.storage.duckdb_client import query_dicts_on
 
 # Billings are the period's invoice-line subtotals (from invoice_lines).

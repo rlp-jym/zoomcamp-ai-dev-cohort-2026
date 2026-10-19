@@ -221,7 +221,7 @@ def seed() -> None:
 
 
 if __name__ == "__main__":
-    from backend.db.connection import init_pool, apply_schema
+    from backend.db.connection import apply_schema, init_pool
 
     init_pool()
     apply_schema()

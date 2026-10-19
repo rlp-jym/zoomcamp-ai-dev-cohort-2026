@@ -7,7 +7,6 @@ from S3 (Filebase) with quarantine rows applied as an exclusion filter.
 selects *which* bundle version and which quarantines apply.)
 """
 
-import json
 
 from backend.config import settings
 from backend.db.connection import execute, fetch_all, fetch_one

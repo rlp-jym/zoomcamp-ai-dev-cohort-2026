@@ -7,7 +7,7 @@ ids captured from the exception details or validation samples).
 
 import json
 
-from backend.db.connection import execute, fetch_all, fetch_one
+from backend.db.connection import fetch_all, fetch_one
 
 
 def create_quarantine(run_id, exception_id, reason_code, record_keys, created_by):

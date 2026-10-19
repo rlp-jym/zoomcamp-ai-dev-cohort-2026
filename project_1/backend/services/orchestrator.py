@@ -7,7 +7,6 @@ from datetime import datetime
 
 from backend.db.connection import execute, execute_many
 from backend.services import dq as dq_svc
-from backend.services import exceptions as exc_svc
 from backend.services import messages as msg_svc
 from backend.services import reconciliations as recon_svc
 from backend.services import runs as runs_svc

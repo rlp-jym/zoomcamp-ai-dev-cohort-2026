@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 
-from backend.db.connection import execute, fetch_all, fetch_one
+from backend.db.connection import fetch_all, fetch_one
 from backend.storage.s3_client import list_scenario_keys
 
 
