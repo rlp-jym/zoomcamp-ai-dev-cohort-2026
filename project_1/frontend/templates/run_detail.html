@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.id }}{% endblock %}
+{% block content %}
+<h1>Run #{{ run.id }}</h1>
+<dl class="meta">
+  <dt>Scenario</dt><dd>{{ run.scenario }}</dd>
+  <dt>Status</dt><dd>{{ run.status }}</dd>
+  <dt>Started</dt><dd>{{ run.started_at }}</dd>
+  <dt>Finished</dt><dd>{{ run.finished_at if run.finished_at is defined else run.get('finished_at','') }}</dd>
+  <dt>Duration</dt><dd>{{ run.duration }}</dd>
+  <dt>Triggered by</dt><dd>{{ run.triggered_by if run.triggered_by is defined else run.get('triggered_by','') }}</dd>
+  <dt>Trace</dt><dd>{{ run.trace_id if run.trace_id is defined else run.get('trace_id','') }}</dd>
+  <dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd>
+  <dt>Exceptions</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd>
+  <dt>Published</dt><dd>{{ "yes" if run.published else "no" }}</dd>
+</dl>
+<h2>Thread</h2>
+{% set anchor_type = anchor_type %}
+{% set anchor_id = anchor_id %}
+{% set messages = messages %}
+{% include "partials/thread.html" %}
+{% endblock %}

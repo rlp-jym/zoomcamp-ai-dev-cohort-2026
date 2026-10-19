@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Exceptions{% endblock %}
+{% block content %}
+<h1>Exceptions</h1>
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>Type</th><th>Severity</th><th>Period</th><th>Title</th><th>Status</th><th>Trace</th></tr>
+  </thead>
+  <tbody>
+    {% for e in exceptions %}
+    <tr>
+      <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
+      <td>{{ e.type }}</td>
+      <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
+      <td>{{ e.period }}</td>
+      <td>{{ e.title }}</td>
+      <td>{{ e.status }}</td>
+      <td>{{ e.trace_id }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+{% block content %}
+<h1>Audit</h1>
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>Agent</th><th>Action</th><th>Anchor</th><th>Trace</th><th>Created</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td>{{ r.agent }}</td>
+      <td>{{ r.action }}</td>
+      <td>{{ r.anchor }}</td>
+      <td>{{ r.trace_id }}</td>
+      <td>{{ r.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

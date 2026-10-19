@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Observability{% endblock %}
+{% block content %}
+<h1>Observability</h1>
+<h2>Traces</h2>
+<table class="table">
+  <thead>
+    <tr><th>Trace ID</th><th>Name</th><th>Duration</th><th>Status</th><th>Spans</th></tr>
+  </thead>
+  <tbody>
+    {% for t in traces %}
+    <tr>
+      <td>{{ t.trace_id }}</td>
+      <td>{{ t.name }}</td>
+      <td>{{ t.duration }}</td>
+      <td>{{ t.status }}</td>
+      <td>{{ t.spans }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h2>Expanded span tree: {{ expanded_trace }}</h2>
+<ul class="span-tree">
+  {% for s in expanded_spans %}
+  <li style="margin-left: {{ s.depth * 20 }}px;">
+    <span class="span-name">{{ s.name }}</span>
+    <span class="span-dur">{{ s.duration }}</span>
+    <span class="span-status {{ s.status }}">{{ s.status }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

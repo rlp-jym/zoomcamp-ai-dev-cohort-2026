@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="kpi-grid">
+  {% for k in kpis %}
+  <div class="kpi-card">
+    <div class="kpi-title">{{ k.title }}</div>
+    <div class="kpi-value">{{ k.value }}</div>
+    <div class="kpi-delta {{ k.trend }}">{{ k.delta }}</div>
+    <div class="kpi-thread">
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = k.thread_id %}
+      {% set messages = k.messages %}
+      {% include "partials/thread.html" %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

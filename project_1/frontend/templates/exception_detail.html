@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Exception {{ exception.id }}{% endblock %}
+{% block content %}
+<h1>Exception #{{ exception.id }}</h1>
+<dl class="meta">
+  <dt>Type</dt><dd>{{ exception.type }}</dd>
+  <dt>Severity</dt><dd>{{ exception.severity }}</dd>
+  <dt>Period</dt><dd>{{ exception.period }}</dd>
+  <dt>Status</dt><dd>{{ exception.status }}</dd>
+  <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
+  <dt>Title</dt><dd>{{ exception.title }}</dd>
+</dl>
+<h2>Thread</h2>
+{% set anchor_type = anchor_type %}
+{% set anchor_id = anchor_id %}
+{% set messages = messages %}
+{% include "partials/thread.html" %}
+{% endblock %}

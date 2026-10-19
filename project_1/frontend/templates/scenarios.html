@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Scenarios{% endblock %}
+{% block content %}
+<h1>Scenarios</h1>
+<button class="btn" type="button" onclick="alert('New Scenario (non-functional in skeleton)')">New Scenario</button>
+<table class="table">
+  <thead>
+    <tr><th>Name</th><th>Status</th><th>Tables</th><th>Seed</th><th>Created</th></tr>
+  </thead>
+  <tbody>
+    {% for s in scenarios %}
+    <tr>
+      <td>{{ s.name }}</td>
+      <td>{{ s.status }}</td>
+      <td>{{ s.tables }}</td>
+      <td>{{ s.seed }}</td>
+      <td>{{ s.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
