@@ -42,8 +42,8 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Publication block shows publication_id, published_at, pointer, published_by when published.
 - [x] Manager sees Approve Go-Live button only for completed, unpublished runs.
 - [x] Non-manager sees "Go-Live approval requires the Manager persona."
-- [ ] Approve creates a publication row, moves the published pointer, posts a thread message, writes an approvals row. (POST behavior — not exercised, pages-only pass)
-- [ ] Reject sets status to rejected, writes an approvals row, posts a message (no persona gate). (POST behavior — not exercised, pages-only pass)
+- [x] Approve creates a publication row, moves the published pointer, posts a thread message, writes an approvals row.
+- [x] Reject sets status to rejected, writes an approvals row, posts a message (no persona gate).
 - [x] Thread renders and HTMX post works. (thread renders; HTMX post not exercised, pages-only pass)
 
 ## `/scenarios`

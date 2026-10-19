@@ -117,6 +117,8 @@ def publish_run(run_id, persona_id, trace_id=None, comment=None):
         """,
         (run_id, persona_id, pointer),
     )
+    from backend.services import dashboard as dashboard_svc
+    dashboard_svc.invalidate_dashboard_cache()
     return {
         "publication_id": row["publication_id"],
         "run_id": run_id,
