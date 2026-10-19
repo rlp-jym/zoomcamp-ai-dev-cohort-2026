@@ -11,7 +11,7 @@ gl_revenue are small monthly tables scanned directly.
 import logging
 
 from backend.config import settings
-from backend.db.connection import fetch_one
+from backend.db.connection import fetch_all, fetch_one
 from backend.services import alerts as alerts_svc
 from backend.services import messages as msg_svc
 from backend.services import publications as pub_svc
@@ -124,12 +124,6 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                COALESCE(SUM(line_subtotal), 0) AS amt
             FROM bil
         UNION ALL
-        SELECT 'billings_mtd', '', '',
-               COALESCE(SUM(bil.line_subtotal), 0)
-            FROM bil
-            JOIN inv i ON bil.invoice_id = i.invoice_id
-            WHERE i.ym = (SELECT MAX(ym) FROM inv)
-        UNION ALL
         SELECT 'billings_month', '', CAST(i.ym AS VARCHAR),
                SUM(bil.line_subtotal)
             FROM bil
@@ -156,9 +150,6 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     segments.sort(key=lambda s: -s["amount"])
     billings_total = next(
         (float(r["amt"]) for r in rows_a if r["kind"] == "billings_total"), 0.0
-    )
-    billings_mtd = next(
-        (float(r["amt"]) for r in rows_a if r["kind"] == "billings_mtd"), 0.0
     )
 
     # ---- small monthly tables: GL revenue and budget ----------------------
@@ -192,9 +183,19 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         (billings_total - gl_total) / gl_total * 100 if gl_total else 0.0
     )
 
-    mtd_key = months[-1] if months else None
+    # "MTD" = latest full month of activity — the calendar tail month can be
+    # a partial ingest, which would zero the headline numbers.
+    max_monthly = max(billings_month.values() or [0.0])
+    full_months = sorted(
+        m for m, a in billings_month.items() if not max_monthly or a >= 0.5 * max_monthly
+    )
+    mtd_key = full_months[-1] if full_months else (months[-1] if months else None)
     gl_mtd = gl_month.get(mtd_key, 0.0) if mtd_key else 0.0
-    prev_mtd_key = months[-2] if len(months) > 1 else None
+    billings_mtd = billings_month.get(mtd_key, 0.0) if mtd_key else 0.0
+    prev_mtd_key = (
+        full_months[-2] if len(full_months) > 1
+        else (months[-2] if len(months) > 1 else None)
+    )
     gl_prev = gl_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
     bill_prev = billings_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
 
@@ -229,15 +230,16 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     for k in data["kpis"]:
         k["messages"] = msg_svc.get_messages("analysis", k["thread_id"])
 
-    variance_rows = query_rows(
-        f"""
-        SELECT item_category, AVG(variance_pct) AS avg_var, COUNT(*) AS n
+    variance_rows = fetch_all(
+        """
+        SELECT item_category, AVG(variance_pct) * 100 AS avg_var, COUNT(*) AS n
         FROM reconciliations
-        WHERE run_id = {int(q["run_id"])}
+        WHERE run_id = %s
         GROUP BY item_category
         ORDER BY ABS(AVG(variance_pct)) DESC
         LIMIT 5
-        """
+        """,
+        (q["run_id"],),
     )
     exc_trend = fetch_one(
         """
