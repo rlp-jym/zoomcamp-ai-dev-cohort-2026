@@ -2,6 +2,11 @@
 {% block title %}Runs{% endblock %}
 {% block content %}
 <h1>Runs</h1>
+{% if reset_status == "ok" %}
+<div class="banner banner-ok">Demo data reset. Baseline fixture preserved.</div>
+{% elif reset_status %}
+<div class="banner banner-error">Reset encountered an issue.</div>
+{% endif %}
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th></tr>
@@ -19,4 +24,17 @@
     {% endfor %}
   </tbody>
 </table>
+{% if allow_reset %}
+<section class="danger-zone">
+  <h2>Danger zone</h2>
+  <p>Reset demo data. Preserves personas, rules, and the baseline fixture.
+     Deletes all other runs, publications, and scenarios.</p>
+  <form method="post" action="/runs/reset"
+        onsubmit="return confirm('Reset all demo data? This cannot be undone.');">
+    <label for="confirm">Type RESET to confirm:</label>
+    <input type="text" id="confirm" name="confirm" autocomplete="off" required>
+    <button type="submit" class="btn-danger">Reset demo data</button>
+  </form>
+</section>
+{% endif %}
 {% endblock %}

@@ -53,3 +53,12 @@ h1 { margin-top: 0; }
 .chart-card { background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 1rem; }
 .chart-card h2 { margin-top: 0; font-size: 1rem; }
 .chart-card canvas { width: 100% !important; height: 260px !important; }
+.banner { padding: 0.6rem 0.8rem; border-radius: 6px; margin-bottom: 1rem; }
+.banner-ok { background: #d1e7dd; color: #0f5132; }
+.banner-error { background: #f8d7da; color: #842029; }
+.danger-zone { margin-top: 2rem; border: 1px solid #f1aeb5; border-radius: 8px; padding: 1rem; background: #fff5f5; }
+.danger-zone h2 { margin-top: 0; font-size: 1rem; color: #842029; }
+.danger-zone form { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.danger-zone input { padding: 0.4rem; }
+.btn-danger { padding: 0.4rem 0.8rem; background: #cf222e; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+.btn-danger:hover { background: #a40e26; }

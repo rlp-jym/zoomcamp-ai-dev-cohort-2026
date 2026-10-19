@@ -1,12 +1,17 @@
 """Page routes rendering templates with real data."""
+from __future__ import annotations
 
+import json
+import os
+import threading
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from backend.config import settings
-from backend.db.connection import execute
+from backend.db import execute, fetch_one
+from backend.db.reset import reset_preserve_baseline
 from backend.services import exceptions as exc_svc
 from backend.services import messages, stub_data
 from backend.services import publications as pub_svc
@@ -18,6 +23,8 @@ from backend.teams.de import DEAgent
 from backend.templating import templates
 
 router = APIRouter()
+
+_reset_lock = threading.Lock()
 
 
 def _current_persona(request: Request):
@@ -142,17 +149,14 @@ async def approve_exception(request: Request, exc_id: int):
 
     trace_id = exc.get("trace_id")
 
-    # Update exception status to resolved
     execute(
         "UPDATE exceptions SET status = 'resolved' WHERE exception_id = %s",
         (exc_id,),
     )
 
-    # DE agent logs execution (no actual data deletion/quarantine yet)
     de_agent = DEAgent()
     de_agent.execute_remediation(exc, trace_id)
 
-    # Post system message to the thread
     messages.post_message(
         "exception",
         str(exc_id),
@@ -166,10 +170,83 @@ async def approve_exception(request: Request, exc_id: int):
 
 
 @router.get("/runs")
-async def runs_list(request: Request):
+async def runs_list(request: Request, reset: str | None = None):
+    persona = _current_persona(request)
     return templates.TemplateResponse(
-        request, "runs_list.html", _ctx(request, runs=runs_svc.list_runs())
+        request,
+        "runs_list.html",
+        _ctx(request, runs=runs_svc.list_runs(), reset_status=reset,
+             allow_reset=(
+                 os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
+                 and persona["id"] == "manager"
+             )),
     )
+
+
+@router.post("/runs/reset")
+async def reset_runs(request: Request):
+    """Reset non-baseline demo data (Manager-only, env-gated).
+
+    Preserves personas, rules, and the baseline fixture. Truncates the
+    ephemeral tables and deletes non-baseline runs/publications/scenarios.
+    """
+    if os.getenv("ALLOW_IN_APP_RESET", "1") != "1":
+        raise HTTPException(status_code=403, detail="In-app reset disabled.")
+
+    form = await request.form()
+    confirm = (form.get("confirm") or "").strip()
+    if confirm != "RESET":
+        raise HTTPException(status_code=400, detail="Type RESET to confirm.")
+
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can reset data.")
+
+    # Guard against truncating under a live pipeline: only a *recent* running
+    # run blocks the reset. Older 'running' rows are orphans (crashed
+    # pipelines) and are cleared by the reset itself.
+    running = fetch_one(
+        "SELECT run_id FROM runs WHERE status='running' "
+        "AND started_at > now() - interval '10 minutes' LIMIT 1"
+    )
+    if running:
+        raise HTTPException(status_code=409, detail="Cannot reset while a run is running.")
+
+    with _reset_lock:
+        summary = reset_preserve_baseline()
+
+    trace_id = uuid.uuid4().hex
+    execute(
+        "INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id, payload, created_at) "
+        "VALUES (%s, %s, %s, %s, %s, %s, now())",
+        (
+            "orchestrator",
+            "reset_preserve_baseline",
+            "system",
+            "reset",
+            trace_id,
+            json.dumps(
+                {
+                    "runs_deleted": summary.runs_deleted,
+                    "scenarios_deleted": summary.scenarios_deleted,
+                    "publications_deleted": summary.publications_deleted,
+                }
+            ),
+        ),
+    )
+
+    try:
+        from backend.services import dashboard as dashboard_svc
+
+        execute("DELETE FROM dashboard_cache")
+        dashboard_svc.invalidate_dashboard_cache()
+        threading.Thread(
+            target=dashboard_svc.refresh_dashboard_cache, daemon=True
+        ).start()
+    except Exception:
+        pass
+
+    return RedirectResponse(url="/runs?reset=ok", status_code=303)
 
 
 @router.get("/runs/{run_id}")

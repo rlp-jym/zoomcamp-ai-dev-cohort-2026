@@ -50,7 +50,7 @@ def _delete_messages_non_baseline() -> int:
         "DELETE FROM messages WHERE discussion_id NOT IN ("
         "  SELECT discussion_id FROM discussions d "
         "  JOIN runs r ON r.run_id::text = d.anchor_id "
-        "  WHERE d.anchor_type='run' AND r.scenario_name='baseline_run'"
+        "  WHERE d.anchor_type='run' AND r.scenario_name='baseline_run' AND r.published=TRUE"
         ") RETURNING discussion_id",
         fetch=True,
     )
@@ -63,7 +63,7 @@ def _delete_messages_non_baseline() -> int:
 def _delete_discussions_non_baseline() -> int:
     res = execute(
         "DELETE FROM discussions WHERE anchor_type='run' AND anchor_id NOT IN ("
-        "  SELECT run_id::text FROM runs WHERE scenario_name='baseline_run'"
+        "  SELECT run_id::text FROM runs WHERE scenario_name='baseline_run' AND published=TRUE"
         ") RETURNING discussion_id",
         fetch=True,
     )
@@ -76,7 +76,7 @@ def _delete_discussions_non_baseline() -> int:
 def _delete_publications_non_baseline() -> int:
     res = execute(
         "DELETE FROM publications WHERE run_id NOT IN ("
-        "  SELECT run_id FROM runs WHERE scenario_name='baseline_run'"
+        "  SELECT run_id FROM runs WHERE scenario_name='baseline_run' AND published=TRUE"
         ") RETURNING publication_id",
         fetch=True,
     )
@@ -88,7 +88,8 @@ def _delete_publications_non_baseline() -> int:
 
 def _delete_runs_non_baseline() -> int:
     res = execute(
-        "DELETE FROM runs WHERE scenario_name <> 'baseline_run' RETURNING run_id",
+        "DELETE FROM runs WHERE scenario_name IS DISTINCT FROM 'baseline_run' "
+        "OR published = FALSE RETURNING run_id",
         fetch=True,
     )
     if res:
