@@ -31,11 +31,33 @@ def _ctx(request, **extra):
 
 @router.get("/")
 async def dashboard(request: Request):
-    """§19: real KPIs + charts from the published dataset."""
+    """§19: real KPIs + charts from the published dataset.
+
+    Reads the precomputed dashboard_cache payload (refreshed by the
+    scheduler / manual refresh) so the request never scans S3 — page loads
+    stay fast, and a long S3 outage can only delay the refresh job.
+    """
     from backend.services import dashboard as dashboard_svc
 
-    data = dashboard_svc.get_dashboard_data()
+    data = dashboard_svc.get_dashboard_data_cached()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
+
+
+@router.post("/dashboard/refresh")
+async def dashboard_refresh(request: Request):
+    """Recompute the dashboard cache in a background thread (S3 heavy)."""
+    import threading
+
+    from backend.services import dashboard as dashboard_svc
+
+    def _job():
+        try:
+            dashboard_svc.refresh_dashboard_cache()
+        except Exception:  # logged inside refresh; keep the server safe
+            pass
+
+    threading.Thread(target=_job, daemon=True).start()
+    return RedirectResponse(url="/", status_code=303)
 
 
 @router.get("/exceptions")

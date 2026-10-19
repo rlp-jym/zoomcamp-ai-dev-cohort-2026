@@ -210,3 +210,12 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
 -- evidence for drill-down (reconciliation grain, samples, etc.).
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS rule_id TEXT;
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS details JSONB;
+
+-- Batch 6 / Phase 3 (§19): precomputed dashboard payload.
+-- The / route never scans S3 Parquet inside a request; the scheduler job
+-- (dashboard_refresh) recomputes the payload and upserts it here.
+CREATE TABLE IF NOT EXISTS dashboard_cache (
+    cache_key    TEXT PRIMARY KEY,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    data         JSONB NOT NULL
+);

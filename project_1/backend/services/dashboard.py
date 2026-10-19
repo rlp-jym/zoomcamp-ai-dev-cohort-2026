@@ -4,14 +4,18 @@ Every number comes from the published dataset — the published run's
 invoice_lines read through ``get_published_data_query`` (quarantine overlay
 applied) — plus cheap Postgres counters for process/reliability KPIs.
 
-The big `invoice_lines` scan is materialized once per page load; budget and
-gl_revenue are small monthly tables scanned directly.
+The S3 Parquet scan runs ONLY inside ``refresh_dashboard_cache`` (called by
+an APScheduler job / an explicit user refresh), never inside a request: the
+``/`` route reads the precomputed payload from the ``dashboard_cache``
+table, so page loads stay fast and stay out of long-running request paths.
 """
 
+import json
 import logging
+from datetime import datetime
 
 from backend.config import settings
-from backend.db.connection import fetch_all, fetch_one
+from backend.db.connection import execute, fetch_all, fetch_one
 from backend.services import alerts as alerts_svc
 from backend.services import messages as msg_svc
 from backend.services import publications as pub_svc
@@ -284,6 +288,74 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             ),
         },
         "billings_mtd": _fmt_m(billings_mtd),
+    }
+    return data
+
+
+def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
+    """Recompute the payload (S3 scans) and upsert it into dashboard_cache.
+
+    Called by the scheduler job — never in the request path.
+    Returns 'updated' | 'empty' | 'error: ...'.
+    """
+    try:
+        data = get_dashboard_data(scenario)
+    except Exception as exc:
+        logger.exception("Dashboard cache refresh failed.")
+        return f"error: {exc}"
+    if not data.get("available"):
+        logger.info("Dashboard: no published dataset — cache left empty.")
+        return "empty"
+    execute(
+        """
+        INSERT INTO dashboard_cache (cache_key, data, refreshed_at)
+        VALUES (%s, %s, now())
+        ON CONFLICT (cache_key) DO UPDATE
+            SET data = EXCLUDED.data, refreshed_at = now()
+        """,
+        ("dashboard", json.dumps(data, default=str)),
+    )
+    return "updated"
+
+
+def get_from_cache(cache_key: str = "dashboard") -> tuple[dict | None, datetime | None]:
+    """Read the cached payload (returns None when never computed)."""
+    row = fetch_one(
+        "SELECT data, refreshed_at FROM dashboard_cache WHERE cache_key = %s",
+        (cache_key,),
+    )
+    if not row:
+        return None, None
+    payload = row["data"]
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    return payload, row["refreshed_at"]
+
+
+def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
+    """Request-path wrapper: reads the cache only, never scans S3."""
+    data, refreshed_at = get_from_cache()
+    if data is None:
+        return {
+            "scenario": scenario,
+            "published_run": None,
+            "available": False,
+            "alerts": alerts_svc.open_alerts(),
+            "alert_count": alerts_svc.open_alert_count(),
+            "kpis": [],
+            "charts": {},
+            "cache_fresh_at": None,
+            "cache_empty": True,
+        }
+    data["cache_empty"] = False
+    # Cheap Postgres values are re-read live on every request so the badge
+    # and analysis threads never lag behind the parquet snapshot.
+    data["alerts"] = alerts_svc.open_alerts()
+    data["alert_count"] = alerts_svc.open_alert_count()
+    for k in data.get("kpis", []):
+        k["messages"] = msg_svc.get_messages("analysis", k["thread_id"])
+    data["kpi_cache"] = {
+        "refreshed_at": refreshed_at.strftime("%Y-%m-%d %H:%M:%S") if refreshed_at else "",
     }
     return data
 

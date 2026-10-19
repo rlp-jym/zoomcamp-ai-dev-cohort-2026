@@ -47,9 +47,29 @@ def start_scheduler() -> BackgroundScheduler:
         replace_existing=True,
         max_instances=1,
     )
+
+    # Dashboard cache refresh (§19): heavy S3 scans live in the scheduler,
+    # not in request handlers.
+    from backend.services.dashboard import refresh_dashboard_cache
+
+    _scheduler.add_job(
+        refresh_dashboard_cache,
+        "interval",
+        minutes=15,
+        id="dashboard_refresh",
+        replace_existing=True,
+        max_instances=1,
+    )
     _scheduler.start()
+    # Publication check and first cache fill run once at boot.
+    from threading import Thread
+
+    Thread(
+        target=refresh_dashboard_cache, name="dashboard_cache_first", daemon=True
+    ).start()
     log.info(
-        "Scheduler started: controller every %s min, retention every 24h",
+        "Scheduler started: controller every %s min, retention every 24h, "
+        "dashboard cache refresh every 15 min",
         settings.controller_interval_minutes,
     )
     return _scheduler
