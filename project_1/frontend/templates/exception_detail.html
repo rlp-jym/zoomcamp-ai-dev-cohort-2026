@@ -43,6 +43,38 @@
   <button class="btn" type="submit">Approve</button>
 </form>
 {% endif %}
+{% if persona.id == "de" and exception.status != "resolved" %}
+<form method="post" action="/exceptions/{{ exception.id }}/quarantine" style="margin:1rem 0;">
+  <button class="btn" type="submit">Quarantine</button>
+</form>
+{% endif %}
+<h2>Quarantine Records</h2>
+{% if quarantines %}
+<table class="table">
+  <thead>
+    <tr><th>#</th><th>Reason code</th><th>Records</th><th>Created by</th><th>Created at</th></tr>
+  </thead>
+  <tbody>
+    {% for q in quarantines %}
+    <tr>
+      <td>{{ q.id }}</td>
+      <td>{{ q.reason_code }}</td>
+      <td>{{ q.record_keys | length if q.record_keys else 0 }}
+        {% if q.record_keys %}
+          <details><summary>Record keys</summary>
+            <pre class="evidence">{{ q.record_keys | tojson(indent=2) }}</pre>
+          </details>
+        {% endif %}
+      </td>
+      <td>{{ q.created_by }}</td>
+      <td>{{ q.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No quarantined records for this exception.</p>
+{% endif %}
 <h2>Thread</h2>
 {% set anchor_type = anchor_type %}
 {% set anchor_id = anchor_id %}

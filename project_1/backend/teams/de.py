@@ -131,6 +131,65 @@ class DEAgent(BaseAgent):
             {"exception_id": exc_id, "step": step_desc},
         )
 
+    def execute_quarantine(self, exc: dict, trace_id: str) -> tuple[int, int]:
+        """Quarantine the affected records for an exception (playbook step 2).
+
+        Bounded write: inserts one ``quarantines`` row carrying the affected
+        record keys and a reason code derived from the exception, and logs
+        exactly one agent_actions row.
+
+        Returns (quarantine_id, record_count).
+        """
+        from backend.services import quarantines as quarantines_svc
+
+        exc_id = exc.get("exception_id", exc.get("id"))
+        if exc_id is None:
+            raise ValueError("Exception dict is missing an id.")
+        records = exc_svc.get_quarantine_records_for_exception(exc)
+        count = len(records)
+        rule_id = exc.get("rule_id") or exc.get("type") or "EXCEPTION"
+        reason_code = f"QUARANTINE_{str(rule_id).upper()}"
+
+        quarantine_id = quarantines_svc.create_quarantine(
+            run_id=exc.get("run_id"),
+            exception_id=exc_id,
+            reason_code=reason_code,
+            record_keys=records,
+            created_by=self.agent_id,
+        )
+
+        self.log_action(
+            "quarantine_executed",
+            "exception",
+            str(exc_id),
+            trace_id,
+            {
+                "exception_id": exc_id,
+                "quarantine_id": quarantine_id,
+                "reason_code": reason_code,
+                "record_count": count,
+            },
+        )
+
+        msg_svc.post_message(
+            "exception",
+            str(exc_id),
+            self.persona,
+            (
+                f"Quarantined {count} record(s) for exception #{exc_id} "
+                f"(reason code {reason_code}). These records are excluded "
+                f"from the published view for run {exc.get('run_id')}."
+            ),
+            trace_id=trace_id,
+            evidence={
+                "quarantine_id": quarantine_id,
+                "reason_code": reason_code,
+                "record_count": count,
+            },
+        )
+
+        return quarantine_id, count
+
     def _build_context(self, exc: dict) -> dict:
         sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
         recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)

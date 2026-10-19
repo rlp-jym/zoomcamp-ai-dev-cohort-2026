@@ -201,11 +201,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ## 17. Publication and quarantine
 > This section wires together publication, quarantine, and approval flows defined in §8, §11, and §13. Do not duplicate logic here; reference and connect.
-- [ ] Manager approves go-live in run thread → create `publication` row.
-- [ ] Set published pointer.
-- [ ] Quarantine overlay model (`quarantines`).
-- [ ] Manager approves remediation in exception thread → DE executes → logs `agent_actions`.
-- [ ] Published data derived at query time with quarantine filter.
+- [x] Manager approves go-live in run thread → create `publication` row.
+- [x] Set published pointer.
+- [x] Quarantine overlay model (`quarantines`).
+- [x] Manager approves remediation in exception thread → DE executes → logs `agent_actions`.
+- [x] Published data derived at query time with quarantine filter. (Query function ready in `backend/services/publications.py`; dashboard KPI wiring lands in Phase 3.)
 
 ## 18. Controller continuous verification
 - [ ] Verify published state on schedule.

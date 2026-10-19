@@ -12,12 +12,27 @@
   <dt>Trace</dt><dd>{{ run.trace_id if run.trace_id is defined else run.get('trace_id','') }}</dd>
   <dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd>
   <dt>Exceptions</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd>
-  <dt>Published</dt><dd>{{ "yes" if run.published else "no" }}</dd>
+  <dt>Published</dt><dd>
+    {% if publication %}
+      yes — publication #{{ publication.publication_id }}, {{ publication.published_at }}
+    {% else %}
+      {{ "yes" if run.published else "no" }}
+    {% endif %}
+  </dd>
+  {% if publication %}
+  <dt>Pointer</dt><dd><code>{{ publication.pointer }}</code></dd>
+  <dt>Published by</dt><dd>{{ publication.published_by }}</dd>
+  {% endif %}
   <dt>Approved at</dt><dd>{{ run.approved_at if run.approved_at is defined else run.get('approved_at','') }}</dd>
 </dl>
+{% if persona.id == "manager" and run.status == "completed" and not run.published %}
 <form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;">
-  <button class="btn" type="submit">Approve</button>
+  <button class="btn" type="submit">Approve Go-Live</button>
 </form>
+{% endif %}
+{% if persona.id != "manager" and run.status == "completed" and not run.published %}
+<p class="empty">Go-Live approval requires the Manager persona.</p>
+{% endif %}
 <h2>Validation Results</h2>
 {% if validations %}
 <table class="table">

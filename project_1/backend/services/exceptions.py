@@ -114,6 +114,33 @@ def get_sampled_failures_for_exception(exc):
     return sf if isinstance(sf, list) else []
 
 
+def get_quarantine_records_for_exception(exc):
+    """Return the affected records (dicts) to quarantine for an exception.
+
+    Prefers the structured sample persisted in ``exceptions.details``,
+    falling back to the validation rule's sampled failures.
+    """
+    if not exc:
+        return []
+    details = _as_json(exc.get("details")) if isinstance(exc.get("details"), (str, dict)) else None
+    sample = []
+    if isinstance(details, dict):
+        raw = details.get("sample") or details.get("records")
+        if isinstance(raw, list):
+            sample = [r for r in raw if isinstance(r, dict) or _is_scalar_key(r)]
+    if sample:
+        return sample
+    return get_sampled_failures_for_exception(exc)
+
+
+def _is_scalar_key(value):
+    try:
+        int(value)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def get_reconciliation_rows_for_exception(exc):
     """Return the monthly reconciliation rows behind a reconciliation exception."""
     if not exc or not exc.get("run_id"):

@@ -13,6 +13,8 @@ from backend.config import settings
 from backend.db.connection import execute, fetch_one
 from backend.services import exceptions as exc_svc
 from backend.services import messages
+from backend.services import publications as pub_svc
+from backend.services import quarantines as quarantines_svc
 from backend.services import runs as runs_svc
 from backend.services import scenarios as scen_svc
 from backend.services import stub_data
@@ -59,6 +61,7 @@ async def exception_detail(request: Request, exc_id: int):
     msgs = messages.get_messages("exception", str(exc_id))
     sampled = []
     reconciliation_rows = []
+    quarantine_rows = quarantines_svc.list_quarantines_for_exception(exc_id)
     if exc.get("type") == "reconciliation":
         reconciliation_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
     else:
@@ -68,8 +71,38 @@ async def exception_detail(request: Request, exc_id: int):
         "exception_detail.html",
         _ctx(request, exception=exc, anchor_type="exception", anchor_id=str(exc_id),
              messages=msgs, sampled_failures=sampled,
-             reconciliation_rows=reconciliation_rows),
+             reconciliation_rows=reconciliation_rows, quarantines=quarantine_rows),
     )
+
+
+@router.post("/exceptions/{exc_id}/quarantine")
+async def quarantine_exception(request: Request, exc_id: int):
+    """DE agent quarantines the affected records for an exception.
+
+    - Inserts one row in the `quarantines` table (reason code + record keys).
+    - Logs the bounded write to agent_actions.
+    - Posts a message on the exception thread and resolves the exception.
+    """
+    persona = _current_persona(request)
+    if persona["id"] != "de":
+        raise HTTPException(status_code=403, detail="Only the DE agent can quarantine records.")
+
+    exc = exc_svc.get_exception(exc_id)
+    if not exc:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    if exc["status"] == "resolved":
+        raise HTTPException(status_code=400, detail="Exception is already resolved.")
+
+    trace_id = exc.get("trace_id")
+    de_agent = DEAgent()
+    quarantine_id, count = de_agent.execute_quarantine(exc, trace_id)
+
+    execute(
+        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+
+    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
 
 @router.post("/exceptions/{exc_id}/approve")
@@ -133,11 +166,12 @@ async def run_detail(request: Request, run_id: int):
                "published": False, "published_at": None, "approved_at": None}
     msgs = messages.get_messages("run", str(run_id))
     validations = val_svc.list_validations(run_id)
+    publication = pub_svc.get_publication_for_run(run_id)
     return templates.TemplateResponse(
         request,
         "run_detail.html",
         _ctx(request, run=run, anchor_type="run", anchor_id=str(run_id),
-             messages=msgs, validations=validations),
+             messages=msgs, validations=validations, publication=publication),
     )
 
 
@@ -163,16 +197,47 @@ async def run_scenario(request: Request, name: str):
 
 @router.post("/runs/{run_id}/approve")
 async def approve_run(request: Request, run_id: int):
+    """Manager approves go-live: publication row + published pointer.
+
+    Creates a row in the `publications` table, moves the scenario's
+    published pointer to this run, and posts a confirmation to the run
+    thread. Only the Manager persona may approve.
+    """
     persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can approve go-live.")
+
     run = runs_svc.get_run(run_id)
-    trace_id = run["trace_id"] if run else None
-    runs_svc.approve_run(run_id, persona["id"], trace_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found.")
+    if run["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Only completed runs can be published.")
+
+    trace_id = run["trace_id"]
+    pub = pub_svc.publish_run(run_id, persona["id"], trace_id)
+
+    if pub["created"]:
+        content = (
+            f"Go-Live approved by Manager: run #{run_id} is now the published "
+            f"run for scenario {run['scenario']} "
+            f"(publication #{pub['publication_id']}, pointer `{pub['pointer']}`)."
+        )
+    else:
+        content = (
+            f"Run #{run_id} was already published on {pub['published_at']} "
+            f"(publication #{pub['publication_id']})."
+        )
     messages.post_message(
         "run",
         str(run_id),
-        persona if persona["id"] == "manager" else stub_data.get_persona("manager"),
-        "Approved go-live for this run.",
+        persona,
+        content,
         trace_id=trace_id,
+        evidence={
+            "publication_id": pub["publication_id"],
+            "pointer": pub["pointer"],
+            "published_by": persona["id"],
+        },
     )
     return RedirectResponse(url=f"/runs/{run_id}", status_code=303)
 
