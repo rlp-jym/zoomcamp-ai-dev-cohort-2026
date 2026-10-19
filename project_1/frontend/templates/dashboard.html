@@ -134,7 +134,9 @@
     <table class="table">
       <thead><tr><th>Month</th><th>Growth %</th></tr></thead>
       <tbody>
-        {% for label, g in fpa.trend.labels | zip(fpa.trend.growth_rates) %}
+        {% for label in fpa.trend.labels %}
+        {% set idx = loop.index0 %}
+        {% set g = fpa.trend.growth_rates[idx] if idx < fpa.trend.growth_rates | length else None %}
         <tr><td>{{ label }}</td><td>{{ g if g is not none else "—" }}</td></tr>
         {% endfor %}
       </tbody>
