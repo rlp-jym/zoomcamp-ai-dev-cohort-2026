@@ -20,4 +20,4 @@ curl -s --max-time 1 http://127.0.0.1:8000/health >nul 2>&1
 if errorlevel 1 goto wait
 
 start "" "http://127.0.0.1:8000"
-pause
+#pause
