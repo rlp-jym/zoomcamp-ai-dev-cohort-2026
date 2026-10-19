@@ -13,7 +13,11 @@
   <dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd>
   <dt>Exceptions</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd>
   <dt>Published</dt><dd>{{ "yes" if run.published else "no" }}</dd>
+  <dt>Approved at</dt><dd>{{ run.approved_at if run.approved_at is defined else run.get('approved_at','') }}</dd>
 </dl>
+<form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;">
+  <button class="btn" type="submit">Approve</button>
+</form>
 <h2>Thread</h2>
 {% set anchor_type = anchor_type %}
 {% set anchor_id = anchor_id %}

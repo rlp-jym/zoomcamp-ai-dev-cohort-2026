@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS runs (
     exceptions_created   INTEGER NOT NULL DEFAULT 0,
     published            BOOLEAN NOT NULL DEFAULT FALSE,
     published_at         TIMESTAMPTZ,
+    approved_at          TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -202,3 +203,5 @@ CREATE INDEX IF NOT EXISTS idx_otel_logs_trace ON otel_logs (trace_id);
 CREATE INDEX IF NOT EXISTS idx_quarantines_run ON quarantines (run_id);
 CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals (target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_publications_run ON publications (run_id);
+
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
