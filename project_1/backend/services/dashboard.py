@@ -284,6 +284,9 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         },
         "billings_mtd": _fmt_m(billings_mtd),
     }
+    data["fpa"] = _compute_fpa_outputs(
+        scenario, months, gl_month, budget_month, segments, billings_month, _uri
+    )
     return data
 
 
@@ -367,6 +370,131 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     _DASHBOARD_CACHE["payload"] = data
     _DASHBOARD_CACHE["ts"] = time.time()
     return data
+
+
+def _compute_fpa_outputs(scenario, months, gl_month, budget_month, segments, billings_month, _uri) -> dict:
+    """Compute the four FP&A outputs: budget attainment, concentration risk, projection, trend."""
+    from backend.storage.duckdb_client import query_rows
+
+    gl_total = sum(gl_month.get(m, 0.0) for m in months)
+    budget_total = sum(budget_month.get(m, 0.0) for m in months)
+    attainment_pct = (gl_total / budget_total * 100) if budget_total else None
+
+    # Budget attainment by segment (latest month)
+    latest_month = months[-1] if months else None
+    seg_attainment = []
+    if latest_month:
+        seg_rows = query_rows(f"""
+            WITH inv AS (
+                SELECT invoice_id, customer_id,
+                       strftime(invoice_date, '%Y-%m') AS ym
+                FROM read_parquet('{_uri(scenario, "invoices")}')
+            ),
+            bil AS (
+                SELECT * FROM read_parquet('{_uri(scenario, "invoice_lines")}')
+                WHERE invoice_id IS NOT NULL
+            ),
+            gl AS (
+                SELECT period, SUM(recognized_revenue_amt) AS amt
+                FROM read_parquet('{_uri(scenario, "gl_revenue")}')
+                GROUP BY period
+            )
+            SELECT COALESCE(c.segment, 'Unknown') AS segment,
+                   SUM(bil.line_subtotal) AS billings
+            FROM bil
+            JOIN inv i ON bil.invoice_id = i.invoice_id
+            JOIN read_parquet('{_uri(scenario, "customers")}') c
+                 ON i.customer_id = c.customer_id
+            WHERE i.ym = '{latest_month}'
+            GROUP BY 1
+        """)
+        seg_attainment = [
+            {"segment": r["segment"], "billings": float(r["billings"])}
+            for r in seg_rows
+        ]
+        seg_attainment.sort(key=lambda s: -s["billings"])
+
+    # Revenue concentration: top 5 customers by billings
+    conc_rows = query_rows(f"""
+        WITH inv AS (
+            SELECT invoice_id, customer_id
+            FROM read_parquet('{_uri(scenario, "invoices")}')
+        ),
+        bil AS (
+            SELECT * FROM read_parquet('{_uri(scenario, "invoice_lines")}')
+            WHERE invoice_id IS NOT NULL
+        )
+        SELECT i.customer_id, SUM(bil.line_subtotal) AS total
+        FROM bil
+        JOIN inv i ON bil.invoice_id = i.invoice_id
+        GROUP BY 1
+        ORDER BY 2 DESC
+        LIMIT 5
+    """)
+    total_billings = sum(float(r["total"]) for r in conc_rows) if conc_rows else 0
+    all_billings = sum(billings_month.get(m, 0.0) for m in months)
+    top5_share = (total_billings / all_billings * 100) if all_billings else None
+
+    # Projection: linear trend of last 3 months GL revenue
+    gl_values = [gl_month.get(m, 0.0) for m in months]
+    last3 = gl_values[-3:] if len(gl_values) >= 3 else gl_values
+    if len(last3) >= 2:
+        growth_rates = [
+            (last3[i] - last3[i-1]) / last3[i-1]
+            for i in range(1, len(last3))
+            if last3[i-1] != 0
+        ]
+        avg_growth = sum(growth_rates) / len(growth_rates) if growth_rates else 0
+    else:
+        avg_growth = 0
+    projected = []
+    if gl_values and avg_growth is not None:
+        last_val = gl_values[-1]
+        for i in range(1, 4):
+            projected.append(last_val * (1 + avg_growth) ** i)
+
+    # Trend analysis: month-over-month growth rates
+    trend_labels = months[1:] if len(months) > 1 else []
+    growth_rates_full = []
+    for i in range(1, len(months)):
+        prev = gl_month.get(months[i-1], 0.0)
+        curr = gl_month.get(months[i], 0.0)
+        if prev > 0:
+            growth_rates_full.append(round((curr - prev) / prev * 100, 1))
+        else:
+            growth_rates_full.append(None)
+
+    # Inflection: last 3 growth rates
+    recent_growth = [g for g in growth_rates_full if g is not None][-3:]
+    inflection = None
+    if len(recent_growth) >= 2:
+        if all(recent_growth[i] < recent_growth[i-1] for i in range(1, len(recent_growth))):
+            inflection = "decelerating"
+        elif all(recent_growth[i] > recent_growth[i-1] for i in range(1, len(recent_growth))):
+            inflection = "accelerating"
+
+    return {
+        "budget_attainment": {
+            "pct": round(attainment_pct, 1) if attainment_pct is not None else None,
+            "by_segment": seg_attainment,
+        },
+        "concentration": {
+            "top5_share": round(top5_share, 1) if top5_share is not None else None,
+            "customers": [
+                {"customer_id": r["customer_id"], "total": float(r["total"])}
+                for r in conc_rows
+            ],
+        },
+        "projection": {
+            "avg_growth_pct": round(avg_growth * 100, 1) if avg_growth is not None else None,
+            "next_3m": [round(p / 1e6, 3) for p in projected],
+        },
+        "trend": {
+            "labels": trend_labels,
+            "growth_rates": growth_rates_full,
+            "inflection": inflection,
+        },
+    }
 
 
 def _process_kpis_only(run_rate, prev_rate, exc_row, pub_count) -> list[dict]:
