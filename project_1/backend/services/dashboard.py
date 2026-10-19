@@ -265,7 +265,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         },
         "variance_category": {
             "labels": [r["item_category"] for r in variance_rows],
-            "values": [round(float(r["avg_var"] or 0), 2) for r in variance_rows],
+            "values": [round(float(r["avg_var"] or 0), 4) for r in variance_rows],
         },
         "segments": {
             "labels": [s["label"] for s in segments[:5]],
