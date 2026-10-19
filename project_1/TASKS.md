@@ -235,6 +235,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] `/observability` trace list + span tree + logs (all). (Phase 2.)
 - [x] Persona selector in header on every page.
 - [x] Base layout, HTMX partials, static CSS.
+- [x] Baseline fixture seeded on boot (scenarios + published run + publication + run thread).
 **Done when:** All 8 routes render with real data, and persona selection persists across pages.
 
 ## 20. Audit and compliance

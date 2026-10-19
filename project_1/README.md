@@ -24,6 +24,16 @@ Implemented in this phase:
 Still stubbed / later batches: dashboard KPI wiring, DE / FA / Controller agents,
 publication + quarantine, alerting, OTEL export, APScheduler, real LLM calls.
 
+## Data Reset & Baseline Fixture
+
+A persistent `baseline_run` fixture is seeded on boot. It includes a registered scenario, a completed and published baseline run, a matching publication, and a minimal run thread. This keeps the dashboard populated immediately after cold starts and resets.
+
+Reset modes:
+- Preserve baseline (recommended): truncates non-baseline application data while keeping personas, rules, and the baseline fixture intact.
+- Full reset: removes all data including the baseline fixture (set `SEED_BASELINE_FIXTURE=0` and truncate everything).
+
+Local helper scripts: `run_app.bat` (starts app and opens browser after health check), `stop_app.bat` (stops app on port 8000).
+
 ## How to Run (Local)
 `uvicorn backend.main:app --reload`
 
