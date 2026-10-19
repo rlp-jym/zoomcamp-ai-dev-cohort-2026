@@ -316,5 +316,23 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Dashboard's `open_exceptions` series removed (it grouped by `created_at` and mismatched month labels); current open count remains a KPI.
 - [ ] Reset should also delete anchor discussions for removed exceptions/analysis (currently leaves orphan threads).
 
+## 27. FP&A dashboard outputs and sensitivity scenarios
+> Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
+
+### Dashboard — FP&A outputs
+- [ ] Add Run Pipeline button to dashboard (move from `/scenarios`)
+- [ ] Add Budget Attainment Assessment (variance from plan, decomposed by category/segment/region)
+- [ ] Add Revenue Concentration Risk (top-N customer concentration, trend over time)
+- [ ] Add Run-Rate / Projection (current trajectory projected forward vs budget)
+- [ ] Add Trend Analysis (growth rate, inflection points, deceleration signals)
+- [ ] Extend dashboard cache to compute and store the new FP&A outputs
+
+### Scenarios — sensitivity analysis workspace
+- [ ] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace
+- [ ] Each scenario has: title, outcome/projection, assessment, data snapshot (from published run), thread
+- [ ] Scenarios bind to the latest published run as the baseline for sensitivity
+- [ ] Add page description consistent with dashboard, exceptions, runs, scenarios pages
+- [ ] Remove Run Pipeline button from `/scenarios` (moved to dashboard)
+
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
