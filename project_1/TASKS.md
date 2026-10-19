@@ -328,11 +328,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
 
 ### Scenarios — sensitivity analysis workspace
-- [ ] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace
-- [ ] Each scenario has: title, outcome/projection, assessment, data snapshot (from published run), thread
-- [ ] Scenarios bind to the latest published run as the baseline for sensitivity
-- [ ] Add page description consistent with dashboard, exceptions, runs, scenarios pages
-- [ ] Remove Run Pipeline button from `/scenarios` (moved to dashboard)
+- [x] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace
+- [ ] Each scenario has: title, outcome/projection, assessment, data snapshot (from published run), thread (title/outcome/assessment/thread done; data snapshot pending)
+- [x] Scenarios bind to the latest published run as the baseline for sensitivity
+- [x] Add page description consistent with dashboard, exceptions, runs, scenarios pages
+- [x] Remove Run Pipeline button from `/scenarios` (moved to dashboard)
 
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
