@@ -81,6 +81,39 @@ def get_messages(anchor_type, anchor_id):
     return out
 
 
+def get_messages_for_threads(anchor_type, anchor_ids):
+    """Read-only batch fetch of messages for multiple anchors.
+
+    Unlike ``get_messages``, this never creates discussion rows and never
+    writes to the database, so it is safe to call from the request path
+    (e.g. the dashboard) without adding per-anchor round trips.
+    """
+    anchor_ids = [str(a) for a in (anchor_ids or [])]
+    out = {aid: [] for aid in anchor_ids}
+    if not anchor_ids:
+        return out
+
+    rows = fetch_all(
+        """
+        SELECT d.anchor_id, m.*, p.title, p.type
+        FROM messages m
+        JOIN discussions d ON d.discussion_id = m.discussion_id
+        LEFT JOIN personas p ON p.persona_id = m.persona_id
+        WHERE d.anchor_type = %s AND d.anchor_id = ANY(%s)
+        ORDER BY d.anchor_id, m.created_at ASC, m.message_id ASC
+        """,
+        (anchor_type, anchor_ids),
+    )
+    for r in rows:
+        rr = dict(r)
+        rr["title"] = r.get("title")
+        msg = _row_to_msg(rr)
+        if r.get("type"):
+            msg["is_agent"] = (r["type"] == "agent")
+        out.setdefault(str(r["anchor_id"]), []).append(msg)
+    return out
+
+
 def post_message(anchor_type, anchor_id, persona, content, trace_id=None, evidence=None):
     did = _ensure_discussion(anchor_type, anchor_id)
     persona_id = persona["id"] if isinstance(persona, dict) else persona

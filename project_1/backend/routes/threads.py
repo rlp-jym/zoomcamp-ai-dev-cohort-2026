@@ -21,6 +21,12 @@ async def post_message(request: Request, anchor_type: str, anchor_id: str):
     persona = _current_persona(request)
     if content:
         messages.post_message(anchor_type, anchor_id, persona, content)
+        try:
+            from backend.services import dashboard as _dashboard_svc
+
+            _dashboard_svc.invalidate_dashboard_cache()
+        except Exception:
+            pass
     msgs = messages.get_messages(anchor_type, anchor_id)
     return templates.TemplateResponse(
         request,

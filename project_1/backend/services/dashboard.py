@@ -12,6 +12,7 @@ table, so page loads stay fast and stay out of long-running request paths.
 
 import json
 import logging
+import time
 from datetime import datetime
 
 from backend.config import settings
@@ -23,6 +24,15 @@ from backend.services import publications as pub_svc
 logger = logging.getLogger(__name__)
 
 SCENARIO = "baseline_run"
+
+# Short-lived in-memory cache for the request-path dashboard payload.
+_DASHBOARD_CACHE: dict = {"payload": None, "ts": 0.0}
+_DASHBOARD_CACHE_TTL = 5.0
+
+
+def invalidate_dashboard_cache() -> None:
+    _DASHBOARD_CACHE["payload"] = None
+    _DASHBOARD_CACHE["ts"] = 0.0
 
 
 def _uri(scenario: str, table: str) -> str:
@@ -315,6 +325,7 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
         """,
         ("dashboard", json.dumps(data, default=str)),
     )
+    invalidate_dashboard_cache()
     return "updated"
 
 
@@ -334,9 +345,14 @@ def get_from_cache(cache_key: str = "dashboard") -> tuple[dict | None, datetime 
 
 def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     """Request-path wrapper: reads the cache only, never scans S3."""
+    now = time.time()
+    cached = _DASHBOARD_CACHE["payload"]
+    if cached is not None and now - _DASHBOARD_CACHE["ts"] < _DASHBOARD_CACHE_TTL:
+        return cached
+
     data, refreshed_at = get_from_cache()
     if data is None:
-        return {
+        result = {
             "scenario": scenario,
             "published_run": None,
             "available": False,
@@ -347,16 +363,24 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "cache_fresh_at": None,
             "cache_empty": True,
         }
+        _DASHBOARD_CACHE["payload"] = result
+        _DASHBOARD_CACHE["ts"] = time.time()
+        return result
     data["cache_empty"] = False
     # Cheap Postgres values are re-read live on every request so the badge
     # and analysis threads never lag behind the parquet snapshot.
-    data["alerts"] = alerts_svc.open_alerts()
-    data["alert_count"] = alerts_svc.open_alert_count()
+    alerts, alert_count = alerts_svc.open_alerts_with_count()
+    data["alerts"] = alerts
+    data["alert_count"] = alert_count
+    thread_ids = [k.get("thread_id") for k in data.get("kpis", []) if k.get("thread_id")]
+    msgs_by_thread = msg_svc.get_messages_for_threads("analysis", thread_ids)
     for k in data.get("kpis", []):
-        k["messages"] = msg_svc.get_messages("analysis", k["thread_id"])
+        k["messages"] = msgs_by_thread.get(str(k.get("thread_id")), [])
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %H:%M:%S") if refreshed_at else "",
     }
+    _DASHBOARD_CACHE["payload"] = data
+    _DASHBOARD_CACHE["ts"] = time.time()
     return data
 
 

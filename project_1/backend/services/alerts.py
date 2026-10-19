@@ -59,6 +59,12 @@ def raise_alert(
         """,
         (alert_type, anchor_type, str(anchor_id), severity, trace_id),
     )
+    try:
+        from backend.services import dashboard as _dashboard_svc
+
+        _dashboard_svc.invalidate_dashboard_cache()
+    except Exception:
+        pass
     return {"created": True, "alert_id": row["alert_id"], "severity": severity}
 
 
@@ -90,6 +96,35 @@ def open_alerts(limit: int = 5) -> list[dict]:
 def open_alert_count() -> int:
     row = fetch_one("SELECT COUNT(*) AS n FROM alerts WHERE status = 'open'")
     return row["n"]
+
+
+def open_alerts_with_count(limit: int = 5) -> tuple[list[dict], int]:
+    """Fetch open alerts and their total count in a single query."""
+    rows = fetch_all(
+        """
+        SELECT alert_id, alert_type, anchor_type, anchor_id, severity, status,
+               trace_id, created_at,
+               (SELECT COUNT(*) FROM alerts WHERE status = 'open') AS total_count
+        FROM alerts
+        WHERE status = 'open'
+        ORDER BY alert_id DESC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    mapped = [
+        {
+            "id": r["alert_id"],
+            "alert_type": r["alert_type"],
+            "anchor_type": r["anchor_type"],
+            "anchor_id": r["anchor_id"],
+            "severity": r["severity"],
+            "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
+        }
+        for r in rows
+    ]
+    count = rows[0]["total_count"] if rows else 0
+    return mapped, count
 
 
 def resolve_alert(alert_id: int) -> None:
