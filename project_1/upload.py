@@ -1,30 +1,39 @@
-import os
-import boto3
-from dotenv import load_dotenv
+import argparse
+import sys
 from pathlib import Path
 
-load_dotenv()
+from backend.storage.s3_client import get_s3_client
+from backend.config import settings
 
-s3 = boto3.client(
-    's3',
-    endpoint_url=os.getenv("R2_ENDPOINT_URL"),
-    aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
-    region_name='us-east-1'
-)
 
-bucket = os.getenv("R2_BUCKET")
-local_dir = Path("data/runs/demo_run")
-s3_prefix = "scenarios/demo_run/"
+def main():
+    parser = argparse.ArgumentParser(description="Upload scenario parquet files to R2")
+    parser.add_argument("--scenario", default="demo_run", help="Scenario name (e.g. baseline_run)")
+    parser.add_argument("--dir", default=None, help="Local directory containing *.parquet (e.g. data/runs/baseline_run)")
+    parser.add_argument("--prefix", default=None, help="S3 key prefix (default scenarios/<scenario>/)")
+    args = parser.parse_args()
 
-if not local_dir.exists():
-    raise SystemExit(f"Local directory not found: {local_dir}")
+    s3 = get_s3_client()
+    bucket = settings.r2_bucket
 
-print(f"Uploading {local_dir} to s3://{bucket}/{s3_prefix}")
+    local_dir = Path(args.dir) if args.dir else Path("data/runs") / args.scenario
+    s3_prefix = args.prefix if args.prefix else f"scenarios/{args.scenario}/"
 
-for file_path in sorted(local_dir.glob("*.parquet")):
-    s3_key = f"{s3_prefix}{file_path.name}"
-    print(f"Uploading {file_path.name}...")
-    s3.upload_file(str(file_path), bucket, s3_key)
+    if not bucket:
+        sys.exit("R2_BUCKET not set")
+    if not local_dir.exists():
+        sys.exit(f"Local directory not found: {local_dir}")
 
-print("Upload complete!")
+    print(f"Uploading {local_dir} to s3://{bucket}/{s3_prefix}")
+    for file_path in sorted(local_dir.glob("*.parquet")):
+        s3_key = f"{s3_prefix}{file_path.name}"
+        with open(file_path, "rb") as f:
+            body = f.read()
+        print(f"Uploading {file_path.name} as {s3_key}...")
+        s3.put_object(Bucket=bucket, Key=s3_key, Body=body)
+
+    print("Upload complete!")
+
+
+if __name__ == "__main__":
+    main()
