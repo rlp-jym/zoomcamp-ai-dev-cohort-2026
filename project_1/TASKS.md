@@ -83,19 +83,19 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
 ## 5. Observability (OTEL)
-- [ ] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB.
-- [ ] Implement custom Postgres exporter batching to `otel_spans`, `otel_logs`, `otel_metrics`.
-- [ ] Propagate `trace_id` into app state and agent actions.
-- [ ] No PII/credentials in telemetry.
-- [ ] Retention job deleting spans/logs older than 30 days (APScheduler).
-- [ ] `/observability` route rendering trace list + span tree + linked logs.
+- [x] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB. (DuckDB has no auto-instrumentor; manual `duckdb.query` spans in `backend/storage/duckdb_client.py`.)
+- [x] Implement custom Postgres exporter batching to `otel_spans`, `otel_logs`, `otel_metrics`. (`observability/exporter.py`)
+- [x] Propagate `trace_id` into app state and agent actions. (Controller verification uses the OTEL trace id; pipeline/agent actions share the run trace.)
+- [x] No PII/credentials in telemetry. (Span attributes carry SQL/statements only; R2 `SET s3_*` connection commands and auth headers are never recorded.)
+- [x] Retention job deleting spans/logs older than 30 days (APScheduler). (`observability.telemetry.run_retention`)
+- [x] `/observability` route rendering trace list + span tree + linked logs. (`backend/services/observability.py` + `observability.html`)
 **Done when:** Any request produces a trace in `/observability` with linked spans and logs, and no span attribute contains PII or credentials.
 
 ## 6. Scheduler
-- [ ] Integrate APScheduler in-process.
-- [ ] Register Controller verification job (every N minutes).
-- [ ] Register OTEL retention job.
-- [ ] Ensure scheduler starts/stops with app lifecycle.
+- [x] Integrate APScheduler in-process. (`backend/services/scheduler.py`)
+- [x] Register Controller verification job (every N minutes).
+- [x] Register OTEL retention job.
+- [x] Ensure scheduler starts/stops with app lifecycle.
 
 ## 7. Scenarios and scenario creation flow
 - [x] Scenario CRUD service and repository (raw SQL).
@@ -208,8 +208,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Published data derived at query time with quarantine filter. (Query function ready in `backend/services/publications.py`; dashboard KPI wiring lands in Phase 3.)
 
 ## 18. Controller continuous verification
-- [ ] Verify published state on schedule.
-- [ ] Detect stale published (SLA).
+- [x] Verify published state on schedule. (Phase 2: `controller_verification` APScheduler job → `ControllerAgent.verify_stale_published`.)
+- [x] Detect stale published (SLA). (Phase 2 skeleton: logs one `agent_actions` finding; `alerts` wiring lands in Phase 3.)
 - [ ] Source hash mismatch check.
 - [ ] Audit row missing check.
 - [ ] Thread anchor orphaned check.
