@@ -5,7 +5,7 @@ against `SPEC.md` (locked). Check boxes as work completes. Do not build
 anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ## 0. Prerequisites before build (`SPEC.md §19`)
-> §1, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9).
+> §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [ ] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
@@ -19,6 +19,27 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
 - [ ] Configure lint/format (ruff) and pytest.
 - [ ] Add `backend/main.py` application entry point.
+
+## 1b. UI skeleton (stub data, no backend wiring)
+> Build all templates and routes with hardcoded context dicts so every page
+> is renderable and reviewable before any DB, DuckDB, or agent wiring. Do
+> not call the database, R2, or agents in this section. Templates are
+> expected to change once wired in §19.
+- [ ] Base layout template with persona selector header (stub persona list)
+- [ ] Reusable thread partial (ordered messages, persona badges, agent
+  styling) usable for run, exception, and analysis anchors
+- [ ] `/` dashboard template with hardcoded KPI cards + inline analysis
+  thread partial
+- [ ] `/exceptions` list template with hardcoded rows
+- [ ] `/exceptions/{id}` detail + thread template with hardcoded data
+- [ ] `/runs` list template with hardcoded rows
+- [ ] `/runs/{id}` detail + thread template with hardcoded data
+- [ ] `/scenarios` list template + New Scenario button (non-functional)
+- [ ] `/audit` list template with hardcoded rows
+- [ ] `/observability` trace list + span tree template with hardcoded data
+- [ ] Mount all routes returning stub context (no DB calls)
+- [ ] Wire HTMX partial response for at least one interaction (post
+  message) using an in-memory stub
 
 ## 2. Database schema and seed data
 - [ ] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.
@@ -179,7 +200,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Post-publication recon drift check.
 - [ ] Open alerts and post to anchored threads; escalate critical.
 
-## 19. Frontend routes and templates
+## 19. Frontend wiring (replace stub context with real data)
+> Templates and route handlers were built in §1b with stub data. This
+> section replaces stub context with real queries against Postgres and
+> DuckDB. Do not rebuild templates; edit existing ones only where the real
+> data shape requires it.
 - [ ] `/` Dashboard with KPI cards + inline analysis threads (all personas).
 - [ ] `/exceptions` queue (all).
 - [ ] `/exceptions/{id}` detail + thread (all).
@@ -231,6 +256,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Document OTEL deviation (no external Grafana).
 - [ ] Document persona switch and demo flow.
 - [ ] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
+- [ ] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so reviewers understand template edits are expected.
 
 ## 25. Success criteria verification (`SPEC.md §18`)
 - [ ] Reviewer sees populated dashboard with `baseline_run` published.
