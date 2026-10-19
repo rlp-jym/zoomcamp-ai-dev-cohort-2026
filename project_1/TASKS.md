@@ -98,28 +98,28 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Ensure scheduler starts/stops with app lifecycle.
 
 ## 7. Scenarios and scenario creation flow
-- [ ] Scenario CRUD service and repository (raw SQL).
-- [ ] `/scenarios` route: list + "New Scenario" button (Analyst only).
+- [x] Scenario CRUD service and repository (raw SQL).
+- [x] `/scenarios` route: list + "New Scenario" button (Analyst only).
 - [ ] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
-- [ ] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
-- [ ] Store manifest, file hashes, and scenario metadata.
-- [ ] Display scenario list with status.
+- [x] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
+- [x] Store manifest, file hashes, and scenario metadata.
+- [x] Display scenario list with status.
 
 ## 8. Runs and pipeline orchestration (scaffold)
 > This section builds the run record, Orchestrator skeleton, and routes. The actual rule execution is wired in §9. Do not attempt to run a pipeline with rules until §9 is complete.
-- [ ] Run CRUD service and repository.
-- [ ] `/runs` and `/runs/{id}` routes (Analyst, Manager).
-- [ ] Run detail thread and approve/reject actions.
-- [ ] Orchestrator service: posts "run started", runs pipeline, posts finish.
+- [x] Run CRUD service and repository.
+- [x] `/runs` and `/runs/{id}` routes (Analyst, Manager).
+- [x] Run detail thread and approve/reject actions.
+- [x] Orchestrator service: posts "run started", runs pipeline, posts finish.
 - [ ] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
-- [ ] Run status tracking and trace correlation.
+- [x] Run status tracking and trace correlation.
 **Done when:** Clicking Run Pipeline creates a run row, posts orchestrator messages to the run thread, and returns a run detail page.
 
 ## 9. Validation rules (11)
 > Depends on §8 scaffold. After implementing rules, wire them into the Orchestrator pipeline built in §8.
-- [ ] Implement rule loader from `rules` table.
-- [ ] Implement DuckDB SQL execution over Parquet.
-- [ ] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
+- [x] Implement rule loader from `rules` table. (VAL_FK_ITEM_EXISTS)
+- [x] Implement DuckDB SQL execution over Parquet.
+- [x] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
 - [ ] `VAL_DUPLICATE_INVOICE_LINE` (duplicate_invoice_line).
 - [ ] `VAL_FK_CUSTOMER_EXISTS` (missing_customer_mapping).
 - [ ] `VAL_FRESHNESS_GL` (stale_load).
@@ -130,7 +130,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] `VAL_FK_RETURN_SHIPMENT` (phantom_return).
 - [ ] `VAL_AR_INVOICE_1TO1` (invariant).
 - [ ] `VAL_ORDER_LINE_UNIQUE` (invariant).
-- [ ] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON).
+- [x] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON). (VAL_FK_ITEM_EXISTS)
 - [ ] DQ posts validation summary to run thread.
 **Done when:** All 11 rules execute against a scenario, results are stored in `validations`, and DQ posts a summary to the run thread.
 
@@ -147,15 +147,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
 - [ ] Fields: `exception_id`, `run_id`, `type`, `severity`, `period`, `title`, `status`, `trace_id`.
 - [ ] Status flow: open → in_discussion → remediation_proposed → approved → resolved.
-- [ ] `/exceptions` queue route.
-- [ ] `/exceptions/{id}` detail + thread route.
-- [ ] Exception creation from failed rules and material recon gaps.
+- [x] `/exceptions` queue route.
+- [x] `/exceptions/{id}` detail + thread route.
+- [x] Exception creation from failed rules and material recon gaps. (VAL_FK_ITEM_EXISTS)
 
 ## 12. Discussion model
 - [ ] `discussions` and `messages` tables with anchor types `run`, `exception`, `analysis`.
 - [ ] Ordered messages with `persona_id`, `trace_id`, optional `evidence` JSON.
 - [ ] Single reusable thread UI component (template partial).
-- [ ] Post message endpoint (human + agent).
+- [x] Post message endpoint (human + agent).
 - [ ] Agent posts visually distinguished (badge, muted background).
 - [ ] Analysis thread creation from dashboard KPI cards.
 
@@ -225,11 +225,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 > DuckDB. Do not rebuild templates; edit existing ones only where the real
 > data shape requires it.
 - [ ] `/` Dashboard with KPI cards + inline analysis threads (all personas).
-- [ ] `/exceptions` queue (all).
-- [ ] `/exceptions/{id}` detail + thread (all).
-- [ ] `/runs` history (Analyst, Manager).
-- [ ] `/runs/{id}` detail + thread + approve/reject (Analyst, Manager).
-- [ ] `/scenarios` list + New Scenario (Analyst).
+- [x] `/exceptions` queue (all).
+- [x] `/exceptions/{id}` detail + thread (all).
+- [x] `/runs` history (Analyst, Manager).
+- [x] `/runs/{id}` detail + thread + approve/reject (Analyst, Manager).
+- [x] `/scenarios` list + New Scenario (Analyst).
 - [ ] `/audit` agent_actions/approvals/publications filter by trace_id (Manager, Director).
 - [ ] `/observability` trace list + span tree + logs (all).
 - [ ] Persona selector in header on every page.
