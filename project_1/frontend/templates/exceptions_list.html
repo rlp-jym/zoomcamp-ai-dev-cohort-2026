@@ -21,12 +21,21 @@
   (function () {
     const t = {{ trend | tojson }};
     if (!t || !t.labels || !t.labels.length) return;
+
+    // Trim leading/trailing edge bars that imply non-existent data (empty or
+    // single-record edge months) so the chart starts/ends at real volume.
+    let labels = t.labels.slice();
+    let detected = t.detected.slice();
+    while (labels.length && (detected[0] == null || detected[0] <= 1)) { labels.shift(); detected.shift(); }
+    while (labels.length && (detected[detected.length - 1] == null || detected[detected.length - 1] <= 1)) { labels.pop(); detected.pop(); }
+    if (!labels.length) return;
+
     new Chart(document.getElementById("exceptionTrendChart"), {
       type: "bar",
       data: {
-        labels: t.labels,
+        labels: labels,
         datasets: [
-          { label: "Exceptions detected", data: t.detected, backgroundColor: "rgba(31,42,68,0.7)", borderColor: "#1f2a44", borderWidth: 1 }
+          { label: "Exceptions detected", data: detected, backgroundColor: "rgba(31,42,68,0.7)", borderColor: "#1f2a44", borderWidth: 1 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
