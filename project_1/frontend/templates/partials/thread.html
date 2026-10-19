@@ -1,0 +1,26 @@
+<div id="thread-{{ anchor_type }}-{{ anchor_id }}" class="thread">
+  <div class="thread-messages">
+    {% for m in messages %}
+      <div class="message {% if m.is_agent %}agent{% endif %}">
+        <div class="message-meta">
+          <span class="badge badge-{{ 'agent' if m.is_agent else 'human' }}">{{ m.persona_title }}</span>
+          <span class="ts">{{ m.created_at }}</span>
+        </div>
+        <div class="message-body">{{ m.content }}</div>
+        {% if m.evidence %}
+          <pre class="evidence">{{ m.evidence }}</pre>
+        {% endif %}
+      </div>
+    {% endfor %}
+    {% if not messages %}
+      <div class="empty">No messages yet.</div>
+    {% endif %}
+  </div>
+  <form class="thread-form"
+        hx-post="/threads/{{ anchor_type }}/{{ anchor_id }}/messages"
+        hx-target="#thread-{{ anchor_type }}-{{ anchor_id }}"
+        hx-swap="outerHTML">
+    <textarea name="content" rows="2" placeholder="Post a message..." required></textarea>
+    <button type="submit">Post</button>
+  </form>
+</div>

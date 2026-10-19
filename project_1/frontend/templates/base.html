@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Revenue Data Reliability Platform{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">RDRP</div>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/exceptions">Exceptions</a>
+      <a href="/runs">Runs</a>
+      <a href="/scenarios">Scenarios</a>
+      <a href="/audit">Audit</a>
+      <a href="/observability">Observability</a>
+    </nav>
+    <form class="persona-form" method="post" action="/persona">
+      <label for="persona">Persona:</label>
+      <select id="persona" name="persona_id" onchange="this.form.submit()">
+        {% for p in PERSONAS %}
+          <option value="{{ p.id }}" {% if persona.id == p.id %}selected{% endif %}>{{ p.title }} ({{ p.type }})</option>
+        {% endfor %}
+      </select>
+      <span class="persona-badge persona-{{ persona.type }}">{{ persona.title }}</span>
+    </form>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
