@@ -25,6 +25,7 @@ from backend.templating import templates
 router = APIRouter()
 
 _reset_lock = threading.Lock()
+_pipeline_lock = threading.Lock()
 
 
 def _current_persona(request: Request):
@@ -170,12 +171,12 @@ async def approve_exception(request: Request, exc_id: int):
 
 
 @router.get("/runs")
-async def runs_list(request: Request, reset: str | None = None):
+async def runs_list(request: Request, reset: str | None = None, busy: str | None = None):
     persona = _current_persona(request)
     return templates.TemplateResponse(
         request,
         "runs_list.html",
-        _ctx(request, runs=runs_svc.list_runs(), reset_status=reset,
+        _ctx(request, runs=runs_svc.list_runs(), reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
                  and persona["id"] == "manager"
@@ -276,15 +277,35 @@ async def scenarios(request: Request):
     )
 
 
+def _run_pipeline_bg(run_id: int) -> None:
+    """Run the pipeline off the request thread; release the lock when done."""
+    from backend.services import orchestrator
+
+    try:
+        orchestrator.run_pipeline(run_id)
+    except Exception:
+        # run_pipeline already marks the run failed and posts a message.
+        pass
+    finally:
+        _pipeline_lock.release()
+
+
 @router.post("/scenarios/{name}/run")
 async def run_scenario(request: Request, name: str):
     scen_svc.ensure_baseline_registered()
-    persona = _current_persona(request)
-    trace_id = uuid.uuid4().hex
-    run_id = runs_svc.create_run(name, persona["id"], trace_id)
-    from backend.services import orchestrator
 
-    orchestrator.run_pipeline(run_id)
+    if not _pipeline_lock.acquire(blocking=False):
+        return RedirectResponse(url="/runs?busy=1", status_code=303)
+
+    try:
+        persona = _current_persona(request)
+        trace_id = uuid.uuid4().hex
+        run_id = runs_svc.create_run(name, persona["id"], trace_id)
+    except Exception:
+        _pipeline_lock.release()
+        raise
+
+    threading.Thread(target=_run_pipeline_bg, args=(run_id,), daemon=True).start()
     return RedirectResponse(url=f"/runs/{run_id}", status_code=303)
 
 

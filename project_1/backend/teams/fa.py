@@ -11,6 +11,7 @@ Quantifies the financial impact of open exceptions by:
 import json
 import logging
 
+from backend.config import settings
 from backend.db.connection import fetch_all
 from backend.services import exceptions as exc_svc
 from backend.services import llm_client
@@ -28,15 +29,35 @@ class FAAgent(BaseAgent):
         super().__init__("fa")
 
     def quantify_impact_for_run(self, run_id: str, trace_id: str) -> int:
-        """Generate and post impact narratives for all open exceptions in a run.
+        """Generate and post impact narratives for open exceptions in a run.
 
-        Returns the number of narratives posted.
+        Capped at ``MAX_AGENT_MESSAGES_PER_RUN``; the remainder is reported
+        in a single summary message.
         """
         exceptions = self._get_open_exceptions(run_id)
-        count = 0
-        for exc in exceptions:
+        limit = settings.max_agent_messages_per_run
+        capped = exceptions[:limit]
+        for exc in capped:
             self.quantify_impact(exc, trace_id)
-            count += 1
+        count = len(capped)
+        skipped = len(exceptions) - count
+        if skipped > 0:
+            msg_svc.post_message(
+                "run",
+                str(run_id),
+                self.persona,
+                f"Impact narratives capped at {limit}; "
+                f"{skipped} additional exception(s) omitted.",
+                trace_id=trace_id,
+                evidence={"capped": True, "skipped": skipped},
+            )
+            self.log_action(
+                "impact_capped",
+                "run",
+                str(run_id),
+                trace_id,
+                {"limit": limit, "skipped": skipped},
+            )
         return count
 
     def _get_open_exceptions(self, run_id: str) -> list[dict]:
@@ -104,8 +125,23 @@ class FAAgent(BaseAgent):
         return msg
 
     def _build_context(self, exc: dict) -> dict:
-        sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
-        recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
+        details = exc.get("details") or {}
+
+        # Prefer data already persisted on the exception (one DB round trip
+        # saved per agent message); fall back to a query only when missing.
+        if isinstance(details, dict) and "sample" in details:
+            sampled_failures = details.get("sample") or []
+        elif exc.get("type") == "validation":
+            sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
+        else:
+            sampled_failures = []
+
+        if isinstance(details, dict) and "grains" in details:
+            recon_rows = details.get("grains") or []
+        elif exc.get("type") == "reconciliation":
+            recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
+        else:
+            recon_rows = []
 
         # Try to compute affected amount from reconciliation data
         affected_amount = None
@@ -121,7 +157,6 @@ class FAAgent(BaseAgent):
                 affected_amount = round(total_variance, 2)
         elif sampled_failures:
             # Estimate from sampled failures if available
-            details = exc.get("details") or {}
             count = details.get("count", len(sampled_failures)) if isinstance(details, dict) else len(sampled_failures)
             affected_amount = count * 1000  # rough estimate
 

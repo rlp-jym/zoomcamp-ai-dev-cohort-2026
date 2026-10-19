@@ -301,5 +301,18 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
 - [ ] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
 
+## 26. Reliability fixes — pipeline and agents
+- [x] Pipeline runs off the request thread; a single-run lock returns `/runs?busy=1` instead of double-starting.
+- [x] Boot sweep marks orphaned `running` runs (>30 min) as failed.
+- [x] LLM circuit breaker (5 min) + 8s timeout prevents per-exception stalls when Groq is unavailable.
+- [x] Reconciliation exceptions grouped per period (one per month, grains kept in details) — 120 → 8 for `baseline_run`.
+- [x] Agent fan-out capped via `MAX_AGENT_MESSAGES_PER_RUN` (default 50 per agent) with a summary message.
+- [x] Agent context reuses persisted `details.sample` / `details.grains` instead of extra DB round trips.
+- [x] Discussion upsert collapsed to one `INSERT ... ON CONFLICT ... RETURNING`.
+- [x] DE and FA message loops run concurrently.
+- [ ] Reduce per-run wall time further (currently ~286s for `baseline_run`; dominated by remote DB round-trip latency).
+- [ ] Validation exception volume (334 for `baseline_run`) — consider rule-level grouping or a per-run time budget.
+- [ ] Reset should also delete anchor discussions for removed exceptions/analysis (currently leaves orphan threads).
+
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.

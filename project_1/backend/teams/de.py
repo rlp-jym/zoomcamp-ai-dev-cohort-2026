@@ -11,6 +11,7 @@ Proposes remediation for open exceptions by:
 import json
 import logging
 
+from backend.config import settings
 from backend.db.connection import fetch_all
 from backend.services import exceptions as exc_svc
 from backend.services import llm_client
@@ -36,15 +37,35 @@ class DEAgent(BaseAgent):
         super().__init__("de")
 
     def propose_remediation_for_run(self, run_id: str, trace_id: str) -> int:
-        """Generate and post remediation proposals for all open exceptions in a run.
+        """Generate and post remediation proposals for open exceptions in a run.
 
-        Returns the number of proposals posted.
+        Capped at ``MAX_AGENT_MESSAGES_PER_RUN`` to keep large runs bounded;
+        the remainder is reported in a single summary message.
         """
         exceptions = self._get_open_exceptions(run_id)
-        count = 0
-        for exc in exceptions:
+        limit = settings.max_agent_messages_per_run
+        capped = exceptions[:limit]
+        for exc in capped:
             self.propose_remediation(exc, trace_id)
-            count += 1
+        count = len(capped)
+        skipped = len(exceptions) - count
+        if skipped > 0:
+            msg_svc.post_message(
+                "run",
+                str(run_id),
+                self.persona,
+                f"Remediation proposals capped at {limit}; "
+                f"{skipped} additional exception(s) omitted.",
+                trace_id=trace_id,
+                evidence={"capped": True, "skipped": skipped},
+            )
+            self.log_action(
+                "remediation_capped",
+                "run",
+                str(run_id),
+                trace_id,
+                {"limit": limit, "skipped": skipped},
+            )
         return count
 
     def _get_open_exceptions(self, run_id: str) -> list[dict]:
@@ -191,8 +212,23 @@ class DEAgent(BaseAgent):
         return quarantine_id, count
 
     def _build_context(self, exc: dict) -> dict:
-        sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
-        recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
+        details = exc.get("details") or {}
+
+        # Prefer data already persisted on the exception (one DB round trip
+        # saved per agent message); fall back to a query only when missing.
+        if isinstance(details, dict) and "sample" in details:
+            sampled_failures = details.get("sample") or []
+        elif exc.get("type") == "validation":
+            sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
+        else:
+            sampled_failures = []
+
+        if isinstance(details, dict) and "grains" in details:
+            recon_rows = details.get("grains") or []
+        elif exc.get("type") == "reconciliation":
+            recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
+        else:
+            recon_rows = []
 
         return {
             "exception_id": exc["exception_id"],
@@ -201,7 +237,7 @@ class DEAgent(BaseAgent):
             "severity": exc["severity"],
             "period": exc["period"],
             "rule_id": exc.get("rule_id"),
-            "details": exc.get("details") or {},
+            "details": details,
             "sampled_failures": sampled_failures,
             "reconciliation_rows": recon_rows,
             "playbook_steps": PLAYBOOK_STEPS,

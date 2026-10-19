@@ -30,6 +30,11 @@ class Settings:
         # config uses a percentage (0.5 == 0.5%); we store it as a fraction.
         self.recon_tolerance_pct = float(os.getenv("RECON_TOLERANCE_PCT", "0.5")) / 100.0
 
+        # Safety valve: cap per-exception agent messages per pipeline run.
+        self.max_agent_messages_per_run = int(
+            os.getenv("MAX_AGENT_MESSAGES_PER_RUN", "50")
+        )
+
         # OTEL (SPEC §13): Postgres exporter is always on; intervals only
         # tune the batch cadence. No external telemetry endpoint required.
         self.otel_service_name = os.getenv("OTEL_SERVICE_NAME", "rlp-platform")

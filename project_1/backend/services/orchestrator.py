@@ -136,13 +136,21 @@ def run_pipeline(run_id):
 
         dq_svc.post_validation_summary(run_id, results, recon, trace_id)
 
-        # DE agent: propose remediation for each open exception
-        de_agent = DEAgent()
-        de_proposals = de_agent.propose_remediation_for_run(run_id, trace_id)
+        # DE + FA are independent; run them concurrently to keep large runs
+        # bounded (each posts one message per open exception, capped).
+        from concurrent.futures import ThreadPoolExecutor
 
-        # FA agent: quantify financial impact for each open exception
+        de_agent = DEAgent()
         fa_agent = FAAgent()
-        fa_impacts = fa_agent.quantify_impact_for_run(run_id, trace_id)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            de_future = pool.submit(
+                de_agent.propose_remediation_for_run, run_id, trace_id
+            )
+            fa_future = pool.submit(
+                fa_agent.quantify_impact_for_run, run_id, trace_id
+            )
+            de_proposals = de_future.result()
+            fa_impacts = fa_future.result()
 
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(

@@ -20,18 +20,18 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Manual `/dashboard/refresh` recomputes the cache without scanning S3 in the request path.
 
 ## `/exceptions`
-- [ ] Lists all exceptions with id, type, severity, period, title, status, trace.
-- [ ] Each row links to `/exceptions/{id}`.
+- [x] Lists all exceptions with id, type, severity, period, title, status, trace.
+- [x] Each row links to `/exceptions/{id}`.
 
 ## `/exceptions/{id}`
-- [ ] Shows metadata (type, severity, period, status, trace, title).
-- [ ] Validation exception shows sampled failures as JSON.
-- [ ] Reconciliation exception shows monthly recon rows (period, account, category, billings, GL, variance %, status).
-- [ ] Quarantine records table renders with reason code, keys, creator, timestamp.
-- [ ] Manager sees Approve button only when status != resolved; DE sees Quarantine button only when status != resolved.
-- [ ] Approve sets status to resolved, DE logs `remediation_executed`, posts a system message.
-- [ ] Quarantine inserts a `quarantines` row, DE logs `quarantine_executed`, posts a message, resolves the exception.
-- [ ] Thread renders and HTMX post works.
+- [x] Shows metadata (type, severity, period, status, trace, title).
+- [x] Validation exception shows sampled failures as JSON.
+- [x] Reconciliation exception shows monthly recon rows (period, account, category, billings, GL, variance %, status).
+- [x] Quarantine records table renders with reason code, keys, creator, timestamp.
+- [x] Manager sees Approve button only when status != resolved; DE sees Quarantine button only when status != resolved.
+- [x] Approve sets status to resolved, DE logs `remediation_executed`, posts a system message.
+- [x] Quarantine inserts a `quarantines` row, DE logs `quarantine_executed`, posts a message, resolves the exception.
+- [x] Thread renders and HTMX post works.
 
 ## `/runs`
 - [ ] Lists runs with id, scenario, status, started, duration, published flag.
@@ -62,14 +62,14 @@ no CI/CD or infra checks, no future-feature expectations.
 - [ ] Summary counts render.
 
 ## Pipeline behavior
-- [ ] Clicking Run Pipeline creates a run row and posts an Orchestrator "run started" message.
-- [ ] All 11 rules execute; results stored in `validations`.
-- [ ] Reconciliation rows stored; material gaps create exceptions.
-- [ ] One exception per affected month per failed rule.
-- [ ] DQ posts a validation summary to the run thread.
-- [ ] DE posts a remediation proposal per open exception.
-- [ ] FA posts an impact narrative per open exception.
-- [ ] Run ends completed with counts; Orchestrator posts a "run finished" message.
+- [x] Clicking Run Pipeline creates a run row and posts an Orchestrator "run started" message.
+- [x] All 11 rules execute; results stored in `validations`.
+- [x] Reconciliation rows stored; material gaps create exceptions.
+- [x] One exception per affected month per failed rule.
+- [x] DQ posts a validation summary to the run thread.
+- [ ] DE posts a remediation proposal per open exception. (capped at `MAX_AGENT_MESSAGES_PER_RUN`)
+- [ ] FA posts an impact narrative per open exception. (capped at `MAX_AGENT_MESSAGES_PER_RUN`)
+- [x] Run ends completed with counts; Orchestrator posts a "run finished" message.
 - [ ] On exception, run is marked failed and a failure message is posted.
 
 ## Alerts & Controller

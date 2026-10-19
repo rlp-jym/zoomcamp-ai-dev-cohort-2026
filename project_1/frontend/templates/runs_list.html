@@ -7,6 +7,9 @@
 {% elif reset_status %}
 <div class="banner banner-error">Reset encountered an issue.</div>
 {% endif %}
+{% if busy %}
+<div class="banner banner-error">A pipeline is already running. Wait for it to finish.</div>
+{% endif %}
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th></tr>

@@ -57,7 +57,7 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None):
     execute("DELETE FROM reconciliations WHERE run_id = %s", (run_id,))
 
     recon_params = []
-    exc_params = []
+    by_period = {}
     passed = 0
     failed = 0
 
@@ -74,33 +74,68 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None):
             passed += 1
             continue
         failed += 1
-        account_id = r["account_id"]
-        item_category = r["item_category"]
+
+        # Keep every failing grain in reconcilations, but group the exception
+        # per period (one exception per affected month, per SPEC).
+        period = str(r["period"])
+        bucket = by_period.setdefault(
+            period,
+            {
+                "count": 0,
+                "billings": 0.0,
+                "gl": 0.0,
+                "worst": 0.0,
+                "severity": "medium",
+                "grains": [],
+            },
+        )
+        bucket["count"] += 1
+        bucket["billings"] += billings
+        bucket["gl"] += gl
+        if abs(variance) > abs(bucket["worst"]):
+            bucket["worst"] = variance
+            bucket["severity"] = _severity(variance)
+        if len(bucket["grains"]) < 10:
+            bucket["grains"].append(
+                {
+                    "account_id": r["account_id"],
+                    "item_category": r["item_category"],
+                    "billings": billings,
+                    "gl": gl,
+                    "variance_pct": variance,
+                }
+            )
+
+    exc_params = []
+    for period in sorted(by_period):
+        bucket = by_period[period]
         title = (
-            f"Billings vs GL variance {variance * 100:+.2f}% "
-            f"(account {account_id}, category {item_category})"
+            f"Billings vs GL variance across {bucket['count']} grain(s) "
+            f"in {period} (worst {bucket['worst'] * 100:+.2f}%)"
+        )
+        details = json.dumps(
+            {
+                "period": period,
+                "grain_count": bucket["count"],
+                "aggregate_billings": bucket["billings"],
+                "aggregate_gl": bucket["gl"],
+                "worst_variance_pct": bucket["worst"],
+                "tolerance": tolerance,
+                "grains": bucket["grains"],
+            },
+            default=str,
         )
         exc_params.append(
             (
                 run_id,
                 "reconciliation",
-                _severity(variance),
-                str(r["period"]),
+                bucket["severity"],
+                period,
                 title,
                 "open",
                 trace_id,
                 "VAL_RECON_BILLINGS_GL",
-                json.dumps(
-                    {
-                        "account_id": account_id,
-                        "item_category": item_category,
-                        "billings": billings,
-                        "gl": gl,
-                        "variance_pct": variance,
-                        "tolerance": tolerance,
-                    },
-                    default=str,
-                ),
+                details,
             )
         )
 

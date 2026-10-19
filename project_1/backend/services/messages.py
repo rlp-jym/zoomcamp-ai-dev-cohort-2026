@@ -17,17 +17,13 @@ def _fmt_dt(value):
 
 def _ensure_discussion(anchor_type, anchor_id):
     row = fetch_one(
-        "SELECT discussion_id FROM discussions WHERE anchor_type = %s AND anchor_id = %s",
-        (anchor_type, str(anchor_id)),
-    )
-    if row:
-        return row["discussion_id"]
-    execute(
-        "INSERT INTO discussions (anchor_type, anchor_id) VALUES (%s, %s) ON CONFLICT (anchor_type, anchor_id) DO NOTHING",
-        (anchor_type, str(anchor_id)),
-    )
-    row = fetch_one(
-        "SELECT discussion_id FROM discussions WHERE anchor_type = %s AND anchor_id = %s",
+        """
+        INSERT INTO discussions (anchor_type, anchor_id)
+        VALUES (%s, %s)
+        ON CONFLICT (anchor_type, anchor_id)
+        DO UPDATE SET anchor_type = EXCLUDED.anchor_type
+        RETURNING discussion_id
+        """,
         (anchor_type, str(anchor_id)),
     )
     return row["discussion_id"]

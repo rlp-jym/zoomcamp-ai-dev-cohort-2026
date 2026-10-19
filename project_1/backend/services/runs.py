@@ -64,6 +64,21 @@ def list_runs():
     return out
 
 
+def sweep_stale_runs(max_age_minutes: int = 30) -> int:
+    """Mark orphaned 'running' runs as failed (e.g. after a crash/restart)."""
+    res = execute(
+        "UPDATE runs SET status='failed', finished_at=now() "
+        "WHERE status='running' AND started_at < now() - make_interval(mins => %s) "
+        "RETURNING run_id",
+        (max_age_minutes,),
+        fetch=True,
+    )
+    if res:
+        _cols, rows = res
+        return len(rows) if rows else 0
+    return 0
+
+
 def update_run(run_id, **fields):
     if not fields:
         return

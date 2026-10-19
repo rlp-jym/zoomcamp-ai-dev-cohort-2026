@@ -52,6 +52,10 @@ async def lifespan(app: FastAPI):
         from backend.services import scenarios as scen_svc
         scen_svc.ensure_baseline_registered()
         ensure_baseline_fixture()
+        from backend.services import runs as runs_svc
+        failed = runs_svc.sweep_stale_runs()
+        if failed:
+            logger.info("Marked %s stale running run(s) as failed.", failed)
     except Exception as exc:
         logger.error("Backfill check failed: %s", exc)
 

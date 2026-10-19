@@ -4,9 +4,14 @@ Primary path: call Groq's chat-completions API using ``GROQ_API_KEY``.
 Fallback: if the key is missing or the API call fails, return a
 deterministic template string so the pipeline can continue without
 interruption.
+
+A short circuit breaker prevents a broken/unreachable endpoint from
+stalling the pipeline: after one failure, every call returns the template
+fallback immediately for ``_DISABLE_SECONDS``.
 """
 
 import logging
+import time
 
 import httpx
 
@@ -15,12 +20,14 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "llama-3.3-70b-versatile"
+_DISABLE_SECONDS = 300.0
+_disabled_until = 0.0
 
 
 def _template_fallback(prompt: str) -> str:
     """Return a deterministic template string when LLM is unavailable."""
     return (
-        "[LLM unavailable — template fallback] "
+        "[LLM unavailable - template fallback] "
         f"Agent task received: {prompt[:200]}"
     )
 
@@ -43,8 +50,13 @@ def call_llm(
         The LLM's response text, or a template fallback string if the
         API key is missing or the request fails.
     """
+    global _disabled_until
+
     if not settings.groq_api_key:
-        logger.warning("GROQ_API_KEY not set — using template fallback.")
+        logger.warning("GROQ_API_KEY not set - using template fallback.")
+        return _template_fallback(user_prompt)
+
+    if time.monotonic() < _disabled_until:
         return _template_fallback(user_prompt)
 
     model = model or _DEFAULT_MODEL
@@ -63,11 +75,16 @@ def call_llm(
                 ],
                 "temperature": temperature,
             },
-            timeout=30.0,
+            timeout=8.0,
         )
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except Exception as exc:
-        logger.warning("Groq API call failed (%s) — using template fallback.", exc)
+        _disabled_until = time.monotonic() + _DISABLE_SECONDS
+        logger.warning(
+            "Groq API call failed (%s) - disabling LLM for %ss; using template fallback.",
+            exc,
+            int(_DISABLE_SECONDS),
+        )
         return _template_fallback(user_prompt)
