@@ -7,21 +7,8 @@
 <h1>
   Dashboard
   {% if published_run %}<span class="badge">{{ published_run }}</span>{% endif %}
-  {% if alert_count %}
-    <span class="alert-badge" title="Open alerts">⚠ {{ alert_count }} open alert{{ '' if alert_count == 1 else 's' }}</span>
-  {% endif %}
 </h1>
 <p class="page-description">Pipeline health at a glance — revenue metrics, validation status, and open alerts for the current scenario.</p>
-
-{% if alerts %}
-<div class="alert-banner">
-  {% for a in alerts %}
-    <span class="badge badge-{{ 'critical' if a.severity == 'critical' else 'high' if a.severity == 'high' else 'low' }}">
-      {{ a.alert_type }} · {{ a.anchor_type }}:{{ a.anchor_id }} · {{ a.created_at }}
-    </span>
-  {% endfor %}
-</div>
-{% endif %}
 
 {% if not available %}
 <div class="empty">
@@ -40,8 +27,7 @@
 
 {% if kpi_cache and kpi_cache.refreshed_at %}
 <div class="kpi-cache-note">
-  KPIs &amp; charts computed at {{ kpi_cache.refreshed_at }} (parquet scans
-  run in a background job — this page serves the cached payload).
+  Last updated: {{ kpi_cache.refreshed_at }}
   <form method="post" action="/dashboard/refresh" style="display:inline">
     <button type="submit" style="padding:1px 8px;font-size:11px">refresh now</button>
   </form>
