@@ -22,32 +22,32 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Root `README.md` updated with project overview + link to `SPEC.md`.
 
 ## 1. Repository scaffolding
-- [ ] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
-- [ ] Add `backend/__init__.py` and package layout (or flat modules) per locked layout.
-- [ ] Add `.env.example` listing `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`.
-- [ ] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
-- [ ] Configure lint/format (ruff) and pytest.
-- [ ] Add `backend/main.py` application entry point.
+- [x] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
+- [x] Add `backend/__init__.py` and package layout (or flat modules) per locked layout.
+- [x] Add `.env.example` listing `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`.
+- [x] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
+- [x] Configure lint/format (ruff) and pytest.
+- [x] Add `backend/main.py` application entry point.
 
 ## 1b. UI skeleton (stub data, no backend wiring)
 > Build all templates and routes with hardcoded context dicts so every page
 > is renderable and reviewable before any DB, DuckDB, or agent wiring. Do
 > not call the database, R2, or agents in this section. Templates are
 > expected to change once wired in §19.
-- [ ] Base layout template with persona selector header (stub persona list)
-- [ ] Reusable thread partial (ordered messages, persona badges, agent
+- [x] Base layout template with persona selector header (stub persona list)
+- [x] Reusable thread partial (ordered messages, persona badges, agent
   styling) usable for run, exception, and analysis anchors
-- [ ] `/` dashboard template with hardcoded KPI cards + inline analysis
+- [x] `/` dashboard template with hardcoded KPI cards + inline analysis
   thread partial
-- [ ] `/exceptions` list template with hardcoded rows
-- [ ] `/exceptions/{id}` detail + thread template with hardcoded data
-- [ ] `/runs` list template with hardcoded rows
-- [ ] `/runs/{id}` detail + thread template with hardcoded data
-- [ ] `/scenarios` list template + New Scenario button (non-functional)
-- [ ] `/audit` list template with hardcoded rows
-- [ ] `/observability` trace list + span tree template with hardcoded data
-- [ ] Mount all routes returning stub context (no DB calls)
-- [ ] Wire HTMX partial response for at least one interaction (post
+- [x] `/exceptions` list template with hardcoded rows
+- [x] `/exceptions/{id}` detail + thread template with hardcoded data
+- [x] `/runs` list template with hardcoded rows
+- [x] `/runs/{id}` detail + thread template with hardcoded data
+- [x] `/scenarios` list template + New Scenario button (non-functional)
+- [x] `/audit` list template with hardcoded rows
+- [x] `/observability` trace list + span tree template with hardcoded data
+- [x] Mount all routes returning stub context (no DB calls)
+- [x] Wire HTMX partial response for at least one interaction (post
   message) using an in-memory stub
 - [x] Extension 1: Add dashboard trend/variance charts (Chart.js, CDN, hardcoded data)
 - [x] Extension 2: Add segment and KPI-trend charts plus KPI selection rationale doc
@@ -73,12 +73,12 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Document startup sequence: webhook endpoint must be accepting requests before backfill triggers the GitHub Action.
 
 ## 4. Backend foundation
-- [ ] FastAPI app factory with routers mounted.
+- [x] FastAPI app factory with routers mounted.
 - [x] Settings/env loading (pydantic or simple) with validation.
-- [ ] Persona selection via header dropdown (cookie or header `X-Persona`); no auth.
-- [ ] Jinja2 templates + static files wiring.
-- [ ] HTMX-friendly partial responses.
-- [ ] Global error handling and structured logging.
+- [x] Persona selection via header dropdown (cookie or header `X-Persona`); no auth.
+- [x] Jinja2 templates + static files wiring.
+- [x] HTMX-friendly partial responses.
+- [x] Global error handling and structured logging.
 - [x] Health/readiness endpoint.
 - [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
@@ -144,19 +144,19 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Create exceptions for material gaps.
 
 ## 11. Exceptions
-- [ ] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
-- [ ] Fields: `exception_id`, `run_id`, `type`, `severity`, `period`, `title`, `status`, `trace_id`.
-- [ ] Status flow: open → in_discussion → remediation_proposed → approved → resolved.
+- [x] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
+- [x] Fields: `exception_id`, `run_id`, `type`, `severity`, `period`, `title`, `status`, `trace_id`.
+- [x] Status flow: open → in_discussion → remediation_proposed → approved → resolved.
 - [x] `/exceptions` queue route.
 - [x] `/exceptions/{id}` detail + thread route.
 - [x] Exception creation from failed rules and material recon gaps. (VAL_FK_ITEM_EXISTS)
 
 ## 12. Discussion model
-- [ ] `discussions` and `messages` tables with anchor types `run`, `exception`, `analysis`.
-- [ ] Ordered messages with `persona_id`, `trace_id`, optional `evidence` JSON.
-- [ ] Single reusable thread UI component (template partial).
+- [x] `discussions` and `messages` tables with anchor types `run`, `exception`, `analysis`.
+- [x] Ordered messages with `persona_id`, `trace_id`, optional `evidence` JSON.
+- [x] Single reusable thread UI component (template partial).
 - [x] Post message endpoint (human + agent).
-- [ ] Agent posts visually distinguished (badge, muted background).
+- [x] Agent posts visually distinguished (badge, muted background).
 - [ ] Analysis thread creation from dashboard KPI cards.
 
 ## 13. Agent team
