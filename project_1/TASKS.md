@@ -49,6 +49,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Mount all routes returning stub context (no DB calls)
 - [ ] Wire HTMX partial response for at least one interaction (post
   message) using an in-memory stub
+- [x] Extension 1: Add dashboard trend/variance charts (Chart.js, CDN, hardcoded data)
+- [x] Extension 2: Add segment and KPI-trend charts plus KPI selection rationale doc
 
 ## 2. Database schema and seed data
 - [ ] Write `backend/db/schema.sql` with idempotent `CREATE TABLE IF NOT EXISTS` for: `personas`, `scenarios`, `runs`, `validations`, `reconciliations`, `exceptions`, `quarantines`, `approvals`, `publications`, `discussions`, `messages`, `alerts`, `agent_actions`, `rules`, `otel_spans`, `otel_logs`, `otel_metrics`.

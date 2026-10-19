@@ -30,6 +30,14 @@
     <h2>Variances by Category</h2>
     <canvas id="varianceCategoryChart" height="120"></canvas>
   </div>
+  <div class="chart-card">
+    <h2>Revenue by Customer Segment</h2>
+    <canvas id="segmentChart" height="120"></canvas>
+  </div>
+  <div class="chart-card">
+    <h2>KPI Trends (Trailing 6 Months)</h2>
+    <canvas id="kpiTrendChart" height="120"></canvas>
+  </div>
 </div>
 
 <script>
@@ -61,6 +69,36 @@
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    new Chart(document.getElementById("segmentChart"), {
+      type: "doughnut",
+      data: {
+        labels: ["Enterprise", "Mid-Market", "SMB", "Contractors"],
+        datasets: [
+          { data: [45, 25, 20, 10], backgroundColor: ["#1f2a44", "#4a6fa5", "#9aa0a6", "#c9a227"] }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    });
+
+    new Chart(document.getElementById("kpiTrendChart"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          { label: "DQ Pass Rate (%)", data: [93.0, 94.0, 93.5, 94.2, 94.6, 95.0], borderColor: "#1a7f37", tension: 0.3, yAxisID: "y" },
+          { label: "Open Exceptions", data: [9, 8, 7, 8, 7, 6], borderColor: "#cf222e", tension: 0.3, yAxisID: "y1" }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+        scales: {
+          y: { type: "linear", position: "left", title: { display: true, text: "DQ Pass Rate (%)" } },
+          y1: { type: "linear", position: "right", title: { display: true, text: "Open Exceptions" }, grid: { drawOnChartArea: false } }
+        }
+      }
     });
   })();
 </script>
