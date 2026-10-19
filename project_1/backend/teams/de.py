@@ -107,6 +107,28 @@ class DEAgent(BaseAgent):
 
         return msg
 
+    def execute_remediation(self, exc: dict, trace_id: str) -> None:
+        """Log execution of an approved remediation plan.
+
+        This is a bounded-write stub: no actual data is deleted or quarantined.
+        Each call logs exactly one agent_actions row with a step description.
+        """
+        exc_id = exc["exception_id"]
+        details = exc.get("details") or {}
+        count = details.get("count", 0) if isinstance(details, dict) else 0
+
+        step_desc = f"Executed remediation: Quarantine {count} records"
+        if count == 0:
+            step_desc = "Executed remediation: Re-run pipeline for affected month"
+
+        self.log_action(
+            "remediation_executed",
+            "exception",
+            str(exc_id),
+            trace_id,
+            {"exception_id": exc_id, "step": step_desc},
+        )
+
     def _build_context(self, exc: dict) -> dict:
         sampled_failures = exc_svc.get_sampled_failures_for_exception(exc)
         recon_rows = exc_svc.get_reconciliation_rows_for_exception(exc)

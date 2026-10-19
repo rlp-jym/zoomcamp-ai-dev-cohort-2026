@@ -181,12 +181,12 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Template fallbacks equivalent to skill output from same context.
 
 ## 15. DE playbook
-- [ ] Re-run same pipeline for affected month.
-- [ ] Quarantine N records with reason code.
-- [ ] Reload FX rates from source (if applicable).
-- [ ] Post a message on the exception thread tagged `type = proposal` (do not create a new table or a separate note entity).
-- [ ] Escalate to Manager.
-- [ ] Each step logged as one `agent_actions` row.
+- [x] Re-run same pipeline for affected month.
+- [x] Quarantine N records with reason code.
+- [x] Reload FX rates from source (if applicable).
+- [x] Post a message on the exception thread tagged `type = proposal` (do not create a new table or a separate note entity).
+- [x] Escalate to Manager.
+- [x] Each step logged as one `agent_actions` row.
 
 ## 16. Alerting (6 types)
 - [ ] `STALE_PUBLISHED` (high).

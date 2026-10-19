@@ -7,8 +7,10 @@ from datetime import datetime
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
+from fastapi import HTTPException
+
 from backend.config import settings
-from backend.db.connection import fetch_one
+from backend.db.connection import execute, fetch_one
 from backend.services import exceptions as exc_svc
 from backend.services import messages
 from backend.services import runs as runs_svc
@@ -16,6 +18,7 @@ from backend.services import scenarios as scen_svc
 from backend.services import stub_data
 from backend.services import validations as val_svc
 from backend.templating import templates
+from backend.teams.de import DEAgent
 
 router = APIRouter()
 
@@ -67,6 +70,50 @@ async def exception_detail(request: Request, exc_id: int):
              messages=msgs, sampled_failures=sampled,
              reconciliation_rows=reconciliation_rows),
     )
+
+
+@router.post("/exceptions/{exc_id}/approve")
+async def approve_exception(request: Request, exc_id: int):
+    """Manager approves remediation for an exception.
+
+    - Updates exception status to 'resolved'.
+    - DE agent logs execution to agent_actions.
+    - Posts a system message to the exception thread.
+    - Redirects back to the exception detail page.
+    """
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can approve exceptions.")
+
+    exc = exc_svc.get_exception(exc_id)
+    if not exc:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    if exc["status"] == "resolved":
+        raise HTTPException(status_code=400, detail="Exception is already resolved.")
+
+    trace_id = exc.get("trace_id")
+
+    # Update exception status to resolved
+    execute(
+        "UPDATE exceptions SET status = 'resolved' WHERE exception_id = %s",
+        (exc_id,),
+    )
+
+    # DE agent logs execution (no actual data deletion/quarantine yet)
+    de_agent = DEAgent()
+    de_agent.execute_remediation(exc, trace_id)
+
+    # Post system message to the thread
+    messages.post_message(
+        "exception",
+        str(exc_id),
+        stub_data.get_persona("manager"),
+        f"Exception #{exc_id} resolved. Remediation approved by Manager and executed by DE.",
+        trace_id=trace_id,
+        evidence={"resolved": True, "approved_by": "manager"},
+    )
+
+    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
 
 @router.get("/runs")

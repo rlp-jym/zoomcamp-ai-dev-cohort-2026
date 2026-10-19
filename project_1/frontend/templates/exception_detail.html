@@ -38,6 +38,11 @@
 <h2>Sampled Failures</h2>
 <pre class="evidence">{{ sampled_failures | tojson(indent=2) }}</pre>
 {% endif %}
+{% if persona.id == "manager" and exception.status != "resolved" %}
+<form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
+  <button class="btn" type="submit">Approve</button>
+</form>
+{% endif %}
 <h2>Thread</h2>
 {% set anchor_type = anchor_type %}
 {% set anchor_id = anchor_id %}
