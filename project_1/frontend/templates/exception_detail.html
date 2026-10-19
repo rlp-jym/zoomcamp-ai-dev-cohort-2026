@@ -10,7 +10,31 @@
   <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
   <dt>Title</dt><dd>{{ exception.title }}</dd>
 </dl>
-{% if sampled_failures %}
+{% if exception.type == 'reconciliation' %}
+<h2>Reconciliation Rows</h2>
+{% if reconciliation_rows %}
+<table class="table">
+  <thead>
+    <tr><th>Period</th><th>Account</th><th>Category</th><th>Billings</th><th>GL</th><th>Variance %</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    {% for r in reconciliation_rows %}
+    <tr>
+      <td>{{ r.period }}</td>
+      <td>{{ r.account_id }}</td>
+      <td>{{ r.item_category }}</td>
+      <td>{{ "%.2f"|format(r.billings) if r.billings is not none else "" }}</td>
+      <td>{{ "%.2f"|format(r.gl) if r.gl is not none else "" }}</td>
+      <td>{{ "%.2f"|format(r.variance_pct * 100) if r.variance_pct is not none else "" }}%</td>
+      <td><span class="status status-{{ r.status }}">{{ r.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No reconciliation rows for this exception.</p>
+{% endif %}
+{% elif sampled_failures %}
 <h2>Sampled Failures</h2>
 <pre class="evidence">{{ sampled_failures | tojson(indent=2) }}</pre>
 {% endif %}

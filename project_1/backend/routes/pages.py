@@ -51,14 +51,21 @@ async def exception_detail(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         exc = {"id": exc_id, "type": "validation", "severity": "low", "period": None,
-               "title": "Not found", "status": "open", "trace_id": None}
+               "title": "Not found", "status": "open", "trace_id": None,
+               "rule_id": None, "details": None}
     msgs = messages.get_messages("exception", str(exc_id))
-    sampled = exc_svc.get_sampled_failures_for_exception(exc)
+    sampled = []
+    reconciliation_rows = []
+    if exc.get("type") == "reconciliation":
+        reconciliation_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
+    else:
+        sampled = exc_svc.get_sampled_failures_for_exception(exc)
     return templates.TemplateResponse(
         request,
         "exception_detail.html",
         _ctx(request, exception=exc, anchor_type="exception", anchor_id=str(exc_id),
-             messages=msgs, sampled_failures=sampled),
+             messages=msgs, sampled_failures=sampled,
+             reconciliation_rows=reconciliation_rows),
     )
 
 
@@ -78,10 +85,12 @@ async def run_detail(request: Request, run_id: int):
                "validations_total": 0, "validations_failed": 0, "exceptions_created": 0,
                "published": False, "published_at": None, "approved_at": None}
     msgs = messages.get_messages("run", str(run_id))
+    validations = val_svc.list_validations(run_id)
     return templates.TemplateResponse(
         request,
         "run_detail.html",
-        _ctx(request, run=run, anchor_type="run", anchor_id=str(run_id), messages=msgs),
+        _ctx(request, run=run, anchor_type="run", anchor_id=str(run_id),
+             messages=msgs, validations=validations),
     )
 
 

@@ -18,6 +18,27 @@
 <form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;">
   <button class="btn" type="submit">Approve</button>
 </form>
+<h2>Validation Results</h2>
+{% if validations %}
+<table class="table">
+  <thead>
+    <tr><th>Rule</th><th>Status</th><th>Count</th><th>Severity</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    {% for v in validations %}
+    <tr>
+      <td>{{ v.rule_id }}</td>
+      <td><span class="status status-{{ v.status }}">{{ v.status }}</span></td>
+      <td>{{ v.summary_count }}</td>
+      <td><span class="sev sev-{{ v.severity }}">{{ v.severity }}</span></td>
+      <td>{{ v.description }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No validations recorded.</p>
+{% endif %}
 <h2>Thread</h2>
 {% set anchor_type = anchor_type %}
 {% set anchor_id = anchor_id %}
