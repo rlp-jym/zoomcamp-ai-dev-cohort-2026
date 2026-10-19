@@ -205,3 +205,8 @@ CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals (target_type, targe
 CREATE INDEX IF NOT EXISTS idx_publications_run ON publications (run_id);
 
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+
+-- Batch 4: link validation exceptions to their rule and carry structured
+-- evidence for drill-down (reconciliation grain, samples, etc.).
+ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS rule_id TEXT;
+ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS details JSONB;

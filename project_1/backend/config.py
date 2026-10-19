@@ -26,6 +26,9 @@ class Settings:
         self.webhook_token = os.getenv("WEBHOOK_TOKEN", "dev-webhook-token")
         self.persona_cookie = os.getenv("PERSONA_COOKIE_NAME", "persona")
         self.app_env = os.getenv("APP_ENV", "dev")
+        # Materiality / tolerance for billings-vs-GL reconciliation.
+        # config uses a percentage (0.5 == 0.5%); we store it as a fraction.
+        self.recon_tolerance_pct = float(os.getenv("RECON_TOLERANCE_PCT", "0.5")) / 100.0
 
         missing = []
         for name, value in (

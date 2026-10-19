@@ -45,20 +45,41 @@ def init_duckdb() -> None:
     verify_httpfs()
 
 
-def run_query(sql: str):
+def open_connection():
+    """Open a configured DuckDB connection for a batch of queries.
+
+    Reusing one connection avoids re-installing ``httpfs`` and re-negotiating
+    S3 for every rule in a pipeline run.
+    """
     conn = duckdb.connect()
     try:
         conn.execute("INSTALL httpfs;")
     except Exception:
         pass
     _configure(conn)
+    return conn
+
+
+def run_query_on(conn, sql: str):
     cur = conn.execute(sql)
     cols = [d[0] for d in cur.description] if cur.description else []
     rows = cur.fetchall()
-    conn.close()
     return cols, rows
+
+
+def query_dicts_on(conn, sql: str) -> list[dict]:
+    cols, rows = run_query_on(conn, sql)
+    return [dict(zip(cols, r, strict=False)) for r in rows]
+
+
+def run_query(sql: str):
+    conn = open_connection()
+    try:
+        return run_query_on(conn, sql)
+    finally:
+        conn.close()
 
 
 def query_rows(sql: str) -> list[dict]:
     cols, rows = run_query(sql)
-    return [dict(zip(cols, r)) for r in rows]
+    return [dict(zip(cols, r, strict=False)) for r in rows]

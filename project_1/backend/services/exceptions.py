@@ -1,8 +1,9 @@
 """Exception service (raw SQL over Postgres)."""
 
+import json
 from datetime import datetime
 
-from backend.db.connection import execute, fetch_all, fetch_one
+from backend.db.connection import fetch_all, fetch_one
 
 
 def _fmt_dt(value):
@@ -13,22 +14,48 @@ def _fmt_dt(value):
     return str(value)
 
 
-def create_exception(run_id, exc_type, severity, title, period=None, trace_id=None, status="open"):
+def _as_json(value):
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except Exception:
+            return value
+    return value
+
+
+def create_exception(
+    run_id,
+    exc_type,
+    severity,
+    title,
+    period=None,
+    trace_id=None,
+    status="open",
+    rule_id=None,
+    details=None,
+):
     row = fetch_one(
         """
-        INSERT INTO exceptions (run_id, type, severity, period, title, status, trace_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO exceptions (run_id, type, severity, period, title, status, trace_id, rule_id, details)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING exception_id
         """,
-        (run_id, exc_type, severity, period, title, status, trace_id),
+        (
+            run_id,
+            exc_type,
+            severity,
+            period,
+            title,
+            status,
+            trace_id,
+            rule_id,
+            json.dumps(details, default=str) if details is not None else None,
+        ),
     )
     return row["exception_id"]
 
 
-def get_exception(exc_id):
-    r = fetch_one("SELECT * FROM exceptions WHERE exception_id = %s", (exc_id,))
-    if not r:
-        return None
+def _to_dict(r):
     return {
         "id": r["exception_id"],
         "run_id": r["run_id"],
@@ -38,12 +65,23 @@ def get_exception(exc_id):
         "title": r["title"],
         "status": r["status"],
         "trace_id": r["trace_id"],
+        "rule_id": r.get("rule_id"),
+        "details": _as_json(r.get("details")),
         "created_at": _fmt_dt(r["created_at"]),
     }
 
 
+def get_exception(exc_id):
+    r = fetch_one("SELECT * FROM exceptions WHERE exception_id = %s", (exc_id,))
+    if not r:
+        return None
+    return _to_dict(r)
+
+
 def list_exceptions():
-    rows = fetch_all("SELECT * FROM exceptions ORDER BY created_at DESC, exception_id DESC")
+    rows = fetch_all(
+        "SELECT * FROM exceptions ORDER BY created_at DESC, exception_id DESC"
+    )
     out = []
     for r in rows:
         out.append(
@@ -62,23 +100,47 @@ def list_exceptions():
 
 
 def get_sampled_failures_for_exception(exc):
-    # Find validation linked to the run for VAL_FK_ITEM_EXISTS
+    """Return sampled failures for the rule that raised a validation exception."""
     if not exc or not exc.get("run_id"):
         return []
+    rule_id = exc.get("rule_id") or "VAL_FK_ITEM_EXISTS"
     row = fetch_one(
-        """
-        SELECT sampled_failures FROM validations
-        WHERE run_id = %s AND rule_id = 'VAL_FK_ITEM_EXISTS'
-        """,
-        (exc["run_id"],),
+        "SELECT sampled_failures FROM validations WHERE run_id = %s AND rule_id = %s",
+        (exc["run_id"], rule_id),
     )
     if not row or not row.get("sampled_failures"):
         return []
-    sf = row["sampled_failures"]
-    if isinstance(sf, str):
-        import json
-        try:
-            sf = json.loads(sf)
-        except Exception:
-            return []
+    sf = _as_json(row["sampled_failures"])
     return sf if isinstance(sf, list) else []
+
+
+def get_reconciliation_rows_for_exception(exc):
+    """Return the monthly reconciliation rows behind a reconciliation exception."""
+    if not exc or not exc.get("run_id"):
+        return []
+    params = [exc["run_id"]]
+    sql = (
+        "SELECT period, account_id, item_category, billings, gl, variance_pct, status "
+        "FROM reconciliations WHERE run_id = %s"
+    )
+    if exc.get("period"):
+        sql += " AND period = %s"
+        params.append(exc["period"])
+    sql += " ORDER BY period, account_id, item_category"
+    rows = fetch_all(sql, tuple(params))
+    out = []
+    for r in rows:
+        out.append(
+            {
+                "period": r["period"],
+                "account_id": r["account_id"],
+                "item_category": r["item_category"],
+                "billings": float(r["billings"]) if r["billings"] is not None else None,
+                "gl": float(r["gl"]) if r["gl"] is not None else None,
+                "variance_pct": (
+                    float(r["variance_pct"]) if r["variance_pct"] is not None else None
+                ),
+                "status": r["status"],
+            }
+        )
+    return out

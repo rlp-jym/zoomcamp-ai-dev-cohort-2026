@@ -54,6 +54,16 @@ def execute(sql: str, params=None, fetch: bool = False):
             return None
 
 
+def execute_many(sql: str, params_list: list[tuple]) -> int:
+    if not params_list:
+        return 0
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(sql, params_list)
+            count = cur.rowcount
+        conn.commit()
+    return count if count is not None and count >= 0 else len(params_list)
+
 def fetch_one(sql: str, params=None):
     with get_connection() as conn:
         with conn.cursor() as cur:
