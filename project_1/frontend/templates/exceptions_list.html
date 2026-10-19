@@ -5,6 +5,7 @@
 {% block title %}Exceptions{% endblock %}
 {% block content %}
 <h1>Exceptions</h1>
+<p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with trend analysis and resolution actions.</p>
 
 <div class="tab-row" style="margin-bottom:1rem;">
   <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open">Open ({{ counts.open }})</a>

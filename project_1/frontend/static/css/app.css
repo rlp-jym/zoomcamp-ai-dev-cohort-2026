@@ -49,6 +49,7 @@ h1 { margin-top: 0; }
 .span-status.ok { color: #1a7f37; }
 .span-status.error { color: #cf222e; }
 .empty { color: #888; font-style: italic; }
+.page-description { color: #666; margin: 0.25rem 0 1rem 0; font-size: 0.95rem; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
 .chart-card { background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 1rem; }
 .chart-card h2 { margin-top: 0; font-size: 1rem; }
