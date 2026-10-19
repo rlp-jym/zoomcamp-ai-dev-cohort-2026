@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config import STATIC_DIR, TEMPLATES_DIR, settings
 from backend.db import apply_schema, close_pool, get_connection, init_pool, seed
-from backend.routes import debug, pages, personas, threads
+from backend.routes import debug, pages, personas, scenarios, threads
 from backend.services.backfill import trigger_backfill
 from backend.storage import init_duckdb
 
@@ -36,6 +36,8 @@ async def lifespan(app: FastAPI):
                 count = cur.fetchone()[0]
         if count == 0:
             trigger_backfill()
+        from backend.services import scenarios as scen_svc
+        scen_svc.ensure_baseline_registered()
     except Exception as exc:
         logger.error("Backfill check failed: %s", exc)
 
@@ -52,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(personas.router)
     app.include_router(threads.router)
     app.include_router(pages.router)
+    app.include_router(scenarios.router)
     app.include_router(debug.router)
 
     @app.get("/health")

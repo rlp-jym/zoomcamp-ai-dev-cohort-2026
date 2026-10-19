@@ -2,10 +2,9 @@
 {% block title %}Scenarios{% endblock %}
 {% block content %}
 <h1>Scenarios</h1>
-<button class="btn" type="button" onclick="alert('New Scenario (non-functional in skeleton)')">New Scenario</button>
 <table class="table">
   <thead>
-    <tr><th>Name</th><th>Status</th><th>Tables</th><th>Seed</th><th>Created</th></tr>
+    <tr><th>Name</th><th>Status</th><th>Tables</th><th>Seed</th><th>Created</th><th>Action</th></tr>
   </thead>
   <tbody>
     {% for s in scenarios %}
@@ -15,6 +14,11 @@
       <td>{{ s.tables }}</td>
       <td>{{ s.seed }}</td>
       <td>{{ s.created_at }}</td>
+      <td>
+        <form method="post" action="/scenarios/{{ s.name }}/run">
+          <button class="btn" type="submit">Run Pipeline</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
