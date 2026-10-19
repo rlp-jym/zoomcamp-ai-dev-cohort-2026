@@ -169,8 +169,52 @@ class ControllerAgent(BaseAgent):
         )
         alert = self._raise("STALE_PUBLISHED", "run", str(pub["run_id"]),
                             finding, trace_id)
+        rerun = None
+        if alert["created"]:
+            # §18: no Manager approval required — the Controller re-runs the
+            # pipeline for this month autonomously, exactly one agent row.
+            rerun = self.trigger_autonomous_rerun(pub["scenario_name"], trace_id)
         logger.warning("Controller: %s", finding)
-        return {"finding": finding, "alert": alert, **payload}
+        return {"finding": finding, "alert": alert, "rerun": rerun, **payload}
+
+    def trigger_autonomous_rerun(
+        self,
+        scenario_name: str | None,
+        trace_id: str | None,
+    ) -> dict | None:
+        """Autonomously trigger a pipeline re-run for the affected month.
+
+        Creates a new run (``triggered_by = controller``), logs exactly one
+        ``agent_actions`` row, then executes the pipeline synchronously —
+        the scheduler thread absorbs the long-running work.
+        """
+        if not scenario_name:
+            return None
+        from backend.services import runs as runs_svc
+        from backend.services.orchestrator import run_pipeline
+
+        run_id = runs_svc.create_run(scenario_name, "controller", trace_id)
+        self.log_action(
+            "autonomous_re_run", "run", str(run_id), trace_id,
+            {"triggered_by_alert": "STALE_PUBLISHED", "scenario": scenario_name},
+        )
+        logger.warning(
+            "Controller: autonomously re-running %s as run %s (no Manager "
+            "approval required).", scenario_name, run_id,
+        )
+        try:
+            run_pipeline(run_id)
+        except Exception as exc:  # noqa: BLE001 — scheduler must survive
+            logger.exception("Autonomous re-run %s failed.", run_id)
+            from backend.db.connection import execute
+
+            execute(
+                "UPDATE runs SET status = 'failed', finished_at = now() "
+                "WHERE run_id = %s AND status = 'running'",
+                (run_id,),
+            )
+            return {"run_id": run_id, "pipeline": "failed", "error": str(exc)}
+        return {"run_id": run_id, "pipeline": "completed"}
 
     def check_source_hash_mismatch(self, trace_id: str | None = None) -> dict | None:
         """Critical: S3 Parquet hash differs from the registered manifest.
