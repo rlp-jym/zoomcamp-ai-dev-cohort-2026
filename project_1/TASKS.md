@@ -164,11 +164,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Base agent helpers: logging to `agent_actions`, trace correlation.
 - [x] LLM client: Groq primary (`GROQ_API_KEY`), template fallback on missing key/failure.
 - [x] Skill loader `load_skill(name) -> str` reading `backend/skills/<name>/SKILL.md`.
-- [ ] Orchestrator agent: run pipeline; read-only on data.
-- [ ] DQ agent: execute rules; post validation results.
-- [ ] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
-- [ ] FA agent: financial impact; may open analysis threads.
-- [ ] Controller agent: verification findings; read-only published state.
+- [x] Orchestrator agent: run pipeline; read-only on data.
+- [x] DQ agent: execute rules; post validation results.
+- [x] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
+- [x] FA agent: financial impact; may open analysis threads.
+- [x] Controller agent: verification findings; read-only published state.
 - [ ] Approval gates: go-live, remediation, critical escalation.
 **Done when:** All 5 agents can be invoked in one pipeline run, each posting to the correct anchor thread and logging exactly one `agent_actions` row.
 

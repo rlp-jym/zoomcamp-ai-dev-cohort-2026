@@ -14,6 +14,8 @@ from backend.services import runs as runs_svc
 from backend.services import stub_data
 from backend.services import validations as val_svc
 from backend.storage.duckdb_client import open_connection
+from backend.teams.de import DEAgent
+from backend.teams.fa import FAAgent
 
 
 def _persona(pid):
@@ -134,6 +136,14 @@ def run_pipeline(run_id):
         exceptions_created += recon["exceptions_created"]
 
         dq_svc.post_validation_summary(run_id, results, recon, trace_id)
+
+        # DE agent: propose remediation for each open exception
+        de_agent = DEAgent()
+        de_proposals = de_agent.propose_remediation_for_run(run_id, trace_id)
+
+        # FA agent: quantify financial impact for each open exception
+        fa_agent = FAAgent()
+        fa_impacts = fa_agent.quantify_impact_for_run(run_id, trace_id)
 
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(
