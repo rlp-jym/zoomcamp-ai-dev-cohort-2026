@@ -188,8 +188,15 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         )
     }
 
+    # Exclude partial tail months (e.g. a 580-invoice ghost month) from the
+    # chart window, consistent with the MTD filter below.
+    max_monthly = max(billings_month.values() or [0.0])
+    full_months = sorted(
+        m for m, a in billings_month.items() if not max_monthly or a >= 0.5 * max_monthly
+    )
     months = sorted(
-        set(gl_month) | set(billings_month) | set(budget_month)
+        m for m in (set(gl_month) | set(billings_month) | set(budget_month))
+        if m in set(full_months)
     )[-6:]
 
     gl_total = sum(gl_month.values())
@@ -199,10 +206,6 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
 
     # "MTD" = latest full month of activity — the calendar tail month can be
     # a partial ingest, which would zero the headline numbers.
-    max_monthly = max(billings_month.values() or [0.0])
-    full_months = sorted(
-        m for m, a in billings_month.items() if not max_monthly or a >= 0.5 * max_monthly
-    )
     mtd_key = full_months[-1] if full_months else (months[-1] if months else None)
     gl_mtd = gl_month.get(mtd_key, 0.0) if mtd_key else 0.0
     billings_mtd = billings_month.get(mtd_key, 0.0) if mtd_key else 0.0

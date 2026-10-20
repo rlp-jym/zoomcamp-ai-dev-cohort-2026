@@ -2,7 +2,7 @@ name: demo_run
 seed: 42
 
 timeline:
-  start_month: "2024-01"
+  start_month: "2022-01"
   n_months: 60
   phases:
     - {name: growth,  months: 24, driver: customer_adds}
@@ -25,11 +25,11 @@ scale:
   gl_accounts: 3
   item_categories: 5
   budget_growth_target_by_year:
-    2024: 1.08
-    2025: 1.05
-    2026: 1.05
-    2027: 1.02
-    2028: 1.00
+    2022: 1.08
+    2023: 1.05
+    2024: 1.05
+    2025: 1.02
+    2026: 1.00
 
 dimension_drift:
   sku_retirements: 2

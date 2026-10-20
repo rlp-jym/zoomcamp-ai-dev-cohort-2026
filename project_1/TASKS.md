@@ -320,12 +320,16 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 > Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
 
 ### Dashboard — FP&A outputs
-- [x] Add Run Pipeline button to dashboard (move from `/scenarios`)
+- [ ] Remove Run Pipeline button from dashboard (pipeline runs via script only) — done
 - [x] Add Budget Attainment Assessment (variance from plan, decomposed by category/segment/region)
 - [x] Add Revenue Concentration Risk (top-N customer concentration, trend over time)
 - [x] Add Run-Rate / Projection (current trajectory projected forward vs budget)
 - [x] Add Trend Analysis (growth rate, inflection points, deceleration signals)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
+
+### Dashboard — charts
+- [x] Shift synthetic data window to end in 2026: config start_month 2022-01, update budget_growth_target_by_year keys 2022-2026, regenerate + republish baseline.
+- [x] Revenue vs Budget chart: exclude partial tail month — apply full_months filter to months list (consistent with MTD logic).
 
 ### Scenarios — sensitivity analysis workspace
 - [x] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace
