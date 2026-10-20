@@ -61,7 +61,7 @@ def make_distribution_centers(n: int, rng: np.random.Generator) -> pd.DataFrame:
 
 def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame) -> pd.DataFrame:
     ids = np.arange(1, n + 1)
-    cats = rng.choice(["Electronics", "Industrial", "Office", "Safety"], size=n)
+    cats = rng.choice(["Electronics", "Industrial", "Office", "Safety", "Misc"], size=n)
     subcats = rng.choice(["A", "B", "C"], size=n)
     mfr_ids = rng.choice(manufacturers["manufacturer_id"].to_numpy(), size=n)
     abc = rng.choice(["A", "B", "C"], size=n)

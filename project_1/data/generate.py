@@ -48,7 +48,7 @@ def main() -> None:
         print(k, len(v))
 
     from gl_fx import generate_fx_rates, generate_gl_revenue
-    gl = generate_gl_revenue(cfg, rng, tx)
+    gl = generate_gl_revenue(cfg, rng, tx, dims.get("items"))
     from budget import generate_budget
     months = month_list(cfg["timeline"]["start_month"], int(cfg["timeline"]["n_months"]))
     bud = generate_budget(cfg, rng, tx, dims, gl, months)

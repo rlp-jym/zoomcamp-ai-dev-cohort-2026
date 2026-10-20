@@ -45,7 +45,7 @@ print("months with defects:", sorted({d["injected_month"] for d in defects}))
 
 ## Scenario examples
 
-- `baseline_run` — default config (`data/config.yaml`): 36 months, growth →
+- `baseline_run` — default config (`data/config.yaml`): 60 months, growth →
   plateau → decline, moderate defects from month 7.
 - `severe_decline` — shorten growth, lengthen decline, raise churn; expect
   lower volumes in late months.

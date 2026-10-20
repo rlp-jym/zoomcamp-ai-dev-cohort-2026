@@ -30,14 +30,15 @@ interactions stay reviewable on a single screen.
 - **GL:** `gl_revenue.recognized_revenue_amt` for the matching grain. Version 1
   is the baseline; restatements (`version > 1`) are handled by
   `VAL_RESTATEMENT_DETECTED`, not by reconciliation.
-- **Allocation:** GL distributes the period's billings across the 15
-  `(account_id, item_category)` grains with a random weight per period. Since no
-  natural item/customer dimension joins billings onto those grains, period
-  billings are allocated to each grain in proportion to that grain's GL share.
+- **Allocation:** Billings are attributed to `(period, item_category)` by joining
+  `invoice_lines` to the item master. GL is generated from the same per-category
+  billings (scaled by a small per-category bias, then split across accounts), so
+  the two sides reconcile at the category grain. Each category's billings are
+  then expanded across its account rows in proportion to each row's GL share,
+  so every row in a category carries the category-level variance.
 - **Variance %:** `(billings − gl) / gl`.
 - **Status:** `pass` when `|variance_pct| <= tolerance`, otherwise `fail`.
 - **Materiality tolerance:** `RECON_TOLERANCE_PCT` (default `0.5%`, i.e. `0.005`),
   read from configuration.
-- **Material gap:** a reconciliation row whose status is `fail`; each such row
-  opens exactly one `reconciliation` exception grouped by
-  `(period, account_id, item_category)`.
+- **Material gap:** a reconciliation row whose status is `fail`; each affected
+  period opens exactly one `reconciliation` exception.

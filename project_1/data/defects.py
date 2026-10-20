@@ -137,9 +137,16 @@ def inject_defects(cfg: dict, rng: np.random.Generator, data: dict, months: list
                      "item_category": str(data["gl_revenue"].loc[i, "item_category"])}, month_no)
 
         if toggles.get("billings_gl_variance", False) and gl_idx.size:
-            chosen = rng.choice(gl_idx, size=min(counts_per, gl_idx.size), replace=False)
-            for i in chosen:
-                factor = 1.0 + float(rng.uniform(0.015, 0.03))
+            cats = sorted(set(data["gl_revenue"].loc[gl_idx, "item_category"].tolist()))
+            weights = defects_cfg.get("billings_gl_variance_category_weights")
+            if weights is None or len(weights) != len(cats):
+                weights = [1.0] * len(cats)
+            weights = np.array(weights, dtype=float)
+            weights = weights / weights.sum()
+            target_cat = rng.choice(cats, p=weights)
+            cat_rows = gl_idx[data["gl_revenue"].loc[gl_idx, "item_category"].to_numpy() == target_cat]
+            for i in cat_rows:
+                factor = 1.0 + float(rng.uniform(0.03, 0.08))
                 data["gl_revenue"].loc[i, "recognized_revenue_amt"] = round(
                     float(data["gl_revenue"].loc[i, "recognized_revenue_amt"]) * factor, 2)
                 log("billings_gl_variance", "gl_revenue",

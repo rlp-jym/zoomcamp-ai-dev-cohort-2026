@@ -1,38 +1,44 @@
-"""Billings vs GL reconciliation at (period, account_id, item_category) grain."""
+"""Billings vs GL reconciliation at (period, account_id, item_category) grain.
 
+Billings are the period's invoice-line subtotals by item category (from
+``invoice_lines`` joined to the item master). GL revenue is allocated per
+category from the same billings baseline (see ``data/gl_fx.py``), then split
+across accounts. We therefore reconcile at the (period, category) grain and
+expand each category's billings across its account rows in proportion to each
+row's GL share, so every row in a category carries the category-level variance.
+Using version = 1 keeps restatements (a separate control) out of the
+reconciliation baseline.
+"""
 import json
 
 from backend.config import settings
 from backend.db.connection import execute, execute_many
 from backend.storage.duckdb_client import query_dicts_on
 
-# Billings are the period's invoice-line subtotals (from invoice_lines).
-# GL revenue is allocated across (account_id, item_category) grains with a
-# random weight per period, so there is no natural item/customer dimension to
-# join billings onto. We therefore allocate the period billings to each grain
-# in proportion to that grain's GL share, then variance the allocation against
-# the recognized GL amount. Using version = 1 keeps restatements (a separate
-# control) out of the reconciliation baseline.
 RECON_SQL = """
 WITH bill AS (
     SELECT strftime(inv.invoice_date, '%Y-%m') AS period,
+           CASE WHEN it.category IN ('Electronics', 'Industrial', 'Office', 'Safety', 'Misc')
+                THEN it.category ELSE 'Misc' END AS item_category,
            SUM(il.line_subtotal) AS billings
     FROM read_parquet('s3://{bucket}/scenarios/{scenario}/invoice_lines.parquet') il
     JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/invoices.parquet') inv
          ON il.invoice_id = inv.invoice_id
-    GROUP BY 1
+    JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/items.parquet') it
+         ON il.item_id = it.item_id
+    GROUP BY 1, 2
 ), gl AS (
     SELECT period, account_id, item_category,
            recognized_revenue_amt AS gl,
-           COUNT(*) OVER (PARTITION BY period) AS grain_count
+           SUM(recognized_revenue_amt) OVER (PARTITION BY period, item_category) AS gl_cat
     FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
     WHERE version = 1
 )
 SELECT gl.period, gl.account_id, gl.item_category,
-       bill.billings / gl.grain_count AS billings,
+       bill.billings * gl.gl / gl.gl_cat AS billings,
        gl.gl AS gl,
-       (bill.billings / gl.grain_count - gl.gl) / gl.gl AS variance_pct
-FROM gl JOIN bill USING (period)
+       (bill.billings * gl.gl / gl.gl_cat - gl.gl) / gl.gl AS variance_pct
+FROM gl JOIN bill ON gl.period = bill.period AND gl.item_category = bill.item_category
 ORDER BY gl.period, gl.account_id, gl.item_category
 """
 

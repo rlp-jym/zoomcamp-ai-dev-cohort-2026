@@ -30,6 +30,7 @@ scale:
     - Office
     - Safety
     - Misc
+  gl_category_bias_spread: 0.004
   budget_growth_target_by_year:
     2022: 1.08
     2023: 1.05
@@ -55,6 +56,7 @@ defects:
     fx_gap: true
     orphaned_backorder: true
     phantom_return: true
+  billings_gl_variance_category_weights: [0.4, 0.2, 0.15, 0.15, 0.1]
   counts_per_type_per_month: 1
 
 reconciliation:

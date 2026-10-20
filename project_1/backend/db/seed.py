@@ -76,29 +76,33 @@ RULES = [
     ),
     (
         "VAL_RECON_BILLINGS_GL",
-        "Billings vs General Ledger: per-grain variance above materiality tolerance",
+        "Billings vs General Ledger: per-category variance above materiality tolerance",
         "high",
         """
         WITH bill AS (
             SELECT strftime(inv.invoice_date, '%Y-%m') AS period,
+                   CASE WHEN it.category IN ('Electronics', 'Industrial', 'Office', 'Safety', 'Misc')
+                        THEN it.category ELSE 'Misc' END AS item_category,
                    SUM(il.line_subtotal) AS billings
             FROM read_parquet('s3://{bucket}/scenarios/{scenario}/invoice_lines.parquet') il
             JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/invoices.parquet') inv
                  ON il.invoice_id = inv.invoice_id
-            GROUP BY 1
+            JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/items.parquet') it
+                 ON il.item_id = it.item_id
+            GROUP BY 1, 2
         ), gl AS (
             SELECT period, account_id, item_category,
                    recognized_revenue_amt AS gl,
-                   SUM(recognized_revenue_amt) OVER (PARTITION BY period) AS gl_period
+                   SUM(recognized_revenue_amt) OVER (PARTITION BY period, item_category) AS gl_cat
             FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
             WHERE version = 1
         )
         SELECT gl.period, gl.account_id, gl.item_category,
-               bill.billings * gl.gl / gl.gl_period AS billings,
+               bill.billings * gl.gl / gl.gl_cat AS billings,
                gl.gl AS gl,
-               (bill.billings * gl.gl / gl.gl_period - gl.gl) / gl.gl AS variance_pct
-        FROM gl JOIN bill USING (period)
-        WHERE ABS((bill.billings * gl.gl / gl.gl_period - gl.gl) / gl.gl) > {tolerance}
+               (bill.billings * gl.gl / gl.gl_cat - gl.gl) / gl.gl AS variance_pct
+        FROM gl JOIN bill ON gl.period = bill.period AND gl.item_category = bill.item_category
+        WHERE ABS((bill.billings * gl.gl / gl.gl_cat - gl.gl) / gl.gl) > {tolerance}
         """,
         "billings_gl_variance",
     ),
