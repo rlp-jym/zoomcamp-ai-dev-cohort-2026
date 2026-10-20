@@ -165,10 +165,16 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
     curr_pool = CURRENCY_POOL[:n_curr]
     currencies = rng.choice(curr_pool, size=n_customers)
 
-    segments = rng.choice(["enterprise", "midmarket", "smb"], size=n_customers)
-    if n_customers >= 2:
-        segments[0] = "remapped_segment"
-        segments[1] = "remapped_segment"
+    # dtype=object keeps numpy from silently truncating the remapped label
+    # to the width of the longest known segment ("remapped_segment" ->
+    # "remapped_s" when the array is a fixed-width <U10 string).
+    segments = rng.choice(
+        np.array(["enterprise", "midmarket", "smb"], dtype=object),
+        size=n_customers,
+    )
+    n_remaps = int(cfg["dimension_drift"]["segment_remaps"])
+    for i in range(min(n_remaps, n_customers)):
+        segments[i] = "remapped_segment"
     regions = rng.choice(["North", "South", "East", "West"], size=n_customers)
     dc_ids = rng.choice(dcs["dc_id"].to_numpy(), size=n_customers)
     statuses = np.where(churn_months == None, "active", "churned")  # noqa: E711
