@@ -2,7 +2,7 @@
 {% block title %}Audit{% endblock %}
 {% block content %}
 <h1>Audit</h1>
-<p class="page-description">Compliance and traceability surface — agent actions, approvals, and publications. Filter by trace_id to follow a single pipeline run end-to-end.</p>
+<p class="page-description">Compliance and traceability surface — approvals, publications, and agent actions. Filter by trace_id to follow a single pipeline run end-to-end.</p>
 
 <form method="get" action="/audit" class="audit-filter">
   <input type="text" name="trace_id" value="{{ trace_id or '' }}"
@@ -10,28 +10,6 @@
   <button type="submit">Filter</button>
   {% if trace_id %}<a href="/audit">Clear</a>{% endif %}
 </form>
-
-<h2>Agent Actions ({{ actions|length }})</h2>
-<table class="table">
-  <thead>
-    <tr><th>ID</th><th>Agent</th><th>Action</th><th>Anchor</th><th>Trace</th><th>Payload</th><th>Created</th></tr>
-  </thead>
-  <tbody>
-    {% for r in actions %}
-    <tr>
-      <td>{{ r.action_id }}</td>
-      <td>{{ r.agent_id }}</td>
-      <td>{{ r.action }}</td>
-      <td>{{ r.anchor_type }}:{{ r.anchor_id }}</td>
-      <td><a href="/observability?trace_id={{ r.trace_id }}">{{ r.trace_id }}</a></td>
-      <td title="{{ r.payload }}">{{ r.payload | tojson | truncate(60) }}</td>
-      <td>{{ r.created_at }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="7" class="empty">No agent actions{% if trace_id %} for trace {{ trace_id }}{% endif %}.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
 
 <h2>Approvals ({{ approvals|length }})</h2>
 <table class="table">
@@ -71,6 +49,28 @@
     </tr>
     {% else %}
     <tr><td colspan="6" class="empty">No publications.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Agent Actions ({{ actions|length }})</h2>
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>Agent</th><th>Action</th><th>Anchor</th><th>Trace</th><th>Payload</th><th>Created</th></tr>
+  </thead>
+  <tbody>
+    {% for r in actions %}
+    <tr>
+      <td>{{ r.action_id }}</td>
+      <td>{{ r.agent_id }}</td>
+      <td>{{ r.action }}</td>
+      <td>{{ r.anchor_type }}:{{ r.anchor_id }}</td>
+      <td><a href="/observability?trace_id={{ r.trace_id }}">{{ r.trace_id }}</a></td>
+      <td title="{{ r.payload }}">{{ r.payload | tojson | truncate(60) }}</td>
+      <td>{{ r.created_at }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No agent actions{% if trace_id %} for trace {{ trace_id }}{% endif %}.</td></tr>
     {% endfor %}
   </tbody>
 </table>
