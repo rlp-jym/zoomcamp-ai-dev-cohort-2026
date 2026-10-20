@@ -322,14 +322,16 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ### Dashboard — FP&A outputs
 - [ ] Remove Run Pipeline button from dashboard (pipeline runs via script only) — done
 - [x] Add Budget Attainment Assessment (variance from plan, decomposed by category/segment/region)
-- [x] Add Revenue Concentration Risk (top-N customer concentration, trend over time)
-- [x] Add Run-Rate / Projection (current trajectory projected forward vs budget)
-- [x] Add Trend Analysis (growth rate, inflection points, deceleration signals)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
+- [x] Consolidate the FP&A outputs into the chart layer — the four output cards duplicated the charts above them (the General Ledger series was plotted twice, the projection and the growth table were re-cuts of the same revenue series). One "Revenue, Billings & Plan" chart now carries actuals, billings, budget and the 3-month run-rate projection; "Month-over-Month Growth" is a diverging bar chart; budget attainment is a progress bar with a segment-mix strip. 8 cards → 4.
+- [x] Drop Revenue Concentration Risk card — the generator spreads billings uniformly across ~440 customers, so the top 5 hold 1.9% of billings and differ by 3%; the card asserted a risk that the data does not contain. Segment mix (a real, visible distribution) is kept in the attainment card instead.
+- [x] Flag unrecognised customer segments — the customer master contains a segment the source system does not recognise (a mapping drift). It is rendered in red and labelled "unrecognised" in the segment-mix strip rather than blended into the normal mix. Root cause: numpy truncated the intended `remapped_segment` label to `remapped_s` (fixed-width `<U10` string array) — fixed in `data/dimensions.py` by drawing the segment array as `dtype=object`.
 
 ### Dashboard — charts
 - [x] Shift synthetic data window to end in 2026: config start_month 2022-01, update budget_growth_target_by_year keys 2022-2026, regenerate + republish baseline.
 - [x] Revenue vs Budget chart: exclude partial tail month — apply full_months filter to months list (consistent with MTD logic).
+- [x] Remove the duplicated General Ledger series (it was drawn in both "Revenue vs Budget" and "KPI Trends" from the same source array).
+- [x] KPI grid moved above the charts — the page now reads headline metrics first, then charts, then the assessment card.
 
 ### Scenarios — sensitivity analysis workspace
 - [x] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace

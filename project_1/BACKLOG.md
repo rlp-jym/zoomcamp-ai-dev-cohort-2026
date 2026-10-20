@@ -15,7 +15,7 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Alert banner + badge reflect open alerts and count (banner lists latest 5).
 - [x] Empty state + "Refresh KPIs now" button when no published dataset/cache.
 - [x] KPI cards render (3 when no publication, 6 when published) with values/deltas; each has an inline analysis thread.
-- [x] 4 Chart.js charts render from the `charts` payload (revenue vs budget, variance by category, segments, KPI trends).
+- [x] 3 Chart.js charts render from the `charts` payload (revenue/billings/plan + projection, variance by category, month-over-month growth) plus a budget-attainment progress bar with a segment-mix strip. The General Ledger series is drawn once, not once per chart.
 - [x] Posting a message to a `kpi-*` analysis thread updates via HTMX partial.
 - [x] Manual `/dashboard/refresh` recomputes the cache without scanning S3 in the request path.
 

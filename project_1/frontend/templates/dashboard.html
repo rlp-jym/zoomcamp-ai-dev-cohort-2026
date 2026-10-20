@@ -34,29 +34,6 @@
 </div>
 {% endif %}
 
-<div class="charts-grid">
-  <div class="chart-card">
-    <h2>Revenue vs. Budget (Trailing 6 Months)</h2>
-    <canvas id="revenueBudgetChart" height="120"></canvas>
-    <p class="chart-desc">Actual General Ledger revenue vs. budgeted revenue per month — shows whether we're tracking to plan.</p>
-  </div>
-  <div class="chart-card">
-    <h2>Variances by Category (avg variance %)</h2>
-    <canvas id="varianceCategoryChart" height="120"></canvas>
-    <p class="chart-desc">Average billing-vs-General-Ledger variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
-  </div>
-  <div class="chart-card">
-    <h2>Revenue by Customer Segment ($M, published)</h2>
-    <canvas id="segmentChart" height="120"></canvas>
-    <p class="chart-desc">Revenue share by customer segment — shows which segments drive the most billings.</p>
-  </div>
-  <div class="chart-card">
-    <h2>KPI Trends (Trailing 6 Months)</h2>
-    <canvas id="kpiTrendChart" height="120"></canvas>
-    <p class="chart-desc">Trailing billings vs. General Ledger revenue trend — tracks convergence/divergence of billed and recognized revenue over time.</p>
-  </div>
-</div>
-
 <div class="kpi-grid">
   {% for k in kpis %}
   <div class="kpi-card">
@@ -73,94 +50,90 @@
   {% endfor %}
 </div>
 
-{% if fpa %}
-<div class="charts-grid" style="margin-top:1.5rem;">
+<div class="charts-grid">
+  <div class="chart-card span-2">
+    <h2>Revenue, Billings &amp; Plan (Trailing 6 Months + 3-Month Projection)</h2>
+    <canvas id="revenuePlanChart" height="120"></canvas>
+    <p class="chart-desc">General Ledger revenue (actuals) against billings and the budgeted plan, with a dashed 3-month run-rate projection continuing from the last actual month at the trailing growth rate.</p>
+  </div>
   <div class="chart-card">
+    <h2>Variances by Category (avg variance %)</h2>
+    <canvas id="varianceCategoryChart" height="120"></canvas>
+    <p class="chart-desc">Average billing-vs-General-Ledger variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
+  </div>
+  <div class="chart-card">
+    <h2>Month-over-Month Growth (General Ledger)</h2>
+    <canvas id="growthChart" height="120"></canvas>
+    <p class="chart-desc">Month-over-month change in General Ledger revenue across the trailing months — shows whether revenue is accelerating or decelerating.</p>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card span-2">
     <h2>Budget Attainment</h2>
-    {% if fpa.budget_attainment.pct is not none %}
-    <p><strong>{{ fpa.budget_attainment.pct }}%</strong> of budget (trailing 6 months)</p>
-    {% if fpa.budget_attainment.by_segment %}
-    <table class="table">
-      <thead><tr><th>Segment</th><th>Billings ($)</th></tr></thead>
-      <tbody>
-        {% for s in fpa.budget_attainment.by_segment %}
-        <tr><td>{{ s.segment }}</td><td>{{ "{:,.0f}".format(s.billings) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+    {% if attainment and attainment.pct is not none %}
+    <p><strong>{{ attainment.pct }}%</strong> of plan over the trailing {{ attainment.months }} months</p>
+    <div class="progress" title="{{ attainment.pct }}% of plan">
+      <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
+      <div class="progress-target" title="100% of plan"></div>
+    </div>
+    <p class="chart-desc">General Ledger revenue as a percentage of the budgeted plan for the same window. The marker on the right is 100% of plan.</p>
     {% else %}
     <p class="empty">No budget data available.</p>
     {% endif %}
-  </div>
-  <div class="chart-card">
-    <h2>Revenue Concentration Risk</h2>
-    {% if fpa.concentration.top5_share is not none %}
-    <p>Top 5 customers = <strong>{{ fpa.concentration.top5_share }}%</strong> of billings</p>
-    <table class="table">
-      <thead><tr><th>Customer</th><th>Billings ($)</th></tr></thead>
-      <tbody>
-        {% for c in fpa.concentration.customers %}
-        <tr><td>{{ c.customer_id }}</td><td>{{ "{:,.0f}".format(c.total) }}</td></tr>
+
+    {% if charts.segment_mix %}
+    <div class="segment-mix">
+      <div class="segment-mix-title">Billings by customer segment</div>
+      <div class="segment-bar">
+        {% for s in charts.segment_mix %}
+        <div class="segment-slice{% if not s.known %} anomaly{% endif %}"
+             style="flex-basis: {{ s.share }}%; background: {{ s.color }};"
+             title="{{ s.label }} — {{ s.share }}% of billings"></div>
         {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="empty">No customer data available.</p>
-    {% endif %}
-  </div>
-  <div class="chart-card">
-    <h2>Run-Rate Projection (Next 3 Months)</h2>
-    {% if fpa.projection.avg_growth_pct is not none %}
-    <p>Avg monthly growth: <strong>{{ fpa.projection.avg_growth_pct }}%</strong></p>
-    <table class="table">
-      <thead><tr><th>Month</th><th>Projected ($M)</th></tr></thead>
-      <tbody>
-        {% for v in fpa.projection.next_3m %}
-        <tr><td>+{{ loop.index }}m</td><td>{{ v }}</td></tr>
+      </div>
+      <div class="segment-legend">
+        {% for s in charts.segment_mix %}
+        <span class="segment-legend-item">
+          <span class="swatch" style="background: {{ s.color }}"></span>
+          {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %}
+          — {{ "{:,.0f}".format(s.amount) }} ({{ s.share }}%)
+        </span>
         {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="empty">Insufficient data for projection.</p>
-    {% endif %}
-  </div>
-  <div class="chart-card">
-    <h2>Trend Analysis</h2>
-    {% if fpa.trend.growth_rates %}
-    <p>Signal: <strong>{{ fpa.trend.inflection or "stable" }}</strong></p>
-    <table class="table">
-      <thead><tr><th>Month</th><th>Growth %</th></tr></thead>
-      <tbody>
-        {% for label in fpa.trend.labels %}
-        {% set idx = loop.index0 %}
-        {% set g = fpa.trend.growth_rates[idx] if idx < fpa.trend.growth_rates | length else None %}
-        <tr><td>{{ label }}</td><td>{{ g if g is not none else "—" }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="empty">Insufficient data for trend analysis.</p>
+      </div>
+      <p class="chart-desc">Revenue share by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
+    </div>
     {% endif %}
   </div>
 </div>
-{% endif %}
 
 <script>
   (function () {
     const c = {{ charts | tojson }};
-    if (!c || !c.revenue_budget) return;
+    if (!c || !c.revenue_plan) return;
 
-    new Chart(document.getElementById("revenueBudgetChart"), {
+    new Chart(document.getElementById("revenuePlanChart"), {
       type: "line",
       data: {
-        labels: c.revenue_budget.labels,
+        labels: c.revenue_plan.labels,
         datasets: [
-          { label: "Actual Revenue ($M)", data: c.revenue_budget.actual, borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.15)", tension: 0.3, fill: true },
-          { label: "Budget ($M)", data: c.revenue_budget.budget, borderColor: "#9aa0a6", borderDash: [5, 5], tension: 0.3, fill: false }
+          { label: "General Ledger Revenue ($M)", data: c.revenue_plan.actual,
+            borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.12)", tension: 0.3, fill: true, spanGaps: false },
+          { label: "Billings ($M)", data: c.revenue_plan.billings,
+            borderColor: "#4a6fa5", borderDash: [2, 3], tension: 0.3, fill: false, spanGaps: false },
+          { label: "Budget ($M)", data: c.revenue_plan.budget,
+            borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false },
+          { label: "Projected ($M)", data: c.revenue_plan.projection,
+            borderColor: "#c9a227", borderDash: [6, 3], tension: 0.2, fill: false, spanGaps: false }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+        scales: {
+          y: { type: "linear", position: "left", title: { display: true, text: "$M" } }
+        }
+      }
     });
 
     new Chart(document.getElementById("varianceCategoryChart"), {
@@ -175,33 +148,16 @@
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
 
-    new Chart(document.getElementById("segmentChart"), {
-      type: "doughnut",
+    new Chart(document.getElementById("growthChart"), {
+      type: "bar",
       data: {
-        labels: c.segments.labels,
+        labels: c.growth.labels,
         datasets: [
-          { data: c.segments.values, backgroundColor: ["#1f2a44", "#4a6fa5", "#9aa0a6", "#c9a227", "#1a7f37"] }
+          { label: "MoM growth (%)", data: c.growth.values,
+            backgroundColor: c.growth.values.map(v => v >= 0 ? "#1a7f37" : "#cf222e") }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
-    });
-
-    new Chart(document.getElementById("kpiTrendChart"), {
-      type: "line",
-      data: {
-        labels: c.kpi_trend.labels,
-        datasets: [
-          { label: "Billings ($M)", data: c.kpi_trend.billings, borderColor: "#1f2a44", tension: 0.3, yAxisID: "y" },
-          { label: "General Ledger Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom" } },
-        scales: {
-          y: { type: "linear", position: "left", title: { display: true, text: "$M" } }
-        }
-      }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
   })();
 </script>

@@ -55,6 +55,19 @@ h1 { margin-top: 0; }
 .chart-card h2 { margin-top: 0; font-size: 1rem; }
 .chart-card canvas { width: 100% !important; height: 260px !important; }
 .chart-desc { font-size: 0.8rem; color: #666; margin: 0.4rem 0 0; }
+.charts-grid .span-2 { grid-column: 1 / -1; }
+.progress { position: relative; height: 22px; background: #eef0f3; border-radius: 11px; overflow: hidden; margin: 0.6rem 0; }
+.progress-fill { height: 100%; background: #1f2a44; border-radius: 11px; }
+.progress-target { position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: #6a737d; }
+.segment-mix { margin-top: 1rem; border-top: 1px solid #e3e3e8; padding-top: 0.8rem; }
+.segment-mix-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; }
+.segment-bar { display: flex; height: 16px; background: #eef0f3; border-radius: 4px; overflow: hidden; }
+.segment-slice { flex: 0 1 auto; min-width: 0; }
+.segment-slice.anomaly { min-width: 6px; }
+.segment-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.78rem; color: #444; margin-top: 0.45rem; }
+.segment-legend-item { white-space: nowrap; }
+.segment-legend-item em { color: #cf222e; font-style: normal; }
+.segment-legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .banner { padding: 0.6rem 0.8rem; border-radius: 6px; margin-bottom: 1rem; }
 .banner-ok { background: #d1e7dd; color: #0f5132; }
 .banner-error { background: #f8d7da; color: #842029; }

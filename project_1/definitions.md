@@ -42,3 +42,22 @@ interactions stay reviewable on a single screen.
   read from configuration.
 - **Material gap:** a reconciliation row whose status is `fail`; each affected
   period opens exactly one `reconciliation` exception.
+
+## Dashboard Visuals
+
+The dashboard shows six KPIs, three charts and one assessment card. Each
+visual carries a distinct quantity — the same series is never drawn twice:
+
+- **Revenue, Billings & Plan:** General Ledger revenue (actuals) against
+  billings and the budgeted plan over the trailing six months, plus a
+  dashed three-month run-rate projection. The projection carries the
+  average month-over-month growth of the last three actual months forward
+  at a constant rate, and is anchored on the last actual month.
+- **Variances by Category:** average billing-vs-General-Ledger variance %
+  per item category, from the reconciliation rows of the published run.
+- **Month-over-Month Growth:** month-over-month change in General Ledger
+  revenue for the trailing months.
+- **Budget Attainment:** General Ledger revenue as a percentage of plan for
+  the same window, with the billings mix by customer segment underneath. A
+  segment the source system does not recognise is a customer-master mapping
+  drift and is flagged rather than blended into the mix.

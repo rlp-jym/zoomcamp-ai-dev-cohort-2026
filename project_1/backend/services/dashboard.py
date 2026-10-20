@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 SCENARIO = "baseline_run"
 
+# Segments the source system recognises. A segment outside this set is a
+# mapping drift (a value that no longer exists upstream) and is surfaced as
+# an anomaly instead of being blended into the normal business mix.
+KNOWN_SEGMENTS = ("enterprise", "midmarket", "smb")
+SEGMENT_COLORS = {
+    "known": ("#1f2a44", "#4a6fa5", "#9aa0a6"),
+    "anomaly": "#cf222e",
+}
+
 # Short-lived in-memory cache for the request-path dashboard payload.
 _DASHBOARD_CACHE: dict = {"payload": None, "ts": 0.0}
 _DASHBOARD_CACHE_TTL = 5.0
@@ -37,6 +46,13 @@ def invalidate_dashboard_cache() -> None:
 
 def _uri(scenario: str, table: str) -> str:
     return f"s3://{settings.r2_bucket}/scenarios/{scenario}/{table}.parquet"
+
+
+def _shift_month(ym: str, months: int) -> str:
+    """Shift a ``YYYY-MM`` key forward by ``months`` (e.g. 2026-12 -> 2027-01)."""
+    year, month = (int(p) for p in ym.split("-"))
+    total = year * 12 + (month - 1) + months
+    return f"{total // 12:04d}-{total % 12 + 1:02d}"
 
 
 def _fmt_m(value) -> str:
@@ -268,38 +284,99 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         """,
         (q["run_id"],),
     )
+
+    # ---- growth, run-rate projection and budget attainment ----------------
+    gl_values = [gl_month.get(m, 0.0) for m in months]
+    growth_rates = [
+        round((gl_values[i] - gl_values[i - 1]) / gl_values[i - 1] * 100, 1)
+        if gl_values[i - 1] > 0 else None
+        for i in range(1, len(gl_values))
+    ]
+
+    # Run-rate projection: carry the average growth of the last three
+    # months forward for three months. It is an extension of the actual
+    # series, so it is drawn on the same chart rather than as its own card.
+    last3 = gl_values[-3:] if len(gl_values) >= 3 else gl_values
+    recent = [
+        (last3[i] - last3[i - 1]) / last3[i - 1]
+        for i in range(1, len(last3))
+        if last3[i - 1] != 0
+    ]
+    avg_growth = sum(recent) / len(recent) if recent else 0.0
+    projected = [
+        gl_values[-1] * (1 + avg_growth) ** i for i in range(1, 4)
+    ] if gl_values else []
+
+    projection_labels = (
+        [_shift_month(months[-1], i) for i in (1, 2, 3)] if months else []
+    )
+    chart_labels = months + projection_labels
+    tail = [None] * len(projection_labels)
+
+    budget_total = sum(budget_month.get(m, 0.0) for m in months)
+    attainment_pct = (
+        round(sum(gl_values) / budget_total * 100, 1) if budget_total else None
+    )
+
+    # Segment mix for the attainment card. Unrecognised segments are kept
+    # (and flagged) rather than dropped — they are the visible trace of a
+    # customer-master mapping drift.
+    seg_total = sum(s["amount"] for s in segments)
+    segment_mix = []
+    for idx, s in enumerate(segments[:6]):
+        known = s["label"] in KNOWN_SEGMENTS
+        segment_mix.append({
+            "label": s["label"],
+            "amount": s["amount"],
+            "share": round(s["amount"] / seg_total * 100, 2) if seg_total else 0.0,
+            "known": known,
+            "color": (
+                SEGMENT_COLORS["anomaly"] if not known
+                else SEGMENT_COLORS["known"][idx % len(SEGMENT_COLORS["known"])]
+            ),
+        })
+
     data["charts"] = {
-        "revenue_budget": {
-            "labels": months,
-            "actual": [round(gl_month.get(m, 0.0) / 1e6, 3) for m in months],
+        # One chart carries actuals, plan and the run-rate projection: the
+        # General Ledger series used to be drawn twice (once against
+        # budget, once against billings) and the projection lived in its
+        # own card, so the same numbers were on screen three times.
+        "revenue_plan": {
+            "labels": chart_labels,
+            "actual": [
+                round(gl_month.get(m, 0.0) / 1e6, 3) for m in months
+            ] + tail,
+            "billings": [
+                round(billings_month.get(m, 0.0) / 1e6, 3) for m in months
+            ] + tail,
             "budget": [
-                round(budget_month.get(m, 0.0) / 1e6, 3) if budget_month.get(m) is not None
-                else None
-                for m in months
+                round(budget_month[m] / 1e6, 3)
+                if budget_month.get(m) is not None else None
+                for m in chart_labels
             ],
+            # Anchored on the last actual month so the dashed line joins
+            # the actual series instead of floating beside it.
+            "projection": (
+                [None] * (len(months) - 1)
+                + [round(gl_values[-1] / 1e6, 3)]
+                + [round(p / 1e6, 3) for p in projected]
+            ) if gl_values else [],
+            "avg_growth_pct": round(avg_growth * 100, 1),
         },
         "variance_category": {
             "labels": [r["item_category"] for r in variance_rows],
             "values": [round(float(r["avg_var"] or 0), 4) for r in variance_rows],
         },
-        "segments": {
-            "labels": [s["label"] for s in segments[:5]],
-            "values": [
-                round(s["amount"] / 1e6, 3) for s in segments[:5]
-            ],
+        "growth": {
+            "labels": months[1:],
+            "values": growth_rates,
         },
-        "kpi_trend": {
-            "labels": months,
-            "billings": [
-                round(billings_month.get(m, 0.0) / 1e6, 3) for m in months
-            ],
-            "gl": [round(gl_month.get(m, 0.0) / 1e6, 3) for m in months],
-        },
-        "billings_mtd": _fmt_m(billings_mtd),
+        "segment_mix": segment_mix,
     }
-    data["fpa"] = _compute_fpa_outputs(
-        scenario, months, gl_month, budget_month, segments, billings_month, _uri
-    )
+    data["attainment"] = {
+        "pct": attainment_pct,
+        "months": len(months),
+    }
     return data
 
 
@@ -383,126 +460,6 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     _DASHBOARD_CACHE["payload"] = data
     _DASHBOARD_CACHE["ts"] = time.time()
     return data
-
-
-def _compute_fpa_outputs(scenario, months, gl_month, budget_month, segments, billings_month, _uri) -> dict:
-    """Compute the four FP&A outputs: budget attainment, concentration risk, projection, trend."""
-    from backend.storage.duckdb_client import query_rows
-
-    gl_total = sum(gl_month.get(m, 0.0) for m in months)
-    budget_total = sum(budget_month.get(m, 0.0) for m in months)
-    attainment_pct = (gl_total / budget_total * 100) if budget_total else None
-
-    # Budget attainment by segment (latest month)
-    latest_month = months[-1] if months else None
-    seg_attainment = []
-    if latest_month:
-        seg_rows = query_rows(f"""
-            WITH inv AS (
-                SELECT invoice_id, customer_id,
-                       strftime(invoice_date, '%Y-%m') AS ym
-                FROM read_parquet('{_uri(scenario, "invoices")}')
-            ),
-            bil AS (
-                SELECT * FROM read_parquet('{_uri(scenario, "invoice_lines")}')
-                WHERE invoice_id IS NOT NULL
-            )
-            SELECT COALESCE(c.segment, 'Unknown') AS segment,
-                   SUM(bil.line_subtotal) AS billings
-            FROM bil
-            JOIN inv i ON bil.invoice_id = i.invoice_id
-            JOIN read_parquet('{_uri(scenario, "customers")}') c
-                 ON i.customer_id = c.customer_id
-            WHERE i.ym = '{latest_month}'
-            GROUP BY 1
-        """)
-        seg_attainment = [
-            {"segment": r["segment"], "billings": float(r["billings"])}
-            for r in seg_rows
-        ]
-        seg_attainment.sort(key=lambda s: -s["billings"])
-
-    # Revenue concentration: top 5 customers by billings
-    conc_rows = query_rows(f"""
-        WITH inv AS (
-            SELECT invoice_id, customer_id
-            FROM read_parquet('{_uri(scenario, "invoices")}')
-        ),
-        bil AS (
-            SELECT * FROM read_parquet('{_uri(scenario, "invoice_lines")}')
-            WHERE invoice_id IS NOT NULL
-        )
-        SELECT i.customer_id, SUM(bil.line_subtotal) AS total
-        FROM bil
-        JOIN inv i ON bil.invoice_id = i.invoice_id
-        GROUP BY 1
-        ORDER BY 2 DESC
-        LIMIT 5
-    """)
-    total_billings = sum(float(r["total"]) for r in conc_rows) if conc_rows else 0
-    all_billings = sum(billings_month.get(m, 0.0) for m in months)
-    top5_share = (total_billings / all_billings * 100) if all_billings else None
-
-    # Projection: linear trend of last 3 months General Ledger revenue
-    gl_values = [gl_month.get(m, 0.0) for m in months]
-    last3 = gl_values[-3:] if len(gl_values) >= 3 else gl_values
-    if len(last3) >= 2:
-        growth_rates = [
-            (last3[i] - last3[i-1]) / last3[i-1]
-            for i in range(1, len(last3))
-            if last3[i-1] != 0
-        ]
-        avg_growth = sum(growth_rates) / len(growth_rates) if growth_rates else 0
-    else:
-        avg_growth = 0
-    projected = []
-    if gl_values and avg_growth is not None:
-        last_val = gl_values[-1]
-        for i in range(1, 4):
-            projected.append(last_val * (1 + avg_growth) ** i)
-
-    # Trend analysis: month-over-month growth rates
-    trend_labels = months[1:] if len(months) > 1 else []
-    growth_rates_full = []
-    for i in range(1, len(months)):
-        prev = gl_month.get(months[i-1], 0.0)
-        curr = gl_month.get(months[i], 0.0)
-        if prev > 0:
-            growth_rates_full.append(round((curr - prev) / prev * 100, 1))
-        else:
-            growth_rates_full.append(None)
-
-    # Inflection: last 3 growth rates
-    recent_growth = [g for g in growth_rates_full if g is not None][-3:]
-    inflection = None
-    if len(recent_growth) >= 2:
-        if all(recent_growth[i] < recent_growth[i-1] for i in range(1, len(recent_growth))):
-            inflection = "decelerating"
-        elif all(recent_growth[i] > recent_growth[i-1] for i in range(1, len(recent_growth))):
-            inflection = "accelerating"
-
-    return {
-        "budget_attainment": {
-            "pct": round(attainment_pct, 1) if attainment_pct is not None else None,
-            "by_segment": seg_attainment,
-        },
-        "concentration": {
-            "top5_share": round(top5_share, 1) if top5_share is not None else None,
-            "customers": [
-                {"customer_id": r["customer_id"], "total": float(r["total"])}
-                for r in conc_rows
-            ],
-        },
-        "projection": {
-            "avg_growth_pct": round(avg_growth * 100, 1) if avg_growth is not None else None,
-            "next_3m": [round(p / 1e6, 3) for p in projected],
-        },
-        "trend": {
-            "labels": trend_labels,
-            "growth_rates": growth_rates_full,
-            "inflection": inflection,
-        },
-    }
 
 
 def _process_kpis_only(run_rate, prev_rate, exc_row, pub_count) -> list[dict]:
