@@ -167,12 +167,22 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     )
 
     # ---- small monthly tables: General Ledger revenue and budget ------------
+    # A restatement supersedes the row it restates, so only the highest
+    # version per (period, account_id, item_category) counts as current GL.
     gl_month = {
         r["period"]: float(r["amt"])
         for r in query_rows(
             f"""
             SELECT period, SUM(recognized_revenue_amt) AS amt
-            FROM read_parquet('{_uri(scenario, "gl_revenue")}')
+            FROM (
+                SELECT period, account_id, item_category, recognized_revenue_amt,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY period, account_id, item_category
+                           ORDER BY version DESC
+                       ) AS rn
+                FROM read_parquet('{_uri(scenario, "gl_revenue")}')
+            )
+            WHERE rn = 1
             GROUP BY 1
             """
         )
@@ -396,11 +406,6 @@ def _compute_fpa_outputs(scenario, months, gl_month, budget_month, segments, bil
             bil AS (
                 SELECT * FROM read_parquet('{_uri(scenario, "invoice_lines")}')
                 WHERE invoice_id IS NOT NULL
-            ),
-            gl AS (
-                SELECT period, SUM(recognized_revenue_amt) AS amt
-                FROM read_parquet('{_uri(scenario, "gl_revenue")}')
-                GROUP BY period
             )
             SELECT COALESCE(c.segment, 'Unknown') AS segment,
                    SUM(bil.line_subtotal) AS billings

@@ -131,6 +131,31 @@ def _create_rule_exceptions(run_id, result, trace_id, latest_period=None):
     return len(params)
 
 
+def _close_superseded_exceptions(run_id, scenario_name):
+    """Close open exceptions raised by runs this run supersedes.
+
+    The exceptions page is a pending work queue for the *current* run: a new
+    run re-detects the same issues, so leaving the previous run's exceptions
+    open would double-count the backlog. Returns the number closed.
+    """
+    res = execute(
+        """
+        UPDATE exceptions
+        SET status = 'resolved', updated_at = now()
+        WHERE status <> 'resolved'
+          AND run_id IS DISTINCT FROM %s
+          AND run_id IN (SELECT run_id FROM runs WHERE scenario_name = %s)
+        RETURNING exception_id
+        """,
+        (run_id, scenario_name),
+        fetch=True,
+    )
+    if not res:
+        return 0
+    _cols, rows = res
+    return len(rows) if rows else 0
+
+
 def run_pipeline(run_id):
     run = runs_svc.get_run(run_id)
     if not run:
@@ -207,6 +232,7 @@ def run_pipeline(run_id):
             validations_failed=validations_failed,
             exceptions_created=exceptions_created,
         )
+        superseded = _close_superseded_exceptions(run_id, scenario_name)
         msg_svc.post_message(
             anchor_type,
             anchor_id,
@@ -214,7 +240,8 @@ def run_pipeline(run_id):
             f"Run finished: {validations_total} validation(s) executed, {validations_failed} failed, "
             f"{exceptions_created} exception(s) recorded ({open_exceptions} open, "
             f"{exceptions_created - open_exceptions} auto-closed). "
-            f"Reconciliation: {recon['rows']} rows, {recon['failed']} above tolerance.",
+            f"Reconciliation: {recon['rows']} rows, {recon['failed']} above tolerance."
+            + (f" {superseded} exception(s) from superseded runs closed." if superseded else ""),
             trace_id=trace_id,
         )
         _log_action(
