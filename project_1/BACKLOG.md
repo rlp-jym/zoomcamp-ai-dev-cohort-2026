@@ -48,7 +48,7 @@ no CI/CD or infra checks, no future-feature expectations.
 
 ## `/scenarios`
 - [x] Lists scenarios with name, status, tables, seed, created_at.
-- [x] Run Pipeline button triggers the pipeline and redirects to the run detail page.
+- [ ] Run Pipeline button triggers the pipeline and redirects to the run detail page. (removed — pipeline runs via script only)
 - [x] When `baseline_run` Parquet keys exist in R2, `ensure_baseline_registered` registers the scenario row on page load.
 
 ## `/audit`

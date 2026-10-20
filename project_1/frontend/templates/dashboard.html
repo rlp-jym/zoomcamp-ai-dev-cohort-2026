@@ -10,12 +10,6 @@
 </h1>
 <p class="page-description">Pipeline health at a glance — revenue metrics, validation status, and open alerts for the current scenario.</p>
 
-{% if available %}
-<form method="post" action="/scenarios/baseline_run/run" style="display:inline; margin-left:1rem;">
-  <button class="btn" type="submit">Run Pipeline</button>
-</form>
-{% endif %}
-
 {% if not available %}
 <div class="empty">
   {% if cache_empty %}
