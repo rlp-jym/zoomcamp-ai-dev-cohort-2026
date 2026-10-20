@@ -36,7 +36,9 @@ def generate_gl_revenue(cfg: dict, rng: np.random.Generator, tx: dict) -> pd.Dat
     n_accounts = int(scale["gl_accounts"])
     n_cats = int(scale["item_categories"])
     accounts = list(range(1, n_accounts + 1))
-    categories = list(range(1, n_cats + 1))
+    categories = scale["item_category_names"]
+    if len(categories) != n_cats:
+        raise ValueError("item_category_names length must equal item_categories")
 
     # monthly billings baseline from invoices/invoice_lines
     invoices = tx.get("invoices", pd.DataFrame())

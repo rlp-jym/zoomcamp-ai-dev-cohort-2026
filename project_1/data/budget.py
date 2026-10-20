@@ -25,7 +25,9 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
     scale = cfg["scale"]
     seasonality = tl["seasonality"]
     accounts = list(range(1, int(scale["gl_accounts"]) + 1))
-    categories = list(range(1, int(scale["item_categories"]) + 1))
+    categories = scale["item_category_names"]
+    if len(categories) != int(scale["item_categories"]):
+        raise ValueError("item_category_names length must equal item_categories")
     targets = scale["budget_growth_target_by_year"]
     # validate years
     years = sorted({int(p.split("-")[0]) for p in months})

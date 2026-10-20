@@ -24,6 +24,12 @@ scale:
   currencies: 6
   gl_accounts: 3
   item_categories: 5
+  item_category_names:
+    - Electronics
+    - Industrial
+    - Office
+    - Safety
+    - Misc
   budget_growth_target_by_year:
     2022: 1.08
     2023: 1.05

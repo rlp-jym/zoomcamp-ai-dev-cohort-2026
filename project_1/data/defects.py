@@ -134,7 +134,7 @@ def inject_defects(cfg: dict, rng: np.random.Generator, data: dict, months: list
                 log("stale_load", "gl_revenue",
                     {"period": str(data["gl_revenue"].loc[i, "period"]),
                      "account_id": int(data["gl_revenue"].loc[i, "account_id"]),
-                     "item_category": int(data["gl_revenue"].loc[i, "item_category"])}, month_no)
+                     "item_category": str(data["gl_revenue"].loc[i, "item_category"])}, month_no)
 
         if toggles.get("billings_gl_variance", False) and gl_idx.size:
             chosen = rng.choice(gl_idx, size=min(counts_per, gl_idx.size), replace=False)
@@ -145,7 +145,7 @@ def inject_defects(cfg: dict, rng: np.random.Generator, data: dict, months: list
                 log("billings_gl_variance", "gl_revenue",
                     {"period": str(data["gl_revenue"].loc[i, "period"]),
                      "account_id": int(data["gl_revenue"].loc[i, "account_id"]),
-                     "item_category": int(data["gl_revenue"].loc[i, "item_category"])}, month_no)
+                     "item_category": str(data["gl_revenue"].loc[i, "item_category"])}, month_no)
 
         if toggles.get("restatement", False):
             prev_period = months[mi - 1] if mi > 0 else period
@@ -161,7 +161,7 @@ def inject_defects(cfg: dict, rng: np.random.Generator, data: dict, months: list
                     new_gl_rows.append(r)
                     log("restatement", "gl_revenue",
                         {"period": str(r.loc[0, "period"]), "account_id": int(r.loc[0, "account_id"]),
-                         "item_category": int(r.loc[0, "item_category"])}, month_no)
+                         "item_category": str(r.loc[0, "item_category"])}, month_no)
 
         if toggles.get("fx_gap", False) and inv_idx.size and fx_gap_customer_id is not None:
             chosen = rng.choice(inv_idx, size=min(counts_per, inv_idx.size), replace=False)
