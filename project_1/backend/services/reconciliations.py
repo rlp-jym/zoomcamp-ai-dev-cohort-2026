@@ -24,14 +24,14 @@ WITH bill AS (
 ), gl AS (
     SELECT period, account_id, item_category,
            recognized_revenue_amt AS gl,
-           SUM(recognized_revenue_amt) OVER (PARTITION BY period) AS gl_period
+           COUNT(*) OVER (PARTITION BY period) AS grain_count
     FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
     WHERE version = 1
 )
 SELECT gl.period, gl.account_id, gl.item_category,
-       bill.billings * gl.gl / gl.gl_period AS billings,
+       bill.billings / gl.grain_count AS billings,
        gl.gl AS gl,
-       (bill.billings * gl.gl / gl.gl_period - gl.gl) / gl.gl AS variance_pct
+       (bill.billings / gl.grain_count - gl.gl) / gl.gl AS variance_pct
 FROM gl JOIN bill USING (period)
 ORDER BY gl.period, gl.account_id, gl.item_category
 """
