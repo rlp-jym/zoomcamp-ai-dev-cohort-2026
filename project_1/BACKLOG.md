@@ -57,9 +57,9 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Payload column renders as JSON (truncated).
 
 ## `/observability`
-- [ ] Trace list renders; selecting a trace shows its span tree and linked logs.
-- [ ] `?trace_id=` selects the trace.
-- [ ] Summary counts render.
+- [x] Trace list renders; selecting a trace shows its span tree and linked logs.
+- [x] `?trace_id=` selects the trace.
+- [x] Summary counts render.
 
 ## Pipeline behavior
 - [x] Clicking Run Pipeline creates a run row and posts an Orchestrator "run started" message.
