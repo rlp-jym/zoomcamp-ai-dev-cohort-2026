@@ -52,9 +52,9 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] When `baseline_run` Parquet keys exist in R2, `ensure_baseline_registered` registers the scenario row on page load.
 
 ## `/audit`
-- [ ] Renders agent_actions, approvals, publications.
-- [ ] `?trace_id=` filters actions and approvals by trace.
-- [ ] Payload column renders as JSON (truncated).
+- [x] Renders agent_actions, approvals, publications.
+- [x] `?trace_id=` filters actions and approvals by trace.
+- [x] Payload column renders as JSON (truncated).
 
 ## `/observability`
 - [ ] Trace list renders; selecting a trace shows its span tree and linked logs.
