@@ -64,7 +64,7 @@ RULES = [
     ),
     (
         "VAL_FRESHNESS_GL",
-        "GL freshness: revenue rows with a missing or stale load date",
+        "General Ledger freshness: revenue rows with a missing or stale load date",
         "medium",
         """
         SELECT period, account_id, item_category
@@ -76,7 +76,7 @@ RULES = [
     ),
     (
         "VAL_RECON_BILLINGS_GL",
-        "Billings vs GL: per-grain variance above materiality tolerance",
+        "Billings vs General Ledger: per-grain variance above materiality tolerance",
         "high",
         """
         WITH bill AS (
@@ -104,7 +104,7 @@ RULES = [
     ),
     (
         "VAL_RESTATEMENT_DETECTED",
-        "Restatement: GL revenue carries a version greater than 1",
+        "Restatement: General Ledger revenue carries a version greater than 1",
         "medium",
         """
         SELECT period, account_id, item_category, version

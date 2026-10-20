@@ -166,7 +166,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         (float(r["amt"]) for r in rows_a if r["kind"] == "billings_total"), 0.0
     )
 
-    # ---- small monthly tables: GL revenue and budget ----------------------
+    # ---- small monthly tables: General Ledger revenue and budget ------------
     gl_month = {
         r["period"]: float(r["amt"])
         for r in query_rows(
@@ -235,9 +235,9 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         },
         {
             "id": "gl_variance",
-            "title": "GL Variance %",
+            "title": "General Ledger Variance %",
             "value": _fmt_pct(gl_variance_pct),
-            "delta": "billings vs GL",
+            "delta": "billings vs General Ledger",
             "trend": "down",
             "thread_id": "kpi-gl-variance",
         },
@@ -438,7 +438,7 @@ def _compute_fpa_outputs(scenario, months, gl_month, budget_month, segments, bil
     all_billings = sum(billings_month.get(m, 0.0) for m in months)
     top5_share = (total_billings / all_billings * 100) if all_billings else None
 
-    # Projection: linear trend of last 3 months GL revenue
+    # Projection: linear trend of last 3 months General Ledger revenue
     gl_values = [gl_month.get(m, 0.0) for m in months]
     last3 = gl_values[-3:] if len(gl_values) >= 3 else gl_values
     if len(last3) >= 2:

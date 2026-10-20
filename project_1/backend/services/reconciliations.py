@@ -115,7 +115,7 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period
     for period in sorted(by_period):
         bucket = by_period[period]
         title = (
-            f"Billings vs GL variance across {bucket['count']} grain(s) "
+            f"Billings vs General Ledger variance across {bucket['count']} grain(s) "
             f"in {period} (worst {bucket['worst'] * 100:+.2f}%)"
         )
         p_key = str(period)[:7] if period else None

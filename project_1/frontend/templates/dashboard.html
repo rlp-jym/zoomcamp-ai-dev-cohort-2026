@@ -38,12 +38,12 @@
   <div class="chart-card">
     <h2>Revenue vs. Budget (Trailing 6 Months)</h2>
     <canvas id="revenueBudgetChart" height="120"></canvas>
-    <p class="chart-desc">Actual GL revenue vs. budgeted revenue per month — shows whether we're tracking to plan.</p>
+    <p class="chart-desc">Actual General Ledger revenue vs. budgeted revenue per month — shows whether we're tracking to plan.</p>
   </div>
   <div class="chart-card">
     <h2>Variances by Category (avg variance %)</h2>
     <canvas id="varianceCategoryChart" height="120"></canvas>
-    <p class="chart-desc">Average billing-vs-GL variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
+    <p class="chart-desc">Average billing-vs-General-Ledger variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
   </div>
   <div class="chart-card">
     <h2>Revenue by Customer Segment ($M, published)</h2>
@@ -53,7 +53,7 @@
   <div class="chart-card">
     <h2>KPI Trends (Trailing 6 Months)</h2>
     <canvas id="kpiTrendChart" height="120"></canvas>
-    <p class="chart-desc">Trailing billings vs. GL revenue trend — tracks convergence/divergence of billed and recognized revenue over time.</p>
+    <p class="chart-desc">Trailing billings vs. General Ledger revenue trend — tracks convergence/divergence of billed and recognized revenue over time.</p>
   </div>
 </div>
 
@@ -192,7 +192,7 @@
         labels: c.kpi_trend.labels,
         datasets: [
           { label: "Billings ($M)", data: c.kpi_trend.billings, borderColor: "#1f2a44", tension: 0.3, yAxisID: "y" },
-          { label: "GL Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" }
+          { label: "General Ledger Revenue ($M)", data: c.kpi_trend.gl, borderColor: "#1a7f37", borderDash: [4, 4], tension: 0.3, yAxisID: "y" }
         ]
       },
       options: {

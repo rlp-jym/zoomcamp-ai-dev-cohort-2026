@@ -45,7 +45,7 @@ KPIS = [
     },
     {
         "id": "gl_variance",
-        "title": "GL Variance %",
+        "title": "General Ledger Variance %",
         "value": "1.4%",
         "delta": "-0.3pp",
         "trend": "down",
@@ -94,7 +94,7 @@ EXCEPTIONS = [
         "type": "reconciliation",
         "severity": "high",
         "period": "2025-03",
-        "title": "Billings vs GL variance 4.2%",
+        "title": "Billings vs General Ledger variance 4.2%",
         "status": "in_discussion",
         "trace_id": "tr-1002",
     },
