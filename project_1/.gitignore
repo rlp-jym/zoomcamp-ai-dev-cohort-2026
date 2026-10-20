@@ -4,6 +4,7 @@ Notes.txt
 *.parquet
 sample/
 notes/
+runs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
