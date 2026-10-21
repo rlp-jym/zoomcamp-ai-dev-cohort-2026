@@ -417,7 +417,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     )
     data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
     data["kpi_cache"] = {
-        "refreshed_at": refreshed_at.strftime("%Y-%m-%d %H:%M:%S") if refreshed_at else "",
+        "refreshed_at": refreshed_at.strftime("%Y-%m-%d %I:%M:%S %p") if refreshed_at else "",
     }
     _DASHBOARD_CACHE["payload"] = data
     _DASHBOARD_CACHE["ts"] = time.time()

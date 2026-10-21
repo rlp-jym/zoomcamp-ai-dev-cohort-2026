@@ -105,7 +105,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Store manifest, file hashes, and scenario metadata.
 - [x] Display scenario list with status.
 
-## 8. Runs and pipeline orchestration (scaffold)
+## 8. Validation runs and pipeline orchestration (scaffold)
 > This section builds the run record, Orchestrator skeleton, and routes. The actual rule execution is wired in §9. Do not attempt to run a pipeline with rules until §9 is complete.
 - [x] Run CRUD service and repository.
 - [x] `/runs` and `/runs/{id}` routes (Analyst, Manager).
@@ -144,7 +144,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Store in `reconciliations`.
 - [x] Create exceptions for material gaps.
 
-## 11. Exceptions
+## 11. Data Issues
 - [x] Unified `exceptions` table with `type ∈ {validation, reconciliation, quarantine, controller_finding}`.
 - [x] Fields: `exception_id`, `run_id`, `type`, `severity`, `period`, `title`, `status`, `trace_id`.
 - [x] Status flow: open → in_discussion → remediation_proposed → approved → resolved.
@@ -321,7 +321,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ### Dashboard — FP&A outputs
 - [ ] Remove Run Pipeline button from dashboard (pipeline runs via script only) — done
-- [x] Add Budget Attainment Assessment (variance from plan, decomposed by category/segment/region)
+- [x] Add Target Attainment Assessment (variance from plan, decomposed by category/segment/region)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
 - [x] Consolidate the FP&A outputs into the chart layer — the four output cards duplicated the charts above them (the General Ledger series was plotted twice, the projection and the growth table were re-cuts of the same revenue series). One "Revenue, Billings & Plan" chart now carries actuals, billings, budget and a 3-month run-rate projection (the projection overlay is being removed again — see the charts list below); "Month-over-Month Growth" is a diverging bar chart; budget attainment is a progress bar with a segment-mix strip. 8 cards → 4.
 - [x] Drop Revenue Concentration Risk card — the generator spreads billings uniformly across ~440 customers, so the top 5 hold 1.9% of billings and differ by 3%; the card asserted a risk that the data does not contain. Segment mix (a real, visible distribution) is kept in the attainment card instead.
@@ -332,7 +332,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ### Dashboard — charts
 - [x] Shift synthetic data window to end in 2026: config start_month 2022-01, update budget_growth_target_by_year keys 2022-2026, regenerate + republish baseline.
-- [x] Revenue vs Budget chart: exclude partial tail month — apply full_months filter to months list (consistent with MTD logic).
+- [x] Revenue vs Target chart: exclude partial tail month — apply full_months filter to months list (consistent with MTD logic).
 - [x] Remove the duplicated General Ledger series (it was drawn in both "Revenue vs Budget" and "KPI Trends" from the same source array).
 - [x] KPI grid moved above the charts — the page now reads headline metrics first, then charts, then the assessment card.
 - [ ] Remove the run-rate projection overlay from the dashboard chart — a projection is forward-looking and belongs under Scenarios as an authored analysis result, not as a derived series on the actuals page. The current method averages the last two month-over-month growth rates and compounds them at a constant rate: it ignores the generator's own seasonality (2026: Jan -22.0%, Mar +29.7%, Sep -11.9%), so on the Jan-Mar horizon it mis-shapes the curve by ~20% (flat 9.65/9.45/9.25 vs seasonal-naive ~7.68/8.28/10.73), and the choice of window swings the 3-month figure from 9.15 to 10.16. The dashboard keeps actuals, billings, budget, attainment and growth only; drop the `projection` / `avg_growth_pct` series and the `_shift_month` helper, and point readers to `/scenarios` instead.
@@ -346,7 +346,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
 - [ ] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
 - [ ] Optional: structure the projection (horizon + month/value pairs) so the detail page can plot the forecast against the snapshot actuals.
-- [ ] Refresh the example scenario — "Q3 Budget Attainment Sensitivity / Revenue projected at 94% of budget" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
+- [ ] Refresh the example scenario — "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
 - [ ] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## Non-goals guardrail

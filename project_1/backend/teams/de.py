@@ -245,7 +245,7 @@ class DEAgent(BaseAgent):
 
     def _build_user_prompt(self, context: dict) -> str:
         lines = [
-            f"Exception: {context['title']}",
+            f"Data Issue: {context['title']}",
             f"Type: {context['exception_type']}",
             f"Severity: {context['severity']}",
         ]

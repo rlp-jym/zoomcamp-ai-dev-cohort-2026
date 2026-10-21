@@ -2,9 +2,9 @@
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 {% endblock %}
-{% block title %}Exceptions{% endblock %}
+{% block title %}Data Issues{% endblock %}
 {% block content %}
-<h1>Exceptions</h1>
+<h1>Data Issues</h1>
 <p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with trend analysis and resolution actions.</p>
 
 <div class="tab-row" style="margin-bottom:1rem;">
@@ -15,7 +15,7 @@
 
 {% if trend.labels %}
 <div class="chart-card" style="margin-bottom:1.5rem;">
-  <h2>Exception Trend (latest run #{{ trend.run_id }})</h2>
+  <h2>Data Issues Trend (latest run #{{ trend.run_id }})</h2>
   <canvas id="exceptionTrendChart" height="160"></canvas>
 </div>
 <script>

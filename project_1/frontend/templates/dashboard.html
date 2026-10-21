@@ -34,17 +34,17 @@
 </div>
 {% endif %}
 
-<div class="open-exceptions-stat">
-  <span class="stat-title">Open Exceptions</span>
+<div class="open-exceptions-stat {% if open_exceptions and open_exceptions > 0 %}has-issues{% else %}clear{% endif %}">
+  <span class="stat-title">Data Issues</span>
   <span class="stat-value">{{ open_exceptions }}</span>
-  <span class="stat-delta">open</span>
+  <span class="stat-delta">{% if open_exceptions and open_exceptions > 0 %}open{% else %}all resolved{% endif %}</span>
 </div>
 
 <div class="charts-grid">
   <div class="chart-card span-2">
     <h2>Revenue, Billings &amp; Plan (Trailing 6 Months + 3-Month Projection)</h2>
     <canvas id="revenuePlanChart" height="120"></canvas>
-    <p class="chart-desc">General Ledger revenue (actuals) against billings and the budgeted plan, with a dashed 3-month run-rate projection continuing from the last actual month at the trailing growth rate.</p>
+    <p class="chart-desc">General Ledger revenue (actuals) against billings and the targeted plan, with a dashed 3-month run-rate projection continuing from the last actual month at the trailing growth rate.</p>
     <div class="chart-thread">
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-revenue-plan" %}
@@ -78,14 +78,14 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Budget Attainment</h2>
+    <h2>Target Attainment</h2>
     {% if attainment and attainment.pct is not none %}
-    <p><strong>{{ attainment.pct }}%</strong> of plan over the trailing {{ attainment.months }} months</p>
-    <div class="progress" title="{{ attainment.pct }}% of plan">
+    <p><strong>{{ attainment.pct }}%</strong> of target over the trailing {{ attainment.months }} months</p>
+    <div class="progress" title="{{ attainment.pct }}% of target">
       <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
-      <div class="progress-target" title="100% of plan"></div>
+      <div class="progress-target" title="100% of target"></div>
     </div>
-    <p class="chart-desc">General Ledger revenue as a percentage of the budgeted plan for the same window. The marker on the right is 100% of plan.</p>
+    <p class="chart-desc">General Ledger revenue as a percentage of the targeted plan for the same window. The marker on the right is 100% of target.</p>
     <div class="chart-thread">
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-attainment" %}
@@ -93,29 +93,26 @@
       {% include "partials/thread.html" %}
     </div>
     {% else %}
-    <p class="empty">No budget data available.</p>
+    <p class="empty">No target data available.</p>
     {% endif %}
 
     {% if charts.segment_mix %}
     <div class="segment-mix">
       <div class="segment-mix-title">Billings by customer segment</div>
-      <div class="segment-bar">
+      <div class="segment-bars">
         {% for s in charts.segment_mix %}
-        <div class="segment-slice{% if not s.known %} anomaly{% endif %}"
-             style="flex-basis: {{ s.share }}%; background: {{ s.color }};"
-             title="{{ s.label }} — {{ s.share }}% of billings"></div>
+        <div class="segment-bar-row">
+          <span class="segment-bar-label">{{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %}</span>
+          <div class="segment-bar-track">
+            <div class="segment-bar-fill{% if not s.known %} anomaly{% endif %}"
+                 style="width: {{ s.share }}%; background: {{ s.color }};"
+                 title="{{ s.label }} - {{ s.share }}% of billings"></div>
+          </div>
+          <span class="segment-bar-pct">{{ s.share }}%</span>
+        </div>
         {% endfor %}
       </div>
-      <div class="segment-legend">
-        {% for s in charts.segment_mix %}
-        <span class="segment-legend-item">
-          <span class="swatch" style="background: {{ s.color }}"></span>
-          {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %}
-          — {{ "{:,.0f}".format(s.amount) }} ({{ s.share }}%)
-        </span>
-        {% endfor %}
-      </div>
-      <p class="chart-desc">Revenue share by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
+      <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) - the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
     </div>
     {% endif %}
   </div>
@@ -135,7 +132,7 @@
             borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.12)", tension: 0.3, fill: true, spanGaps: false },
           { label: "Billings ($M)", data: c.revenue_plan.billings,
             borderColor: "#4a6fa5", borderDash: [2, 3], tension: 0.3, fill: false, spanGaps: false },
-          { label: "Budget ($M)", data: c.revenue_plan.budget,
+          { label: "Target ($M)", data: c.revenue_plan.budget,
             borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false },
           { label: "Projected ($M)", data: c.revenue_plan.projection,
             borderColor: "#c9a227", borderDash: [6, 3], tension: 0.2, fill: false, spanGaps: false }

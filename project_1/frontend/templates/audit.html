@@ -2,7 +2,7 @@
 {% block title %}Audit{% endblock %}
 {% block content %}
 <h1>Audit</h1>
-<p class="page-description">Compliance and traceability surface — approvals, publications, and agent actions. Filter by trace_id to follow a single pipeline run end-to-end.</p>
+<p class="page-description">Compliance and traceability surface — approvals, publications, and agent actions. Filter by trace_id to follow a single validation run end-to-end.</p>
 
 <form method="get" action="/audit" class="audit-filter">
   <input type="text" name="trace_id" value="{{ trace_id or '' }}"

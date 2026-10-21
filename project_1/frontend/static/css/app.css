@@ -60,7 +60,18 @@ h1 { margin-top: 0; }
 .open-exceptions-stat .stat-title { font-size: 0.9rem; color: #555; }
 .open-exceptions-stat .stat-value { font-size: 1.4rem; font-weight: 700; }
 .open-exceptions-stat .stat-delta { font-size: 0.85rem; color: #555; }
+.open-exceptions-stat.has-issues .stat-value { color: #cf222e; }
+.open-exceptions-stat.has-issues .stat-delta { color: #cf222e; font-weight: 600; }
+.open-exceptions-stat.clear .stat-value { color: #1a7f37; }
+.open-exceptions-stat.clear .stat-delta { color: #1a7f37; }
 .chart-thread { margin-top: 0.75rem; border-top: 1px solid #eee; padding-top: 0.5rem; }
+.segment-bars { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.6rem; }
+.segment-bar-row { display: grid; grid-template-columns: 11rem 1fr 4rem; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+.segment-bar-track { height: 14px; background: #eef0f3; border-radius: 4px; overflow: hidden; }
+.segment-bar-fill { height: 100%; border-radius: 4px; }
+.segment-bar-fill.anomaly { outline: 1px solid #cf222e; }
+.segment-bar-pct { text-align: right; color: #555; }
+.segment-bar-label em { color: #cf222e; font-style: normal; }
 .progress { position: relative; height: 22px; background: #eef0f3; border-radius: 11px; overflow: hidden; margin: 0.6rem 0; }
 .progress-fill { height: 100%; background: #1f2a44; border-radius: 11px; }
 .progress-target { position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: #6a737d; }

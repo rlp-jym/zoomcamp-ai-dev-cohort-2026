@@ -2,14 +2,14 @@
 
 ## Dashboard KPI Selection Rationale
 
-The 6 KPIs currently shown on the dashboard (Revenue, Billings, GL Variance %,
-Open Exceptions, DQ Pass Rate, Published Runs) were chosen to give a balanced
+The 6 KPIs previously shown on the dashboard (Revenue, Billings, GL Variance %,
+Open Data Issues, DQ Pass Rate, Published Runs) were chosen to give a balanced
 view across three concerns:
 
 - **Financial Performance:** Revenue, Billings, and GL Variance % capture the
   top-line health and the reconciliation gap between billings and the general
   ledger.
-- **Data Reliability:** DQ Pass Rate and Open Exceptions surface the quality of
+- **Data Reliability:** DQ Pass Rate and Open Data Issues surface the quality of
   the underlying data and how many issues remain unresolved.
 - **Process Control:** Published Runs indicates how many pipeline runs have been
   promoted to the published state, giving a sense of release cadence.
@@ -49,7 +49,7 @@ The dashboard shows six KPIs, three charts and one assessment card. Each
 visual carries a distinct quantity — the same series is never drawn twice:
 
 - **Revenue, Billings & Plan:** General Ledger revenue (actuals) against
-  billings and the budgeted plan over the trailing six months, plus a
+  billings and the targeted plan over the trailing six months, plus a
   dashed three-month run-rate projection. The projection carries the
   average month-over-month growth of the last three actual months forward
   at a constant rate, and is anchored on the last actual month.
@@ -57,7 +57,10 @@ visual carries a distinct quantity — the same series is never drawn twice:
   per item category, from the reconciliation rows of the published run.
 - **Month-over-Month Growth:** month-over-month change in General Ledger
   revenue for the trailing months.
-- **Budget Attainment:** General Ledger revenue as a percentage of plan for
-  the same window, with the billings mix by customer segment underneath. A
-  segment the source system does not recognise is a customer-master mapping
-  drift and is flagged rather than blended into the mix.
+- **Target Attainment:** General Ledger revenue as a percentage of the targeted
+  plan for the same window, with billings by customer segment underneath (shown
+  as bars, one per segment). Customer segments (who buys) are independent of
+  item categories (what's sold) -- the variance chart groups by item category,
+  this groups by customer segment. A segment the source system does not
+  recognise is a customer-master mapping drift and is flagged rather than
+  blended into the mix.

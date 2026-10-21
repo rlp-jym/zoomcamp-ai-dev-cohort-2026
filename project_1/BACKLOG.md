@@ -5,7 +5,7 @@ no CI/CD or infra checks, no future-feature expectations.
 
 ## Global
 - [x] Persona selector persists across all pages via cookie and reflects in header.
-- [x] Header nav renders the 6 top-level routes (Dashboard, Scenarios, Runs, Exceptions, Audit, Observability) on every page, grouped as analysis first then the validation pipeline.
+- [x] Header nav renders the 6 top-level routes (Dashboard, Scenarios, Validation, Data Issues, Audit, Observability) on every page, grouped as analysis first then the validation pipeline.
 - [x] Agent posts visually distinguished (badge, muted background) in thread partial.
 - [x] Every agent action is logged in `agent_actions` with a `trace_id` matching its thread message.
 - [x] `/health` returns `{status: ok}`.
@@ -66,7 +66,7 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] All 11 rules execute; results stored in `validations`.
 - [x] Reconciliation rows stored; material gaps create exceptions.
 - [x] One exception per affected month per failed rule.
-- [x] Exception lifecycle: only the latest data period stays `open`; earlier periods are inserted `resolved` so the list is a pending queue (≤ ~12 open).
+- [x] Data Issue lifecycle: only the latest data period stays `open`; earlier periods are inserted `resolved` so the list is a pending queue (≤ ~12 open).
 - [x] DQ posts a validation summary to the run thread.
 - [x] DE posts a remediation proposal per open exception.
 - [x] FA posts an impact narrative per open exception.
