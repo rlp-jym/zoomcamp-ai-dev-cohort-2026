@@ -1,6 +1,6 @@
-# AGENTS.md — Revenue Data Reliability Platform (project_1)
+# AGENTS.md — Revenue Data Reliability Platform (revenue_data_reliability)
 
-Scope: entire `project_1/`. The data generator lives under `data/` and has its own `data/AGENTS.md`.
+Scope: entire `revenue_data_reliability/`. The data generator lives under `data/` and has its own `data/AGENTS.md`.
 
 ## Purpose
 Revenue Data Reliability Platform. Synthetic test fixtures are produced by `data/` generator.

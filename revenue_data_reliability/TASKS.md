@@ -1,6 +1,6 @@
 # TASKS.md — Revenue Data Reliability Platform
 
-Project path: repository root (`project_1/`). Tracks the application build
+Project path: repository root (`revenue_data_reliability/`). Tracks the application build
 against `SPEC.md` (locked). Check boxes as work completes. Do not build
 anything listed in `SPEC.md §20 (Explicit non-goals)`.
 

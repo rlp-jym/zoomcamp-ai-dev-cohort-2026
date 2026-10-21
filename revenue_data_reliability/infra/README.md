@@ -1,7 +1,7 @@
 # Infra
 
 ## Local run (Docker)
-From the project root (`project_1/`):
+From the project root (`revenue_data_reliability/`):
 
 ```bash
 docker compose -f infra/docker-compose.yml up --build

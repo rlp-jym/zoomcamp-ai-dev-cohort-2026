@@ -83,7 +83,7 @@ Seeded at boot. No authentication. Header selector sets the acting persona.
 ### Repo layout
 
 ```
-project_1/
+revenue_data_reliability/
 ├── AGENTS.md
 ├── SPEC.md
 ├── definitions.md
