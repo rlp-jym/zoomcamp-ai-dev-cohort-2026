@@ -49,18 +49,19 @@ The dashboard shows six KPIs, three charts and one assessment card. Each
 visual carries a distinct quantity — the same series is never drawn twice:
 
 - **Revenue, Billings & Plan:** General Ledger revenue (actuals) against
-  billings and the targeted plan over the trailing six months, plus a
-  dashed three-month run-rate projection. The projection carries the
-  average month-over-month growth of the last three actual months forward
-  at a constant rate, and is anchored on the last actual month.
+  billings and the targeted plan over the trailing six months. Forward-looking
+  projections are not shown here -- they are authored and reviewed under
+  Scenarios, which bind to the published run as their baseline.
 - **Variances by Category:** average billing-vs-General-Ledger variance %
   per item category, from the reconciliation rows of the published run.
 - **Month-over-Month Growth:** month-over-month change in General Ledger
   revenue for the trailing months.
 - **Target Attainment:** General Ledger revenue as a percentage of the targeted
-  plan for the same window, with billings by customer segment underneath (shown
-  as bars, one per segment). Customer segments (who buys) are independent of
-  item categories (what's sold) -- the variance chart groups by item category,
-  this groups by customer segment. A segment the source system does not
-  recognise is a customer-master mapping drift and is flagged rather than
-  blended into the mix.
+  plan for the same window. Shown at the top of the dashboard with no
+  discussion thread -- the same trend is discussed in the trailing 6-month
+  chart.
+- **Billings by Customer Segment:** billings share by customer segment (who
+  buys), shown as bars. Customer segments are independent of item categories
+  (what's sold) -- the variance chart groups by item category, this groups by
+  customer segment. A segment the source system does not recognise is a
+  customer-master mapping drift and is flagged rather than blended into the mix.

@@ -48,13 +48,6 @@ def _uri(scenario: str, table: str) -> str:
     return f"s3://{settings.r2_bucket}/scenarios/{scenario}/{table}.parquet"
 
 
-def _shift_month(ym: str, months: int) -> str:
-    """Shift a ``YYYY-MM`` key forward by ``months`` (e.g. 2026-12 -> 2027-01)."""
-    year, month = (int(p) for p in ym.split("-"))
-    total = year * 12 + (month - 1) + months
-    return f"{total // 12:04d}-{total % 12 + 1:02d}"
-
-
 def _fmt_m(value) -> str:
     """$4.21M style formatting."""
     try:
@@ -235,7 +228,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         (q["run_id"],),
     )
 
-    # ---- growth, run-rate projection and budget attainment ----------------
+    # ---- growth and target attainment ---------------------------------------
     gl_values = [gl_month.get(m, 0.0) for m in months]
     growth_rates = [
         round((gl_values[i] - gl_values[i - 1]) / gl_values[i - 1] * 100, 1)
@@ -243,32 +236,12 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         for i in range(1, len(gl_values))
     ]
 
-    # Run-rate projection: carry the average growth of the last three
-    # months forward for three months. It is an extension of the actual
-    # series, so it is drawn on the same chart rather than as its own card.
-    last3 = gl_values[-3:] if len(gl_values) >= 3 else gl_values
-    recent = [
-        (last3[i] - last3[i - 1]) / last3[i - 1]
-        for i in range(1, len(last3))
-        if last3[i - 1] != 0
-    ]
-    avg_growth = sum(recent) / len(recent) if recent else 0.0
-    projected = [
-        gl_values[-1] * (1 + avg_growth) ** i for i in range(1, 4)
-    ] if gl_values else []
-
-    projection_labels = (
-        [_shift_month(months[-1], i) for i in (1, 2, 3)] if months else []
-    )
-    chart_labels = months + projection_labels
-    tail = [None] * len(projection_labels)
-
     budget_total = sum(budget_month.get(m, 0.0) for m in months)
     attainment_pct = (
         round(sum(gl_values) / budget_total * 100, 1) if budget_total else None
     )
 
-    # Segment mix for the attainment card. Unrecognised segments are kept
+    # Segment mix for the segment card. Unrecognised segments are kept
     # (and flagged) rather than dropped — they are the visible trace of a
     # customer-master mapping drift.
     seg_total = sum(s["amount"] for s in segments)
@@ -287,31 +260,23 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         })
 
     data["charts"] = {
-        # One chart carries actuals, plan and the run-rate projection: the
-        # General Ledger series used to be drawn twice (once against
-        # budget, once against billings) and the projection lived in its
-        # own card, so the same numbers were on screen three times.
+        # One chart carries actuals, billings and target: the General
+        # Ledger series used to be drawn twice (once against budget, once
+        # against billings). Forward-looking projections now live under
+        # Scenarios, not on this actuals page.
         "revenue_plan": {
-            "labels": chart_labels,
+            "labels": months,
             "actual": [
                 round(gl_month.get(m, 0.0) / 1e6, 3) for m in months
-            ] + tail,
+            ],
             "billings": [
                 round(billings_month.get(m, 0.0) / 1e6, 3) for m in months
-            ] + tail,
+            ],
             "budget": [
                 round(budget_month[m] / 1e6, 3)
                 if budget_month.get(m) is not None else None
-                for m in chart_labels
+                for m in months
             ],
-            # Anchored on the last actual month so the dashed line joins
-            # the actual series instead of floating beside it.
-            "projection": (
-                [None] * (len(months) - 1)
-                + [round(gl_values[-1] / 1e6, 3)]
-                + [round(p / 1e6, 3) for p in projected]
-            ) if gl_values else [],
-            "avg_growth_pct": round(avg_growth * 100, 1),
         },
         "variance_category": {
             "labels": [r["item_category"] for r in variance_rows],
@@ -405,7 +370,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     # Chart discussion threads (one per chart card).
     chart_thread_ids = [
         "chart-revenue-plan", "chart-variance-category",
-        "chart-growth", "chart-attainment",
+        "chart-growth", "chart-segment",
     ]
     msgs_by_thread = msg_svc.get_messages_for_threads("analysis", chart_thread_ids)
     data["chart_messages"] = {

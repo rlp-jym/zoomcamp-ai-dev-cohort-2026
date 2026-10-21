@@ -34,6 +34,20 @@
 </div>
 {% endif %}
 
+{% if attainment and attainment.pct is not none %}
+<div class="charts-grid">
+  <div class="chart-card span-2">
+    <h2>Target Attainment</h2>
+    <p><strong>{{ attainment.pct }}%</strong> of target over the trailing {{ attainment.months }} months</p>
+    <div class="progress" title="{{ attainment.pct }}% of target">
+      <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
+      <div class="progress-target" title="100% of target"></div>
+    </div>
+    <p class="chart-desc">General Ledger revenue as a percentage of the targeted plan for the same window. The marker on the right is 100% of target.</p>
+  </div>
+</div>
+{% endif %}
+
 <div class="open-exceptions-stat {% if open_exceptions and open_exceptions > 0 %}has-issues{% else %}clear{% endif %}">
   <span class="stat-title">Data Issues</span>
   <span class="stat-value">{{ open_exceptions }}</span>
@@ -42,9 +56,9 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Revenue, Billings &amp; Plan (Trailing 6 Months + 3-Month Projection)</h2>
+    <h2>Revenue, Billings & Plan (Trailing 6 Months)</h2>
     <canvas id="revenuePlanChart" height="120"></canvas>
-    <p class="chart-desc">General Ledger revenue (actuals) against billings and the targeted plan, with a dashed 3-month run-rate projection continuing from the last actual month at the trailing growth rate.</p>
+    <p class="chart-desc">General Ledger revenue (actuals) against billings and the targeted plan.</p>
     <div class="chart-thread">
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-revenue-plan" %}
@@ -78,39 +92,23 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Target Attainment</h2>
-    {% if attainment and attainment.pct is not none %}
-    <p><strong>{{ attainment.pct }}%</strong> of target over the trailing {{ attainment.months }} months</p>
-    <div class="progress" title="{{ attainment.pct }}% of target">
-      <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
-      <div class="progress-target" title="100% of target"></div>
+    <h2>Billings by Customer Segment</h2>
+    <canvas id="segmentChart" height="160"></canvas>
+    <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) — the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
+    <div class="segment-legend">
+      {% for s in charts.segment_mix %}
+      <span class="segment-legend-item">
+        <span class="swatch" style="background: {{ s.color }}"></span>
+        {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %} - {{ s.share }}%
+      </span>
+      {% endfor %}
     </div>
-    <p class="chart-desc">General Ledger revenue as a percentage of the targeted plan for the same window. The marker on the right is 100% of target.</p>
     <div class="chart-thread">
       {% set anchor_type = "analysis" %}
-      {% set anchor_id = "chart-attainment" %}
-      {% set messages = (chart_messages or {}).get("chart-attainment", []) %}
+      {% set anchor_id = "chart-segment" %}
+      {% set messages = (chart_messages or {}).get("chart-segment", []) %}
       {% include "partials/thread.html" %}
     </div>
-    {% else %}
-    <p class="empty">No target data available.</p>
-    {% endif %}
-
-    {% if charts.segment_mix %}
-    <div class="segment-mix">
-      <div class="segment-mix-title">Billings by Customer Segment</div>
-      <canvas id="segmentChart" height="160"></canvas>
-      <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) - the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
-      <div class="segment-legend">
-        {% for s in charts.segment_mix %}
-        <span class="segment-legend-item">
-          <span class="swatch" style="background: {{ s.color }}"></span>
-          {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %} - {{ s.share }}%
-        </span>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 
@@ -129,9 +127,7 @@
           { label: "Billings ($M)", data: c.revenue_plan.billings,
             borderColor: "#4a6fa5", borderDash: [2, 3], tension: 0.3, fill: false, spanGaps: false },
           { label: "Target ($M)", data: c.revenue_plan.budget,
-            borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false },
-          { label: "Projected ($M)", data: c.revenue_plan.projection,
-            borderColor: "#c9a227", borderDash: [6, 3], tension: 0.2, fill: false, spanGaps: false }
+            borderColor: "#9aa0a6", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false }
         ]
       },
       options: {
