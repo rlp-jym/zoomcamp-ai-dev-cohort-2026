@@ -1,0 +1,14 @@
+name: deploy-prod
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_PROD_DEPLOY_HOOK }}"

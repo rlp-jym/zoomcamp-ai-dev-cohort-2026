@@ -1,0 +1,60 @@
+name: scenario-generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario_name:
+        description: "Scenario name (e.g. baseline_run)"
+        required: true
+        default: "baseline_run"
+      seed:
+        description: "Random seed (integer)"
+        required: true
+        default: "9"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project_1
+    env:
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      WEBHOOK_TOKEN: ${{ secrets.WEBHOOK_TOKEN }}
+      APP_URL: ${{ secrets.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Prepare run config
+        run: |
+          python - <<'PY'
+          import yaml, os
+          name = os.environ["SCENARIO_NAME"]
+          seed = int(os.environ["SEED"])
+          with open("data/config.yaml") as f:
+              cfg = yaml.safe_load(f)
+          cfg["name"] = name
+          cfg["seed"] = seed
+          with open("data/.run_config.yaml", "w") as f:
+              yaml.safe_dump(cfg, f, sort_keys=False)
+          print("prepared", name, seed)
+          PY
+        env:
+          SCENARIO_NAME: ${{ github.event.inputs.scenario_name }}
+          SEED: ${{ github.event.inputs.seed }}
+      - name: Run generator
+        run: uv run --project data python data/generate.py --config data/.run_config.yaml
+      - name: Upload to R2
+        run: uv run python upload.py --scenario "${{ github.event.inputs.scenario_name }}"
+      - name: Register scenario via webhook
+        run: |
+          curl -fsS -X POST "${APP_URL}/api/scenarios/register" \
+            -H "X-Webhook-Token: ${WEBHOOK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"${SCENARIO_NAME}\",\"seed\":${SEED},\"status\":\"registered\",\"table_count\":16}"
+        env:
+          SCENARIO_NAME: ${{ github.event.inputs.scenario_name }}
+          SEED: ${{ github.event.inputs.seed }}

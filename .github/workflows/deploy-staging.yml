@@ -1,0 +1,15 @@
+name: deploy-staging
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      # Render deploy hook (set RENDER_STAGING_DEPLOY_HOOK in repo secrets)
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}"
