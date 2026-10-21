@@ -2,8 +2,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from backend.storage.s3_client import get_s3_client
 from backend.config import settings
+from backend.storage.s3_client import get_s3_client
 
 
 def main():

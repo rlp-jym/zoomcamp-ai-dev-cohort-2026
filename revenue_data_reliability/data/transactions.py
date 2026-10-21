@@ -7,8 +7,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
-from timeline import monthly_order_counts, month_list, period_start_date, _parse_ym
+from timeline import _parse_ym, month_list, monthly_order_counts, period_start_date
 
 
 def _active_customers(customers: pd.DataFrame, ps: pd.Timestamp) -> np.ndarray:
@@ -30,7 +29,7 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
     counts = monthly_order_counts(cfg)
 
     item_ids = items["item_id"].to_numpy()
-    price_map = dict(zip(items["item_id"], items["catalog_unit_price"]))
+    price_map = dict(zip(items["item_id"], items["catalog_unit_price"], strict=False))
 
     counters = {
         "order": 0, "order_line": 0, "shipment": 0, "shipment_line": 0,
@@ -86,7 +85,7 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
         # enforce (order_id, item_id) uniqueness
         seen: set[tuple[int, Any]] = set()
         dup_mask = np.zeros(n_total_lines, dtype=bool)
-        for idx, (oid, iid) in enumerate(zip(ol_df["order_id"], ol_df["item_id"])):
+        for idx, (oid, iid) in enumerate(zip(ol_df["order_id"], ol_df["item_id"], strict=False)):
             key = (int(oid), int(iid))
             if key in seen:
                 dup_mask[idx] = True
@@ -100,7 +99,7 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
 
         # shipments
         ship_date_offsets = rng.integers(0, 6, size=n)
-        ship_dates = [date(y, m, int(d)) + timedelta(days=int(off)) for d, off in zip(days, ship_date_offsets)]
+        ship_dates = [date(y, m, int(d)) + timedelta(days=int(off)) for d, off in zip(days, ship_date_offsets, strict=False)]
         shipment_ids = np.arange(counters["shipment"] + 1, counters["shipment"] + n + 1)
         counters["shipment"] += n
         shipments_df = pd.DataFrame({
@@ -110,7 +109,7 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
         })
         ship_list.append(shipments_df)
 
-        order_to_shipment = dict(zip(order_ids, shipment_ids))
+        order_to_shipment = dict(zip(order_ids, shipment_ids, strict=False))
         shp_id_rep = np.array([order_to_shipment[int(oid)] for oid in ol_df["order_id"]])
 
         qty_shipped = np.minimum(
@@ -153,7 +152,7 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
         })
         inv_list.append(invoices_df)
 
-        order_to_invoice = dict(zip(order_ids, inv_ids))
+        order_to_invoice = dict(zip(order_ids, inv_ids, strict=False))
         inv_id_rep = np.array([order_to_invoice[int(oid)] for oid in ol_df["order_id"]])
 
         line_subtotal = qty_shipped * ol_df["unit_price"].to_numpy()

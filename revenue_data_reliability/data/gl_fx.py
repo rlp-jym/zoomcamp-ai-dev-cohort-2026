@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 import numpy as np
 import pandas as pd
-
-from timeline import month_list, period_start_date, _parse_ym
+from timeline import month_list, period_start_date
 
 
 def generate_fx_rates(cfg: dict, rng: np.random.Generator) -> pd.DataFrame:

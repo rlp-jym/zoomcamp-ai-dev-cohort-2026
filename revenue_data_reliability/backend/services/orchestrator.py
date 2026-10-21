@@ -219,8 +219,8 @@ def run_pipeline(run_id):
             fa_future = pool.submit(
                 fa_agent.quantify_impact_for_run, run_id, trace_id
             )
-            de_proposals = de_future.result()
-            fa_impacts = fa_future.result()
+            de_future.result()
+            fa_future.result()
 
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(

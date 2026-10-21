@@ -158,7 +158,7 @@ def register_scenario(payload):
         table_count = 0
     status = payload.get("status") or "registered"
 
-    row = fetch_one(
+    fetch_one(
         """
         INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, updated_at)
         VALUES (%s, %s, %s, %s, %s, %s, now())

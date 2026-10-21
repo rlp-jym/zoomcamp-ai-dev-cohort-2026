@@ -6,9 +6,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
-
 from timeline import _parse_ym
-
 
 CURRENCY_POOL = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "SEK"]
 
@@ -63,7 +61,7 @@ def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame) ->
     ids = np.arange(1, n + 1)
     cats = rng.choice(["Electronics", "Industrial", "Office", "Safety", "Misc"], size=n)
     subcats = rng.choice(["A", "B", "C"], size=n)
-    mfr_ids = rng.choice(manufacturers["manufacturer_id"].to_numpy(), size=n)
+    rng.choice(manufacturers["manufacturer_id"].to_numpy(), size=n)
     abc = rng.choice(["A", "B", "C"], size=n)
     xyz = rng.choice(["X", "Y", "Z"], size=n)
     lifecycle = rng.choice(["active", "active", "active", "retired"], size=n)

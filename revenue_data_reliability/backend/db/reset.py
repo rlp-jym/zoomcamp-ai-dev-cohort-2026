@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.db import execute, fetch_all, fetch_one
+from backend.db import execute, fetch_one
 from backend.db.fixture import ensure_baseline_fixture
 
 

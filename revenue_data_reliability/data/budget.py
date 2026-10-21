@@ -5,8 +5,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
-
-from timeline import _seasonal_multiplier, month_list
+from timeline import _seasonal_multiplier
 
 
 def _top_customers(tx: dict, n: int = 10) -> list[int]:
@@ -111,7 +110,7 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
         total_bill = cb.sum() if cb.sum() else 1.0
         cust_billings = {int(c): float(v) / float(total_bill) for c, v in cb.items()}
     top_shares = [cust_billings.get(c, 0.0) for c in top_custs]
-    top_share_sum = sum(top_shares)
+    sum(top_shares)
 
     # monthly pair totals
     # annual base per year
@@ -137,20 +136,20 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
         ys = [p for p in months if int(p.split("-")[0]) == y]
         ws = [_seasonal_multiplier(p, seasonality) for p in ys]
         wsum = sum(ws) if sum(ws) else 1.0
-        for p, w in zip(ys, ws):
+        for p, w in zip(ys, ws, strict=False):
             month_weight[p] = w / wsum
 
     rows = []
     bid = 1
     for period in months:
         y = int(period.split("-")[0])
-        ym = _parse_ym_local(period)
+        _parse_ym_local(period)
         for a in accounts:
             for c in categories:
                 monthly_pair_total = pair_annual[(y, a, c)] * month_weight[period]
                 # top customers
                 top_amounts = []
-                for cust, sh in zip(top_custs, top_shares):
+                for cust, sh in zip(top_custs, top_shares, strict=False):
                     amt = monthly_pair_total * sh
                     top_amounts.append((cust, amt))
                 # round top amounts

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from timeline import period_start_date
-
 
 SEVERITY = {
     "orphaned_item_id": "high",
@@ -65,7 +63,7 @@ def inject_defects(cfg: dict, rng: np.random.Generator, data: dict, months: list
 
     # precompute period membership once
     inv_period = _period_of(invoices["invoice_date"])
-    inv_id_to_period = dict(zip(invoices["invoice_id"].to_numpy(), inv_period))
+    inv_id_to_period = dict(zip(invoices["invoice_id"].to_numpy(), inv_period, strict=False))
     il_invoice_ids = invoice_lines["invoice_id"].to_numpy()
     il_period = np.array([inv_id_to_period.get(x) for x in il_invoice_ids], dtype=object)
 

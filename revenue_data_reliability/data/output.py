@@ -7,7 +7,6 @@ from pathlib import Path
 
 from manifest import build_manifest
 
-
 TABLE_ORDER = [
     "orders",
     "order_lines",

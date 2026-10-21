@@ -59,7 +59,7 @@ def monthly_order_counts(cfg: dict) -> list[int]:
     seasonality = tl["seasonality"]
     months = month_list(tl["start_month"], int(tl["n_months"]))
     decline_start = None
-    for p, start, end in _phase_boundaries(phases):
+    for p, start, _end in _phase_boundaries(phases):
         if p["name"] == "decline" or p.get("driver") == "churn":
             decline_start = start
             break

@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 
 import numpy as np
-
 from config import load_config
 from dimensions import generate_dimensions
 from timeline import month_list, monthly_order_counts

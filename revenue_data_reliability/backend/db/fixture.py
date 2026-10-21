@@ -3,13 +3,11 @@
 Ensures a minimal baseline_run fixture exists in Postgres so the dashboard
 is usable immediately after boot/reset without requiring a full pipeline run.
 """
-from datetime import datetime, timezone
 import json
 import os
-import uuid
+from datetime import datetime, timezone
 
 from backend.db.connection import execute, fetch_one
-
 
 BASELINE = "baseline_run"
 BASELINE_TRACE = "fixture-baseline-trace"

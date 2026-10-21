@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import yaml
 
-
 REQUIRED_KEYS = [
     "name", "seed", "timeline", "scale", "dimension_drift", "defects",
     "reconciliation", "output",

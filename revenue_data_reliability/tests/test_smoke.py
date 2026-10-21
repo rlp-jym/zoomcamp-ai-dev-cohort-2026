@@ -34,7 +34,7 @@ def test_htmx_post_message():
 
 
 def test_exceptions_status_filter_and_trend():
-    from backend.db import init_pool, fetch_one
+    from backend.db import fetch_one, init_pool
     from backend.services import exceptions as exc_svc
 
     init_pool()

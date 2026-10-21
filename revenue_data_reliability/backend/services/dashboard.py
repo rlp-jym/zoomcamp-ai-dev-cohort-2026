@@ -196,21 +196,21 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     )[-6:]
 
     gl_total = sum(gl_month.values())
-    gl_variance_pct = (
+    (
         (billings_total - gl_total) / gl_total * 100 if gl_total else 0.0
     )
 
     # "MTD" = latest full month of activity — the calendar tail month can be
     # a partial ingest, which would zero the headline numbers.
     mtd_key = full_months[-1] if full_months else (months[-1] if months else None)
-    gl_mtd = gl_month.get(mtd_key, 0.0) if mtd_key else 0.0
-    billings_mtd = billings_month.get(mtd_key, 0.0) if mtd_key else 0.0
+    gl_month.get(mtd_key, 0.0) if mtd_key else 0.0
+    billings_month.get(mtd_key, 0.0) if mtd_key else 0.0
     prev_mtd_key = (
         full_months[-2] if len(full_months) > 1
         else (months[-2] if len(months) > 1 else None)
     )
-    gl_prev = gl_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
-    bill_prev = billings_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
+    gl_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
+    billings_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
 
     # KPI cards removed in favour of charts + their threads; the
     # open-exceptions count survives as a threadless stat strip.
