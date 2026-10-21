@@ -22,7 +22,7 @@
 
 <h2>Import from dashboard thread</h2>
 <form method="post" action="/scenarios/{{ scenario.scenario_id }}/import" style="max-width:40rem;">
-  <label>Source discussion
+  <label>Source Discussion
     <select name="source_discussion" style="width:100%; margin:0.25rem 0 0.75rem;">
       <option value="">None</option>
       <option value="analysis:chart-revenue-plan" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>

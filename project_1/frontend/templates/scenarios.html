@@ -7,7 +7,7 @@
 <h2 style="margin-top:0;">New Scenario</h2>
 <form method="post" action="/scenarios/create" style="max-width:40rem;">
   <label>Title <input type="text" name="title" required style="width:100%; margin:0.25rem 0 0.75rem;"></label>
-  <label>Source discussion
+  <label>Source Discussion
     <select name="source_discussion" style="width:100%; margin:0.25rem 0 0.75rem;">
       <option value="">None (no linked thread)</option>
       <option value="analysis:chart-revenue-plan" {% if src_type == 'analysis' and src_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
@@ -16,6 +16,8 @@
       <option value="analysis:chart-segment" {% if src_type == 'analysis' and src_id == 'chart-segment' %}selected{% endif %}>Billings by Customer Segment</option>
     </select>
   </label>
+  <label>Import from date <input type="date" name="from_date" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
+  <label>Import to date <input type="date" name="to_date" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
   <label>Desired Outcome <input type="text" name="outcome" placeholder="e.g., Revenue drops 5% if EMEA stays flat" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
   <label>Assessment <textarea name="assessment" rows="3" style="width:100%; margin:0.25rem 0 0.75rem;"></textarea></label>
   <button class="btn" type="submit">Create Scenario</button>
@@ -33,7 +35,14 @@
       <td>{{ s.created_at.split(' ')[0] if s.created_at else '' }}</td>
       <td>{{ s.title }}</td>
       <td>{{ s.open_issues if s.open_issues is not none else '—' }}</td>
-      <td>{{ s.source_anchor_id if s.source_anchor_id else '—' }}</td>
+      <td>
+        {% if s.source_anchor_id == 'chart-revenue-plan' %}Revenue, Billings & Plan
+        {% elif s.source_anchor_id == 'chart-variance-category' %}Variances by Category
+        {% elif s.source_anchor_id == 'chart-growth' %}Month-over-Month Growth
+        {% elif s.source_anchor_id == 'chart-segment' %}Billings by Customer Segment
+        {% elif s.source_anchor_id %}{{ s.source_anchor_id }}
+        {% else %}—{% endif %}
+      </td>
       <td>{{ s.outcome }}</td>
       <td>{{ s.assessment }}</td>
       <td>

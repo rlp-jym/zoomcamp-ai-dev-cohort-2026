@@ -11,7 +11,7 @@ def _fmt_dt(value):
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d %H:%M:%S")
+        return value.strftime("%Y-%m-%d %I:%M:%S %p")
     return str(value)
 
 

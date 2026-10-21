@@ -309,6 +309,10 @@ async def create_analysis_scenario(request: Request):
         title, outcome, assessment, baseline_run,
         source_anchor_type=src_type, source_anchor_id=src_id,
     )
+    from_date = form.get("from_date")
+    to_date = form.get("to_date")
+    if src_type and src_id and (from_date or to_date):
+        scen_svc.import_thread_messages(sid, src_type, src_id, from_date or None, to_date or None)
     return RedirectResponse(url=f"/scenarios/{sid}", status_code=303)
 
 
