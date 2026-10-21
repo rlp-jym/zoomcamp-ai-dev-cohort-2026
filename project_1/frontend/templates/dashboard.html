@@ -60,6 +60,7 @@
     <canvas id="revenuePlanChart" height="120"></canvas>
     <p class="chart-desc">General Ledger revenue (actuals) against billings and the targeted plan.</p>
     <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-revenue-plan">Start a sensitivity analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-revenue-plan" %}
       {% set messages = (chart_messages or {}).get("chart-revenue-plan", []) %}
@@ -71,6 +72,7 @@
     <canvas id="varianceCategoryChart" height="120"></canvas>
     <p class="chart-desc">Average billing-vs-General-Ledger variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
     <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-variance-category">Start a sensitivity analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-variance-category" %}
       {% set messages = (chart_messages or {}).get("chart-variance-category", []) %}
@@ -82,6 +84,7 @@
     <canvas id="growthChart" height="120"></canvas>
     <p class="chart-desc">Month-over-month change in General Ledger revenue across the trailing months — shows whether revenue is accelerating or decelerating.</p>
     <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-growth">Start a sensitivity analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-growth" %}
       {% set messages = (chart_messages or {}).get("chart-growth", []) %}
@@ -104,6 +107,7 @@
       {% endfor %}
     </div>
     <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-segment">Start a sensitivity analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-segment" %}
       {% set messages = (chart_messages or {}).get("chart-segment", []) %}

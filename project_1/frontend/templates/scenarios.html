@@ -21,8 +21,13 @@
   </tbody>
 </table>
 
+{% if src_type and src_id %}
+<p class="page-description" style="color:#0a6;">Creating from discussion: {{ src_type }} / {{ src_id }}. The originating thread will be linked to this scenario.</p>
+{% endif %}
 <h2 style="margin-top:1.5rem;">New Scenario</h2>
 <form method="post" action="/scenarios/create" style="max-width:40rem;">
+  <input type="hidden" name="source_anchor_type" value="{{ src_type or '' }}">
+  <input type="hidden" name="source_anchor_id" value="{{ src_id or '' }}">
   <label>Title <input type="text" name="title" required style="width:100%; margin:0.25rem 0 0.75rem;"></label>
   <label>Outcome / Projection <input type="text" name="outcome" placeholder="e.g., Revenue drops 5% if EMEA stays flat" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
   <label>Assessment <textarea name="assessment" rows="3" style="width:100%; margin:0.25rem 0 0.75rem;"></textarea></label>

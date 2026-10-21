@@ -276,8 +276,12 @@ async def run_detail(request: Request, run_id: int):
 
 @router.get("/scenarios")
 async def scenarios(request: Request):
+    src_type = request.query_params.get("src_type")
+    src_id = request.query_params.get("src_id")
     return templates.TemplateResponse(
-        request, "scenarios.html", _ctx(request, scenarios=scen_svc.list_analysis_scenarios())
+        request, "scenarios.html",
+        _ctx(request, scenarios=scen_svc.list_analysis_scenarios(),
+             src_type=src_type, src_id=src_id),
     )
 
 
@@ -288,7 +292,12 @@ async def create_analysis_scenario(request: Request):
     outcome = form.get("outcome")
     assessment = form.get("assessment")
     baseline_run = form.get("baseline_run") or "baseline_run"
-    sid = scen_svc.create_analysis_scenario(title, outcome, assessment, baseline_run)
+    src_type = form.get("source_anchor_type")
+    src_id = form.get("source_anchor_id")
+    sid = scen_svc.create_analysis_scenario(
+        title, outcome, assessment, baseline_run,
+        source_anchor_type=src_type, source_anchor_id=src_id,
+    )
     return RedirectResponse(url=f"/scenarios/{sid}", status_code=303)
 
 
@@ -297,11 +306,13 @@ async def scenario_detail(request: Request, scenario_id: int):
     s = scen_svc.get_analysis_scenario(scenario_id)
     if not s:
         return templates.TemplateResponse(
-            request, "scenario_detail.html", _ctx(request, scenario=None, messages=[])
+            request, "scenario_detail.html", _ctx(request, scenario=None, messages=[], source_messages=[])
         )
     msgs = messages.get_messages("analysis", str(scenario_id))
+    source_msgs = scen_svc.get_source_messages(s)
     return templates.TemplateResponse(
-        request, "scenario_detail.html", _ctx(request, scenario=s, messages=msgs)
+        request, "scenario_detail.html",
+        _ctx(request, scenario=s, messages=msgs, source_messages=source_msgs),
     )
 
 

@@ -15,6 +15,14 @@
 <h2>Assessment</h2>
 <p>{{ scenario.assessment }}</p>
 
+{% if scenario.source_anchor_type and scenario.source_anchor_id %}
+<h2>Originating discussion ({{ scenario.source_anchor_type }} / {{ scenario.source_anchor_id }})</h2>
+{% set anchor_type = scenario.source_anchor_type %}
+{% set anchor_id = scenario.source_anchor_id %}
+{% set messages = source_messages %}
+{% include "partials/thread.html" %}
+{% endif %}
+
 <h2>Thread</h2>
 {% set anchor_type = "analysis" %}
 {% set anchor_id = scenario.scenario_id %}
