@@ -292,8 +292,19 @@ async def create_analysis_scenario(request: Request):
     outcome = form.get("outcome")
     assessment = form.get("assessment")
     baseline_run = form.get("baseline_run") or "baseline_run"
-    src_type = form.get("source_anchor_type")
-    src_id = form.get("source_anchor_id")
+    src_type = None
+    src_id = None
+    combined = form.get("source_discussion")
+    if combined:
+        parts = str(combined).split(":", 1)
+        if len(parts) == 2:
+            src_type, src_id = parts[0], parts[1]
+        elif parts and parts[0]:
+            src_type, src_id = "analysis", parts[0]
+    if not src_type:
+        src_type = form.get("source_anchor_type")
+    if not src_id:
+        src_id = form.get("source_anchor_id")
     sid = scen_svc.create_analysis_scenario(
         title, outcome, assessment, baseline_run,
         source_anchor_type=src_type, source_anchor_id=src_id,
