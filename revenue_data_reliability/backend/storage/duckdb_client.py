@@ -24,6 +24,10 @@ def _normalized_host() -> str:
 
 
 def _configure(conn) -> None:
+    # Keep DuckDB within Render's 512MB container limit.
+    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("PRAGMA disable_object_cache;")
+    conn.execute("SET threads = 1;")
     host = _normalized_host()
     conn.execute("LOAD httpfs;")
     conn.execute(f"SET s3_endpoint='{host}';")
@@ -36,6 +40,9 @@ def _configure(conn) -> None:
 def verify_httpfs() -> None:
     """Install + load httpfs at startup; fail loudly if unavailable."""
     conn = duckdb.connect()
+    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("PRAGMA disable_object_cache;")
+    conn.execute("SET threads = 1;")
     try:
         conn.execute("INSTALL httpfs;")
     except Exception:
@@ -61,6 +68,9 @@ def open_connection():
     S3 for every rule in a pipeline run.
     """
     conn = duckdb.connect()
+    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("PRAGMA disable_object_cache;")
+    conn.execute("SET threads = 1;")
     try:
         conn.execute("INSTALL httpfs;")
     except Exception:
