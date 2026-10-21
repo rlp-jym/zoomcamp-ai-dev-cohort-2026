@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 
-from backend.db.connection import fetch_all, fetch_one
+from backend.db.connection import execute, fetch_all, fetch_one
 from backend.storage.s3_client import list_scenario_keys
 
 
@@ -175,6 +175,45 @@ def register_scenario(payload):
          json.dumps(file_hashes) if file_hashes is not None else None),
     )
     return get_scenario(name)
+
+
+def delete_analysis_scenario(scenario_id):
+    from backend.services import messages as msg_svc
+
+    sid = str(scenario_id)
+    try:
+        did = msg_svc._ensure_discussion("analysis", sid)
+        execute("DELETE FROM messages WHERE discussion_id = %s", (did,))
+        execute("DELETE FROM discussions WHERE discussion_id = %s", (did,))
+    except Exception:
+        pass
+    execute("DELETE FROM analysis_scenarios WHERE scenario_id = %s", (scenario_id,))
+
+
+def import_thread_messages(target_scenario_id, source_anchor_type, source_anchor_id,
+                           from_date=None, to_date=None):
+    from backend.services import messages as msg_svc
+
+    src_msgs = msg_svc.get_messages(source_anchor_type, source_anchor_id)
+    filtered = []
+    for m in src_msgs:
+        created = m.get("created_at") or ""
+        if from_date and created < from_date:
+            continue
+        if to_date and created > to_date + " 23:59:59":
+            continue
+        filtered.append(m)
+
+    target_did = msg_svc._ensure_discussion("analysis", str(target_scenario_id))
+    count = 0
+    for m in filtered:
+        execute(
+            "INSERT INTO messages (discussion_id, persona_id, content, created_at) "
+            "VALUES (%s, %s, %s, %s)",
+            (target_did, m.get("persona_id"), m.get("content"), m.get("created_at")),
+        )
+        count += 1
+    return count
 
 
 def ensure_baseline_registered():

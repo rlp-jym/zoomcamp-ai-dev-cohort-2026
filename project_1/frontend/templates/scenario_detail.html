@@ -16,6 +16,26 @@
 <h2>Assessment</h2>
 <p>{{ scenario.assessment }}</p>
 
+{% if imported is not none %}
+<p style="color:#0a6;">Imported {{ imported }} message(s) into this scenario's thread.</p>
+{% endif %}
+
+<h2>Import from dashboard thread</h2>
+<form method="post" action="/scenarios/{{ scenario.scenario_id }}/import" style="max-width:40rem;">
+  <label>Source discussion
+    <select name="source_discussion" style="width:100%; margin:0.25rem 0 0.75rem;">
+      <option value="">None</option>
+      <option value="analysis:chart-revenue-plan" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
+      <option value="analysis:chart-variance-category" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-variance-category' %}selected{% endif %}>Variances by Category</option>
+      <option value="analysis:chart-growth" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
+      <option value="analysis:chart-segment" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-segment' %}selected{% endif %}>Billings by Customer Segment</option>
+    </select>
+  </label>
+  <label>From date <input type="date" name="from_date" style="margin:0.25rem 0 0.75rem;"></label>
+  <label>To date <input type="date" name="to_date" style="margin:0.25rem 0 0.75rem;"></label>
+  <button class="btn" type="submit">Import messages</button>
+</form>
+
 <h2>Thread</h2>
 {% set anchor_type = "analysis" %}
 {% set anchor_id = scenario.scenario_id %}
@@ -27,6 +47,12 @@
   <label>Message <textarea name="content" rows="3" style="width:100%; margin:0.25rem 0;" required></textarea></label>
   <button class="btn" type="submit">Post</button>
 </form>
+
+<p style="margin-top:1rem;">
+  <form method="post" action="/scenarios/{{ scenario.scenario_id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this scenario?');">
+    <button class="btn" type="submit">Delete scenario</button>
+  </form>
+</p>
 <p><a class="btn" href="/scenarios">Back to scenarios</a></p>
 {% endif %}
 {% endblock %}

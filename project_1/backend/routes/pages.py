@@ -312,18 +312,51 @@ async def create_analysis_scenario(request: Request):
     return RedirectResponse(url=f"/scenarios/{sid}", status_code=303)
 
 
+@router.post("/scenarios/{scenario_id}/delete")
+async def delete_analysis_scenario(request: Request, scenario_id: int):
+    scen_svc.delete_analysis_scenario(scenario_id)
+    return RedirectResponse(url="/scenarios", status_code=303)
+
+
+@router.post("/scenarios/{scenario_id}/import")
+async def import_scenario_thread(request: Request, scenario_id: int):
+    form = await request.form()
+    combined = form.get("source_discussion")
+    src_type = None
+    src_id = None
+    if combined:
+        parts = str(combined).split(":", 1)
+        if len(parts) == 2:
+            src_type, src_id = parts[0], parts[1]
+        elif parts and parts[0]:
+            src_type, src_id = "analysis", parts[0]
+    if not src_type:
+        src_type = form.get("source_anchor_type")
+    if not src_id:
+        src_id = form.get("source_anchor_id")
+    from_date = form.get("from_date") or None
+    to_date = form.get("to_date") or None
+    count = 0
+    if src_type and src_id:
+        count = scen_svc.import_thread_messages(
+            scenario_id, src_type, src_id, from_date, to_date
+        )
+    return RedirectResponse(url=f"/scenarios/{scenario_id}?imported={count}", status_code=303)
+
+
 @router.get("/scenarios/{scenario_id}")
 async def scenario_detail(request: Request, scenario_id: int):
     s = scen_svc.get_analysis_scenario(scenario_id)
     if not s:
         return templates.TemplateResponse(
-            request, "scenario_detail.html", _ctx(request, scenario=None, messages=[], source_messages=[])
+            request, "scenario_detail.html", _ctx(request, scenario=None, messages=[], source_messages=[], imported=None)
         )
     msgs = messages.get_messages("analysis", str(scenario_id))
     source_msgs = scen_svc.get_source_messages(s)
+    imported = request.query_params.get("imported")
     return templates.TemplateResponse(
         request, "scenario_detail.html",
-        _ctx(request, scenario=s, messages=msgs, source_messages=source_msgs),
+        _ctx(request, scenario=s, messages=msgs, source_messages=source_msgs, imported=imported),
     )
 
 

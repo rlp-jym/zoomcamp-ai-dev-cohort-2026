@@ -21,9 +21,11 @@
   <button class="btn" type="submit">Create Scenario</button>
 </form>
 
-<table class="table" style="margin-top:1.5rem;">
+<input type="text" id="scenarioFilter" placeholder="Filter scenarios..." style="margin:1rem 0 0.5rem; width:100%; max-width:24rem;" onkeyup="filterScenarios()">
+
+<table class="table" id="scenariosTable">
   <thead>
-    <tr><th>Created</th><th>Title</th><th>Data Issues</th><th>Desired Outcome</th><th>Assessment</th><th></th></tr>
+    <tr><th>Created</th><th>Title</th><th>Data Issues</th><th>Source Discussion</th><th>Desired Outcome</th><th>Assessment</th><th></th></tr>
   </thead>
   <tbody>
     {% for s in scenarios %}
@@ -31,11 +33,27 @@
       <td>{{ s.created_at.split(' ')[0] if s.created_at else '' }}</td>
       <td>{{ s.title }}</td>
       <td>{{ s.open_issues if s.open_issues is not none else '—' }}</td>
+      <td>{{ s.source_anchor_id if s.source_anchor_id else '—' }}</td>
       <td>{{ s.outcome }}</td>
       <td>{{ s.assessment }}</td>
-      <td><a class="btn" href="/scenarios/{{ s.scenario_id }}">View</a></td>
+      <td>
+        <a class="btn" href="/scenarios/{{ s.scenario_id }}">View</a>
+        <form method="post" action="/scenarios/{{ s.scenario_id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this scenario?');">
+          <button class="btn" type="submit" style="margin-left:0.25rem;">Delete</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<script>
+function filterScenarios() {
+  var q = document.getElementById('scenarioFilter').value.toLowerCase();
+  var rows = document.querySelectorAll('#scenariosTable tbody tr');
+  rows.forEach(function(row) {
+    row.style.display = row.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+</script>
 {% endblock %}
