@@ -24,7 +24,7 @@ jobs:
           --health-retries 5
     defaults:
       run:
-        working-directory: project_1
+        working-directory: revenue_data_reliability
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp_test
       APP_ENV: test
@@ -41,5 +41,7 @@ jobs:
         run: uv sync --extra dev
       - name: Lint
         run: uv run ruff check .
+      - name: Initialize database schema
+        run: uv run python -c "from backend.db import init_pool, apply_schema, seed; from backend.db.fixture import ensure_baseline_fixture; init_pool(); apply_schema(); seed(); ensure_baseline_fixture()"
       - name: Tests
         run: uv run pytest -q
