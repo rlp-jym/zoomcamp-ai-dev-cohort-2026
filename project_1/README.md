@@ -70,7 +70,7 @@ check), `stop_app.bat` (stops app on port 8000).
 `uvicorn backend.main:app --reload` (or `.venv/Scripts/python.exe -m uvicorn
 backend.main:app --host 127.0.0.1 --port 8000`)
 
-Single command (app + Postgres via Docker): `docker compose up` — see `infra/`.
+Single command (app + Postgres via Docker): `docker compose -f infra/docker-compose.yml up --build` — see `infra/README.md`.
 
 ## Expected Behavior
 - Analyst selects a persona in the header; navigation persists via cookie.
