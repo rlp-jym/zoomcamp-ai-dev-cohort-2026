@@ -98,21 +98,17 @@
 
     {% if charts.segment_mix %}
     <div class="segment-mix">
-      <div class="segment-mix-title">Billings by customer segment</div>
-      <div class="segment-bars">
+      <div class="segment-mix-title">Billings by Customer Segment</div>
+      <canvas id="segmentChart" height="160"></canvas>
+      <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) - the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
+      <div class="segment-legend">
         {% for s in charts.segment_mix %}
-        <div class="segment-bar-row">
-          <span class="segment-bar-label">{{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %}</span>
-          <div class="segment-bar-track">
-            <div class="segment-bar-fill{% if not s.known %} anomaly{% endif %}"
-                 style="width: {{ s.share }}%; background: {{ s.color }};"
-                 title="{{ s.label }} - {{ s.share }}% of billings"></div>
-          </div>
-          <span class="segment-bar-pct">{{ s.share }}%</span>
-        </div>
+        <span class="segment-legend-item">
+          <span class="swatch" style="background: {{ s.color }}"></span>
+          {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %} - {{ s.share }}%
+        </span>
         {% endfor %}
       </div>
-      <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) - the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
     </div>
     {% endif %}
   </div>
@@ -170,6 +166,22 @@
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
+  if (c.segment_mix && c.segment_mix.length) {
+    new Chart(document.getElementById("segmentChart"), {
+      type: "bar",
+      data: {
+        labels: c.segment_mix.map(s => s.label + (s.known ? "" : " (unrecognised)")),
+        datasets: [
+          { label: "Billings share (%)", data: c.segment_mix.map(s => s.share),
+            backgroundColor: c.segment_mix.map(s => s.color) }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: "% of billings" } } } }
+    });
+  }
+
   })();
 </script>
 {% endblock %}
