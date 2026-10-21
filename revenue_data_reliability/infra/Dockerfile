@@ -10,13 +10,13 @@ RUN pip install --no-cache-dir uv
 
 # Copy dependency manifests first for layer caching
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
 # Copy application code
 COPY . .
 
 # Install the local project itself
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-cache
 
 ENV PATH="/app/.venv/bin:$PATH"
 
