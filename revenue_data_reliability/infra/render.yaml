@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: revenue-data-platform
+    name: revenue-platform-staging
     env: docker
+    branch: staging
+    rootDir: revenue_data_reliability
     dockerfilePath: infra/Dockerfile
     dockerContext: .
     plan: starter
@@ -9,7 +11,36 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: rlp-db
+          name: rlp-db-staging
+          property: connectionString
+      - key: APP_ENV
+        value: staging
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: WEBHOOK_TOKEN
+        generateValue: true
+
+  - type: web
+    name: revenue-platform-prod
+    env: docker
+    branch: main
+    rootDir: revenue_data_reliability
+    dockerfilePath: infra/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rlp-db-prod
           property: connectionString
       - key: APP_ENV
         value: prod
@@ -27,7 +58,11 @@ services:
         generateValue: true
 
 databases:
-  - name: rlp-db
+  - name: rlp-db-staging
     plan: free
-    databaseName: rlp
+    databaseName: rlp_staging
+    user: rlp
+  - name: rlp-db-prod
+    plan: free
+    databaseName: rlp_prod
     user: rlp
