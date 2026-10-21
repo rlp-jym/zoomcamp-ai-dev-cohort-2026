@@ -5,7 +5,7 @@ no CI/CD or infra checks, no future-feature expectations.
 
 ## Global
 - [x] Persona selector persists across all pages via cookie and reflects in header.
-- [x] Header nav renders the 6 top-level routes (Dashboard, Exceptions, Runs, Scenarios, Audit, Observability) on every page.
+- [x] Header nav renders the 6 top-level routes (Dashboard, Scenarios, Runs, Exceptions, Audit, Observability) on every page, grouped as analysis first then the validation pipeline.
 - [x] Agent posts visually distinguished (badge, muted background) in thread partial.
 - [x] Every agent action is logged in `agent_actions` with a `trace_id` matching its thread message.
 - [x] `/health` returns `{status: ok}`.
