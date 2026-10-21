@@ -2,62 +2,102 @@
 
 ## Problem Statement
 A platform that ingests synthetic B2B-distribution revenue data, validates it,
-reconciles billings to GL, and surfaces exceptions via a team of AI agents and
-human discussion.
+reconciles billings to the General Ledger, and surfaces data issues via a team
+of AI agents and human discussion threads.
 
 ## Current Status
-Batch 4 complete. All 11 validation rules execute against every run, the
-billings-vs-GL reconciliation runs at the `(period, account_id, item_category)`
-grain, exceptions are raised for every failed rule (grouped by month) and every
-material reconciliation gap, and the DQ agent posts a validation summary on the
-run thread. The UI is wired to real Postgres/DuckDB data on every route.
+Production-shaped v1. All 11 validation rules execute against every run, the
+billings-vs-General-Ledger reconciliation runs at the `(period, account_id,
+item_category)` grain, and exceptions are raised for every failed rule (grouped
+by month) and every material reconciliation gap. The DQ/DE/FA/Controller agents
+post to run and exception threads (template fallback when no LLM key is set).
 
-Implemented in this phase:
-- 11 DuckDB validation rules over Parquet on Filebase (`backend/db/seed.py`).
+The UI is wired to real Postgres/DuckDB data on every route, with a published
+`baseline_run` fixture so the app is populated immediately after a cold start.
+
+Implemented highlights:
+- 11 DuckDB validation rules over Parquet on R2.
 - Generic rule execution + result storage (`validations` table).
-- Rule-to-exception grouping by `period` (one exception per affected month). Only the latest data period stays `open`; earlier periods are inserted `resolved` so `/exceptions` stays a pending work queue while history remains available for trend analysis.
-- DQ agent summary (template fallback, no LLM) on the run thread.
-- Reconciliation job writing `reconciliations` and opening material-gap exceptions.
-- `/runs/{id}` renders all 11 validation results; `/exceptions/{id}` drills into
-  monthly reconciliation rows for reconciliation exceptions.
+- Per-category reconciliation: GL is allocated from each category's own
+  billings with a small per-category bias, split across accounts; billings are
+  expanded across account rows by each row's GL share. Variance % is
+  `(billings - gl) / gl`; status pass/fail by tolerance.
+- Rule-to-exception grouping by `period` (one exception per affected month).
+  Only the latest data period stays `open`; earlier periods are inserted
+  `resolved` so `/exceptions` stays a pending work queue.
+- Agent team: Orchestrator (pipeline), DQ (validation summary), DE
+  (remediation proposals), FA (financial impact), Controller (continuous
+  verification of published state, 6 checks, alerting).
+- Publication flow: Manager approves go-live; published pointer + quarantine
+  overlay; Controller verifies published state on a schedule.
+- Observability: OpenTelemetry spans/logs/metrics exported to Postgres with
+  an in-app viewer and a retention job.
+- Dashboard: historical actuals + FP&A assessment. Open Data Issues stat
+  (red/green, bold) at the top, Target Attainment card (General Ledger revenue
+  as % of target, with the latest month in the title), then three charts
+  (Revenue/Billings/Target, Variances by Category, Month-over-Month Growth)
+  plus a Billings-by-Customer-Segment bar chart. Each chart carries its own
+  discussion thread. Forward-looking projections are not on the dashboard —
+  they are authored under Scenarios.
+- Scenarios: repurposed as a forward-looking sensitivity workspace bound to the
+  latest published run (title, outcome/projection, assessment, thread).
+- Synthetic data window 2022-01 to 2026-12 (60 months), reproducible per seed.
+- Terminology in the UI: Runs → Validation, Exceptions → Data Issues,
+  Budget → Target. Nav order: Dashboard, Scenarios, Validation, Data Issues,
+  Audit, Observability.
 
-Still stubbed / later batches: dashboard KPI wiring, DE / FA / Controller agents,
-publication + quarantine, alerting, OTEL export, APScheduler, real LLM calls.
+Still open / later work: CI/CD, Dockerfile, infra docs, unit/integration tests,
+scenario data snapshot capture, remaining `dimension_drift` config wiring,
+`VAL_SEGMENT_DRIFT` rule, and per-segment order volume weighting.
 
 ## Data Reset & Baseline Fixture
 
-A persistent `baseline_run` fixture is seeded on boot. It includes a registered scenario, a completed and published baseline run, a matching publication, and a minimal run thread. This keeps the dashboard populated immediately after cold starts and resets.
+A persistent `baseline_run` fixture is seeded on boot. It includes a registered
+scenario, a completed and published baseline run, a matching publication, and a
+minimal run thread. This keeps the dashboard populated immediately after cold
+starts and resets.
 
 Reset modes:
-- Preserve baseline (recommended): truncates non-baseline application data while keeping personas, rules, and the baseline fixture intact.
-- Full reset: removes all data including the baseline fixture (set `SEED_BASELINE_FIXTURE=0` and truncate everything).
+- Preserve baseline (recommended): truncates non-baseline application data while
+  keeping personas, rules, and the baseline fixture intact.
+- Full reset: removes all data including the baseline fixture (set
+  `SEED_BASELINE_FIXTURE=0` and truncate everything).
 
-Local helper scripts: `run_app.bat` (starts app and opens browser after health check), `stop_app.bat` (stops app on port 8000).
+Local helper scripts: `run_app.bat` (starts app and opens browser after health
+check), `stop_app.bat` (stops app on port 8000).
 
 ## How to Run (Local)
-`uvicorn backend.main:app --reload`
+`uvicorn backend.main:app --reload` (or `.venv/Scripts/python.exe -m uvicorn
+backend.main:app --host 127.0.0.1 --port 8000`)
 
 Single command (app + Postgres via Docker): `docker compose up` — see `infra/`.
 
 ## Expected Behavior
-- Analyst selects a persona in the header and can "Run Pipeline" on a scenario.
-- The run thread shows Orchestrator start/finish, the DQ validation summary, and a
-  reconciliation line.
-- `/exceptions` lists validation and reconciliation exceptions with their period; defaults to `open` (pending work queue) with `Resolved` and `All` views and a trend chart (detected / resolved / open backlog / cumulative-if-never-resolved).
-- `/runs/{id}` shows pass/fail/count for all 11 rules.
-- `/exceptions/{id}` on a reconciliation exception shows the monthly rows behind it.
-- Debug routes `/debug/db`, `/debug/storage`, `/debug/query` remain available.
-
-## UI Build Note (Two Phases)
-Templates were built as stubs in Batch 1 and wired to real data in Batch 4
-(§19). Template edits after this point are expected as wiring lands.
+- Analyst selects a persona in the header; navigation persists via cookie.
+- Dashboard shows the Open Data Issues stat, Target Attainment, and the four
+  charts, each with its own thread; posting a message updates via HTMX.
+- `/scenarios` lists sensitivity analyses bound to the latest published run;
+  Analysts can create new ones (title, outcome/projection, assessment).
+- `/validation` (formerly Runs) lists runs; `/validation/{id}` shows all 11
+  validation results, publication block, and approve/reject actions
+  (Manager-gated).
+- `/data-issues` (formerly Exceptions) lists validation and reconciliation
+  exceptions with their period; defaults to `open` with `Resolved` and `All`
+  views and a trend chart; `/data-issues/{id}` drills into monthly
+  reconciliation rows.
+- `/audit` shows agent_actions, approvals, publications (filterable by
+  `trace_id`).
+- `/observability` shows traces, span trees, and linked logs.
+- Pipeline runs are triggered via script only (no in-app Run Pipeline button).
 
 ## Tests
-Single command: `pytest` (unit + integration, exits 0). See `tests/`.
+`pytest` (unit + integration). See `tests/`. Currently 5 smoke tests pass.
 
 ## Documentation Links
 - Architecture & Scope: `SPEC.md`
 - Metric Definitions & KPI Rationale: `definitions.md`
 - Build Roadmap: `TASKS.md`
+- Backlog Verification: `BACKLOG.md`
 - Agent Skill Definitions: `backend/skills/`
 - Data Generator: `data/README.md` and `data/AGENTS.md`
+- Data Generator Details: `docs/data_generator.md`

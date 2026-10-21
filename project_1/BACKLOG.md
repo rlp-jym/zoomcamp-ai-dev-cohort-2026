@@ -14,8 +14,8 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Renders from the cached payload after a scheduler refresh; shows cache timestamp.
 - [x] Alert banner + badge reflect open alerts and count (banner lists latest 5).
 - [x] Empty state + "Refresh KPIs now" button when no published dataset/cache.
-- [x] KPI cards render (3 when no publication, 6 when published) with values/deltas; each has an inline analysis thread.
-- [x] 3 Chart.js charts render from the `charts` payload (revenue/billings/plan + projection, variance by category, month-over-month growth) plus a budget-attainment progress bar with a segment-mix strip. The General Ledger series is drawn once, not once per chart.
+- [x] KPI card grid removed in favour of charts + threads; Open Data Issues survives as a threadless stat strip (red if > 0, green if 0, bold) above Target Attainment.
+- [x] 4 Chart.js charts render from the `charts` payload (Revenue/Billings/Target, Variances by Category, Month-over-Month Growth, Billings by Customer Segment as bars) plus a Target Attainment progress bar (top of page, no thread, title carries the latest month). The General Ledger series is drawn once, not once per chart; the run-rate projection is gone (projections live under Scenarios).
 - [x] Posting a message to a `kpi-*` analysis thread updates via HTMX partial.
 - [x] Manual `/dashboard/refresh` recomputes the cache without scanning S3 in the request path.
 
