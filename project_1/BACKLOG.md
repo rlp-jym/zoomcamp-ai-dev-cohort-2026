@@ -71,27 +71,62 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] DE posts a remediation proposal per open exception.
 - [x] FA posts an impact narrative per open exception.
 - [x] Run ends completed with counts; Orchestrator posts a "run finished" message.
-- [ ] On exception, run is marked failed and a failure message is posted.
+- [ ] On exception, run is marked failed and a failure message is posted. (not exercised — needs a forced failure; code path exists in orchestrator.run_pipeline with status='failed' and try/except)
 
 ## Alerts & Controller
-- [ ] When a publication is older than `controller_stale_hours`, Controller opens a `STALE_PUBLISHED` alert with row + thread message + dashboard badge.
-- [ ] Alert creates an `alerts` row + Controller triage message on the anchor thread.
-- [ ] Critical alert types that pass `escalate=True` (source hash mismatch, published-record revalidation failure, recon drift) escalate to Director via a thread message.
-- [ ] Dedup: same `(alert_type, anchor_id)` within 1 hour yields one row and one thread message.
-- [ ] `STALE_PUBLISHED` triggers an autonomous pipeline re-run, logging one `autonomous_re_run` `agent_actions` row with `agent_id = controller` (plus the alert rows).
-- [ ] Controller runs all 6 checks per verification cycle (stale published, source hash, audit row, thread anchor, revalidation, recon drift).
+- [ ] When a publication is older than `controller_stale_hours`, Controller opens a `STALE_PUBLISHED` alert with row + thread message + dashboard badge. (not exercised — current publication is fresh; no STALE_PUBLISHED alerts in DB)
+- [x] Alert creates an `alerts` row + Controller triage message on the anchor thread. (verified: 139 open alerts, 100 controller triage messages; controller persona has 100 messages)
+- [ ] Critical alert types that pass `escalate=True` (source hash mismatch, published-record revalidation failure, recon drift) escalate to Director via a thread message. (not exercised — no critical alert has fired in the current data; `_escalate_to_director` exists in controller.py)
+- [x] Dedup: same `(alert_type, anchor_id)` within 1 hour yields one row and one thread message. (verified: controller payloads carry `"deduplicated": true`)
+- [ ] `STALE_PUBLISHED` triggers an autonomous pipeline re-run, logging one `autonomous_re_run` `agent_actions` row with `agent_id = controller` (plus the alert rows). (not exercised — no stale publication in current data)
+- [x] Controller runs all 6 checks per verification cycle (stale published, source hash, audit row, thread anchor, revalidation, recon drift). (verified: `run_controller_verification` iterates all 6; 4 alert types raised across 663 controller actions)
 
 ## Publication & quarantine
-- [ ] Published pointer uniqueness: exactly one published run per scenario.
-- [ ] Quarantine filter excludes quarantined records from the published-data query.
-- [ ] Controller source-hash check compares R2 Parquet hashes to the registered manifest.
+- [x] Published pointer uniqueness: exactly one published run per scenario. (verified: 1 published run for baseline_run)
+- [x] Quarantine filter excludes quarantined records from the published-data query. (verified by code: `publications.get_published_data_query` calls `quarantines.quarantined_invoice_line_ids`; not exercised end-to-end — 0 quarantines in the current dataset)
+- [x] Controller source-hash check compares R2 Parquet hashes to the registered manifest. (verified by code: `check_source_hash_mismatch` calls `verify_manifest`; runs each cycle, cached per manifest; no mismatch in current data)
 
 ## Observability
-- [ ] Requests produce traces visible in `/observability` with spans and linked logs.
-- [ ] Retention job deletes spans/logs/metrics older than the configured window (default 30 days).
+- [x] Requests produce traces visible in `/observability` with spans and linked logs. (verified: 18,294 spans, 188 logs, page renders 200 with trace selection)
+- [x] Retention job deletes spans/logs/metrics older than the configured window (default 30 days). (verified by code: `run_retention` scheduled every 24h in scheduler, deletes from all 3 otel tables; not exercised by age — no data older than 30 days in the current window)
 
 ## Webhook
-- [ ] `POST /api/scenarios/register` with a valid `WEBHOOK_TOKEN` registers/updates a scenario row.
+- [x] `POST /api/scenarios/register` with a valid `WEBHOOK_TOKEN` registers/updates a scenario row. (verified: 200 + registered with dev-webhook-token; 401 without)
 
 ## Persona
-- [ ] `POST /persona` sets the cookie and redirects to the referer.
+- [x] `POST /persona` sets the cookie and redirects to the referer. (verified: 303 + Set-Cookie persona=manager; HttpOnly; SameSite=lax)
+
+## Load times (local, warm cache, single request)
+Measured 2026-10-21 against the running app (published run 39, 139 open alerts,
+18,294 otel spans). All reads are served from Postgres/R2; the dashboard reads
+the cached payload (no S3 scan in the request path).
+
+| Route | Status | ms | bytes |
+|---|---|---|---|
+| `/` (dashboard) | 200 | 3204 | 13972 |
+| `/exceptions` | 200 | 4253 | 7385 |
+| `/exceptions/7471` | 200 | 5286 | 6064 |
+| `/runs` | 200 | 1108 | 4938 |
+| `/runs/39` | 200 | 5525 | 5937 |
+| `/scenarios` | 200 | 1073 | 2874 |
+| `/audit` | 200 | 3641 | 99770 |
+| `/audit?trace_id=...` | 200 | 3165 | 4923 |
+| `/observability` | 200 | 4884 | 9802 |
+| `/observability?trace_id=...` | 200 | 4475 | 10181 |
+| `/health` | 200 | 2 | 15 |
+
+Notes:
+- `/health` is the only sub-100ms route. Page routes are 1-5.5s, which is slow
+  for a local app; the dominant cost is the remote Postgres (Neon) round-trip
+  plus per-request template rendering, not S3. Dashboard cache refresh is the
+  heavy path (~100s) and runs in the scheduler, not the request path.
+- `/runs/39` (5.5s) and `/exceptions/{id}` (5.3s) are the slowest per-byte;
+  both do several sequential DB round-trips. Candidate for batching/caching if
+  load time becomes a priority.
+- `/audit` is 99KB because it renders the full agent_actions table; the
+  `?trace_id=` filter cuts it to ~5KB and ~3.2s. The default (unfiltered) view
+  is the expensive one.
+- Not exercised in this pass (needs setup/conditions not present): inducing a
+  failed run, STALE_PUBLISHED alert + autonomous re-run, critical-alert
+  escalation to Director, quarantine end-to-end (0 quarantines in DB), and the
+  30-day retention deletion (no data older than 30 days). Flagged below.
