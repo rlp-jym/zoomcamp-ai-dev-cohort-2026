@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS analysis_scenarios (
     outcome              TEXT,
     assessment           TEXT,
     baseline_run         TEXT NOT NULL DEFAULT 'baseline_run',
+    open_issues          INTEGER,
     source_anchor_type   TEXT,
     source_anchor_id     TEXT,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()

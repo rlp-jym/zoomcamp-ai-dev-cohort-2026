@@ -8,7 +8,8 @@
 <h1>Scenario #{{ scenario.scenario_id }}</h1>
 <dl class="meta">
   <dt>Title</dt><dd>{{ scenario.title }}</dd>
-  <dt>Baseline Dataset</dt><dd>{{ scenario.baseline_run }}</dd>
+  <dt>Open Data Issues (at creation)</dt><dd>{{ scenario.open_issues if scenario.open_issues is not none else '—' }}</dd>
+  <dt>Created</dt><dd>{{ scenario.created_at }}</dd>
 </dl>
 <h2>Outcome / Projection</h2>
 <p class="evidence">{{ scenario.outcome }}</p>

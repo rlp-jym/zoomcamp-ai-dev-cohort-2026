@@ -39,7 +39,7 @@ def list_scenarios():
 def list_analysis_scenarios():
     rows = fetch_all(
         "SELECT s.scenario_id, s.title, s.outcome, s.assessment, "
-        "s.baseline_run, s.source_anchor_type, s.source_anchor_id, s.created_at "
+        "s.baseline_run, s.open_issues, s.source_anchor_type, s.source_anchor_id, s.created_at "
         "FROM analysis_scenarios s ORDER BY s.created_at DESC"
     )
     out = []
@@ -51,6 +51,7 @@ def list_analysis_scenarios():
                 "outcome": r["outcome"] or "",
                 "assessment": r["assessment"] or "",
                 "baseline_run": r["baseline_run"],
+                "open_issues": r.get("open_issues"),
                 "source_anchor_type": r.get("source_anchor_type"),
                 "source_anchor_id": r.get("source_anchor_id"),
                 "created_at": _fmt_dt(r["created_at"]),
@@ -59,16 +60,23 @@ def list_analysis_scenarios():
     return out
 
 
-def create_analysis_scenario(title, outcome, assessment, baseline_run,
-                            source_anchor_type=None, source_anchor_id=None):
+def create_analysis_scenario(title, outcome, assessment, baseline_run="baseline_run",
+                            source_anchor_type=None, source_anchor_id=None,
+                            open_issues=None):
+    if open_issues is None:
+        try:
+            from backend.services import exceptions as exc_svc
+            open_issues = exc_svc.exception_counts().get("open")
+        except Exception:
+            open_issues = None
     row = fetch_one(
         """
         INSERT INTO analysis_scenarios (title, outcome, assessment, baseline_run,
-                                       source_anchor_type, source_anchor_id)
-        VALUES (%s, %s, %s, %s, %s, %s)
+                                       open_issues, source_anchor_type, source_anchor_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING scenario_id
         """,
-        (title, outcome, assessment, baseline_run,
+        (title, outcome, assessment, baseline_run, open_issues,
          source_anchor_type, source_anchor_id),
     )
     return str(row["scenario_id"])
@@ -89,7 +97,7 @@ def get_source_messages(scenario):
 def get_analysis_scenario(scenario_id):
     r = fetch_one(
         "SELECT scenario_id, title, outcome, assessment, baseline_run, "
-        "source_anchor_type, source_anchor_id, created_at "
+        "open_issues, source_anchor_type, source_anchor_id, created_at "
         "FROM analysis_scenarios WHERE scenario_id = %s",
         (scenario_id,),
     )
@@ -101,6 +109,7 @@ def get_analysis_scenario(scenario_id):
         "outcome": r["outcome"],
         "assessment": r["assessment"],
         "baseline_run": r["baseline_run"],
+        "open_issues": r.get("open_issues"),
         "source_anchor_type": r.get("source_anchor_type"),
         "source_anchor_id": r.get("source_anchor_id"),
         "created_at": _fmt_dt(r["created_at"]),
