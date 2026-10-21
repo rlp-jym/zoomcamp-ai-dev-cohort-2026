@@ -291,6 +291,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     data["attainment"] = {
         "pct": attainment_pct,
         "months": len(months),
+        "latest": months[-1] if months else None,
     }
     return data
 

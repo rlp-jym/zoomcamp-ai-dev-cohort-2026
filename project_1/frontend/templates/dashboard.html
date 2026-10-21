@@ -34,10 +34,16 @@
 </div>
 {% endif %}
 
+<div class="open-exceptions-stat {% if open_exceptions and open_exceptions > 0 %}has-issues{% else %}clear{% endif %}">
+  <span class="stat-title">Data Issues</span>
+  <span class="stat-value">{{ open_exceptions }}</span>
+  <span class="stat-delta">{% if open_exceptions and open_exceptions > 0 %}open{% else %}all resolved{% endif %}</span>
+</div>
+
 {% if attainment and attainment.pct is not none %}
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Target Attainment</h2>
+    <h2>Target Attainment ({{ attainment.latest }})</h2>
     <p><strong>{{ attainment.pct }}%</strong> of target over the trailing {{ attainment.months }} months</p>
     <div class="progress" title="{{ attainment.pct }}% of target">
       <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
@@ -47,12 +53,6 @@
   </div>
 </div>
 {% endif %}
-
-<div class="open-exceptions-stat {% if open_exceptions and open_exceptions > 0 %}has-issues{% else %}clear{% endif %}">
-  <span class="stat-title">Data Issues</span>
-  <span class="stat-value">{{ open_exceptions }}</span>
-  <span class="stat-delta">{% if open_exceptions and open_exceptions > 0 %}open{% else %}all resolved{% endif %}</span>
-</div>
 
 <div class="charts-grid">
   <div class="chart-card span-2">
