@@ -30,6 +30,11 @@ scale:
     - Office
     - Safety
     - Misc
+  customer_segment_names:
+    - enterprise
+    - midmarket
+    - smb
+  customer_segment_weights: [0.15, 0.30, 0.55]
   gl_category_bias_spread: 0.004
   budget_growth_target_by_year:
     2022: 1.08

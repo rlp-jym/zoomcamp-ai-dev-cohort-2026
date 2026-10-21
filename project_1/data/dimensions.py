@@ -168,9 +168,19 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
     # dtype=object keeps numpy from silently truncating the remapped label
     # to the width of the longest known segment ("remapped_segment" ->
     # "remapped_s" when the array is a fixed-width <U10 string).
+    segment_names = cfg["scale"]["customer_segment_names"]
+    segment_weights = np.array(cfg["scale"]["customer_segment_weights"], dtype=float)
+    if len(segment_names) != len(segment_weights):
+        raise ValueError(
+            "customer_segment_names and customer_segment_weights must have the same length"
+        )
+    if segment_weights.sum() <= 0:
+        raise ValueError("customer_segment_weights must sum to > 0")
+    segment_weights = segment_weights / segment_weights.sum()
     segments = rng.choice(
-        np.array(["enterprise", "midmarket", "smb"], dtype=object),
+        np.array(segment_names, dtype=object),
         size=n_customers,
+        p=segment_weights,
     )
     n_remaps = int(cfg["dimension_drift"]["segment_remaps"])
     for i in range(min(n_remaps, n_customers)):
