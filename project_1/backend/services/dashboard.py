@@ -83,7 +83,7 @@ def _pct_delta(current, previous) -> str | None:
 
 
 def get_dashboard_data(scenario: str = SCENARIO) -> dict:
-    """All dashboard payload: 6 KPI cards, 4 charts, alert badge."""
+    """All dashboard payload: open-exceptions stat, 3 charts, attainment card, alert badge."""
     from backend.storage.duckdb_client import query_rows
 
     q = pub_svc.get_published_data_query(scenario)
@@ -97,7 +97,11 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         "charts": {},
     }
 
-    # Postgres-only KPIs (cheap, no S3 scan).
+    # Open exceptions are the one KPI we keep on the dashboard: a reminder
+    # that the current numbers still have pending exceptions to fix. The
+    # other KPIs (Revenue/Billings/GL Variance/DQ Pass Rate/Published Runs)
+    # are snapshots with no discussion value and were removed in favour of
+    # the charts + their threads.
     exc_row = fetch_one(
         """
         SELECT COUNT(*) FILTER (WHERE status <> 'resolved') AS open_n,
@@ -105,39 +109,12 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         FROM exceptions
         """
     )
-    run_rate = fetch_one(
-        """
-        SELECT 100.0 * SUM(CASE WHEN v.status = 'pass' THEN 1 ELSE 0 END)
-                   / NULLIF(COUNT(*), 0) AS pass_rate,
-               r.run_id
-        FROM validations v
-        JOIN runs r ON r.run_id = v.run_id
-        WHERE r.status = 'completed'
-        GROUP BY r.run_id
-        ORDER BY r.run_id DESC
-        LIMIT 1
-        """
-    )
-    prev_rate = fetch_one(
-        """
-        SELECT 100.0 * SUM(CASE WHEN v.status = 'pass' THEN 1 ELSE 0 END)
-                   / NULLIF(COUNT(*), 0) AS pass_rate
-        FROM validations v
-        JOIN runs r ON r.run_id = v.run_id
-        WHERE r.status = 'completed' AND r.run_id < %s
-        GROUP BY r.run_id
-        ORDER BY r.run_id DESC
-        LIMIT 1
-        """,
-        (run_rate["run_id"],),
-    ) if run_rate else None
-    pub_count = fetch_one(
-        "SELECT COUNT(*) AS n FROM runs WHERE published = TRUE"
-    )
+    data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
 
     if not q:
-        # No publication yet — show the process KPIs and an empty state.
-        data["kpis"] = _process_kpis_only(run_rate, prev_rate, exc_row, pub_count)
+        # No publication yet — keep the open-exceptions reminder only.
+        data["charts"] = {}
+        data["attainment"] = None
         return data
 
     pubsql = q["sql"]
@@ -242,36 +219,9 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     gl_prev = gl_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
     bill_prev = billings_month.get(prev_mtd_key, 0.0) if prev_mtd_key else 0.0
 
-    kpis = [
-        {
-            "id": "revenue",
-            "title": "Revenue (MTD)",
-            "value": _fmt_m(gl_mtd),
-            "delta": _pct_delta(gl_mtd, gl_prev),
-            "trend": "up",
-            "thread_id": "kpi-revenue",
-        },
-        {
-            "id": "billings",
-            "title": "Billings (MTD)",
-            "value": _fmt_m(billings_mtd),
-            "delta": _pct_delta(billings_mtd, bill_prev),
-            "trend": "up",
-            "thread_id": "kpi-billings",
-        },
-        {
-            "id": "gl_variance",
-            "title": "General Ledger Variance %",
-            "value": _fmt_pct(gl_variance_pct),
-            "delta": "billings vs General Ledger",
-            "trend": "down",
-            "thread_id": "kpi-gl-variance",
-        },
-    ]
-    kpis += _process_kpis_only(run_rate, prev_rate, exc_row, pub_count)
-    data["kpis"] = kpis
-    for k in data["kpis"]:
-        k["messages"] = msg_svc.get_messages("analysis", k["thread_id"])
+    # KPI cards removed in favour of charts + their threads; the
+    # open-exceptions count survives as a threadless stat strip.
+    data["kpis"] = []
 
     variance_rows = fetch_all(
         """
@@ -438,6 +388,8 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "alert_count": alerts_svc.open_alert_count(),
             "kpis": [],
             "charts": {},
+            "open_exceptions": 0,
+            "chart_messages": {},
             "cache_fresh_at": None,
             "cache_empty": True,
         }
@@ -450,54 +402,23 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     alerts, alert_count = alerts_svc.open_alerts_with_count()
     data["alerts"] = alerts
     data["alert_count"] = alert_count
-    thread_ids = [k.get("thread_id") for k in data.get("kpis", []) if k.get("thread_id")]
-    msgs_by_thread = msg_svc.get_messages_for_threads("analysis", thread_ids)
-    for k in data.get("kpis", []):
-        k["messages"] = msgs_by_thread.get(str(k.get("thread_id")), [])
+    # Chart discussion threads (one per chart card).
+    chart_thread_ids = [
+        "chart-revenue-plan", "chart-variance-category",
+        "chart-growth", "chart-attainment",
+    ]
+    msgs_by_thread = msg_svc.get_messages_for_threads("analysis", chart_thread_ids)
+    data["chart_messages"] = {
+        aid: msgs_by_thread.get(aid, []) for aid in chart_thread_ids
+    }
+    # Keep open_exceptions fresh from Postgres.
+    exc_row = fetch_one(
+        "SELECT COUNT(*) FILTER (WHERE status <> 'resolved') AS open_n FROM exceptions"
+    )
+    data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %H:%M:%S") if refreshed_at else "",
     }
     _DASHBOARD_CACHE["payload"] = data
     _DASHBOARD_CACHE["ts"] = time.time()
     return data
-
-
-def _process_kpis_only(run_rate, prev_rate, exc_row, pub_count) -> list[dict]:
-    """Open Exceptions / DQ Pass Rate / Published Runs (no parquet needed)."""
-    dq_delta = None
-    trend = "up"
-    if run_rate and prev_rate and prev_rate["pass_rate"] is not None:
-        dq = float(run_rate["pass_rate"] or 0)
-        dq_prev = float(prev_rate["pass_rate"] or 0)
-        dq_delta = f"{dq - dq_prev:+.1f}pp vs prev run"
-        trend = "up" if dq >= dq_prev else "down"
-    return [
-        {
-            "id": "exceptions_open",
-            "title": "Open Exceptions",
-            "value": str(exc_row["open_n"]) if exc_row else "0",
-            "delta": "open",
-            "trend": "up",
-            "thread_id": "kpi-exceptions",
-        },
-        {
-            "id": "dq_pass_rate",
-            "title": "DQ Pass Rate",
-            "value": (
-                _fmt_pct(run_rate["pass_rate"]) if run_rate
-                and run_rate["pass_rate"] is not None
-                else "n/a"
-            ),
-            "delta": dq_delta or "latest completed run",
-            "trend": trend,
-            "thread_id": "kpi-dq-pass-rate",
-        },
-        {
-            "id": "published_runs",
-            "title": "Published Runs",
-            "value": str(pub_count["n"]) if pub_count else "0",
-            "delta": "go-live",
-            "trend": "up",
-            "thread_id": "kpi-published-runs",
-        },
-    ]

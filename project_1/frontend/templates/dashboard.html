@@ -34,20 +34,10 @@
 </div>
 {% endif %}
 
-<div class="kpi-grid">
-  {% for k in kpis %}
-  <div class="kpi-card">
-    <div class="kpi-title">{{ k.title }}</div>
-    <div class="kpi-value">{{ k.value }}</div>
-    <div class="kpi-delta {{ k.trend }}">{{ k.delta }}</div>
-    <div class="kpi-thread">
-      {% set anchor_type = "analysis" %}
-      {% set anchor_id = k.thread_id %}
-      {% set messages = k.messages %}
-      {% include "partials/thread.html" %}
-    </div>
-  </div>
-  {% endfor %}
+<div class="open-exceptions-stat">
+  <span class="stat-title">Open Exceptions</span>
+  <span class="stat-value">{{ open_exceptions }}</span>
+  <span class="stat-delta">open</span>
 </div>
 
 <div class="charts-grid">
@@ -55,16 +45,34 @@
     <h2>Revenue, Billings &amp; Plan (Trailing 6 Months + 3-Month Projection)</h2>
     <canvas id="revenuePlanChart" height="120"></canvas>
     <p class="chart-desc">General Ledger revenue (actuals) against billings and the budgeted plan, with a dashed 3-month run-rate projection continuing from the last actual month at the trailing growth rate.</p>
+    <div class="chart-thread">
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-revenue-plan" %}
+      {% set messages = (chart_messages or {}).get("chart-revenue-plan", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
   <div class="chart-card">
     <h2>Variances by Category (avg variance %)</h2>
     <canvas id="varianceCategoryChart" height="120"></canvas>
     <p class="chart-desc">Average billing-vs-General-Ledger variance % by item category — highlights which categories have the largest reconciliation gaps.</p>
+    <div class="chart-thread">
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-variance-category" %}
+      {% set messages = (chart_messages or {}).get("chart-variance-category", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
   <div class="chart-card">
     <h2>Month-over-Month Growth (General Ledger)</h2>
     <canvas id="growthChart" height="120"></canvas>
     <p class="chart-desc">Month-over-month change in General Ledger revenue across the trailing months — shows whether revenue is accelerating or decelerating.</p>
+    <div class="chart-thread">
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-growth" %}
+      {% set messages = (chart_messages or {}).get("chart-growth", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
 </div>
 
@@ -78,6 +86,12 @@
       <div class="progress-target" title="100% of plan"></div>
     </div>
     <p class="chart-desc">General Ledger revenue as a percentage of the budgeted plan for the same window. The marker on the right is 100% of plan.</p>
+    <div class="chart-thread">
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-attainment" %}
+      {% set messages = (chart_messages or {}).get("chart-attainment", []) %}
+      {% include "partials/thread.html" %}
+    </div>
     {% else %}
     <p class="empty">No budget data available.</p>
     {% endif %}
