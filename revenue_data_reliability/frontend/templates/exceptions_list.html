@@ -68,4 +68,10 @@
     {% endfor %}
   </tbody>
 </table>
+<div class="pagination" style="margin-top:1rem;">
+  {% if offset > 0 %}
+  <a class="btn" href="/exceptions?status={{ status_filter }}&limit={{ limit }}&offset={{ offset - limit }}">Prev</a>
+  {% endif %}
+  <a class="btn" href="/exceptions?status={{ status_filter }}&limit={{ limit }}&offset={{ offset + limit }}">Next</a>
+</div>
 {% endblock %}
