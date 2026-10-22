@@ -261,16 +261,16 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] `README.md` documents `docker compose up` as the local single command
 
 ## 23. Testing
-- [ ] Unit tests for validation rules SQL.
-- [ ] Unit tests for reconciliation math.
-- [ ] Unit tests for agent deterministic computations.
+- [x] Unit tests for validation rules SQL.
+- [x] Unit tests for reconciliation math.
+- [x] Unit tests for agent deterministic computations.
 - [x] Integration tests for routes with Postgres.
 - [ ] Integration test for pipeline happy path.
-- [ ] Test template fallback when LLM unavailable.
+- [x] Test template fallback when LLM unavailable.
 - [x] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
-- [ ] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
+- [x] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
 - [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
-- [ ] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
+- [x] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
 - [x] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
 - [x] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
 - [x] `pytest` (single command) runs all unit and integration tests and exits 0
