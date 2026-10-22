@@ -51,6 +51,7 @@ jobs:
       - name: Upload to R2
         run: uv run python upload.py --scenario "${{ github.event.inputs.scenario_name }}"
       - name: Register scenario via webhook
+        if: ${{ env.APP_URL != '' }}
         run: |
           curl -fsS -X POST "${APP_URL}/api/scenarios/register" \
             -H "X-Webhook-Token: ${WEBHOOK_TOKEN}" \
