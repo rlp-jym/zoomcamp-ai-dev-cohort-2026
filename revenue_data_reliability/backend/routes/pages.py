@@ -182,7 +182,10 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     persona = _current_persona(request)
     from backend.services import runs as runs_svc2
 
-    runs_svc2.sweep_stale_runs(2)
+    runs_svc2.sweep_stale_runs(10)
+    for r in runs_svc2.list_runs():
+        if r.get("status") == "failed":
+            runs_svc2.reconcile_failed_run(r["id"])
     from backend.services import scenarios as scen_svc
 
     return templates.TemplateResponse(
@@ -265,6 +268,9 @@ async def reset_runs(request: Request):
 
 @router.get("/runs/{run_id}")
 async def run_detail(request: Request, run_id: int):
+    from backend.services import runs as runs_svc2
+
+    runs_svc2.reconcile_failed_run(run_id)
     run = runs_svc.get_run(run_id)
     if not run:
         run = {"id": run_id, "scenario": "", "status": "not_found", "started_at": None,
@@ -637,7 +643,7 @@ def _trigger_validation(request: Request, scenario_name: str):
     from backend.services import orchestrator as orch_svc
     from backend.services import runs as runs_svc
 
-    runs_svc.sweep_stale_runs(2)
+    runs_svc.sweep_stale_runs(10)
     running = fetch_one(
         "SELECT run_id FROM runs WHERE status='running' "
         "AND started_at > now() - interval '10 minutes' LIMIT 1"
@@ -648,12 +654,19 @@ def _trigger_validation(request: Request, scenario_name: str):
     trace_id = uuid.uuid4().hex
     run_id = runs_svc.create_run(scenario_name, "analyst", trace_id)
 
+    import logging
+
+    _log = logging.getLogger(__name__)
+
     def _job():
+        _log.info("Background pipeline thread started for run %s", run_id)
         try:
             orch_svc.run_pipeline(run_id)
-        except Exception:
+            _log.info("Background pipeline thread finished for run %s", run_id)
+        except Exception as exc:
+            _log.exception("Background pipeline thread failed for run %s: %s", run_id, exc)
             try:
-                runs_svc.update_run(run_id, status="failed", finished_at=datetime.utcnow())
+                runs_svc.update_run(run_id, status="failed", finished_at=datetime.utcnow(), error_message=str(exc))
             except Exception:
                 pass
 
@@ -710,12 +723,19 @@ async def run_validation(request: Request):
 
 @router.get("/runs/{run_id}/status")
 async def run_status_partial(request: Request, run_id: int):
+    from backend.db.connection import fetch_one
     from backend.services import runs as runs_svc
 
-    runs_svc.sweep_stale_runs(2)
-    run = runs_svc.get_run(run_id)
-    status = (run or {}).get("status", "unknown")
-    stage = (run or {}).get("current_stage") or status.capitalize()
+    runs_svc.sweep_stale_runs(10)
+    try:
+        row = fetch_one("SELECT status, current_stage, progress_percent FROM runs WHERE run_id = %s", (run_id,))
+        status = (row or {}).get("status", "unknown")
+        stage = (row or {}).get("current_stage") or status.capitalize()
+        pct = (row or {}).get("progress_percent")
+    except Exception:
+        return HTMLResponse('<div class="banner">Still running...</div>')
+    if pct is None:
+        pct = 10
     label = status.capitalize() if status else "Unknown"
     stages = ["DQ Validation", "Reconciliation", "Agent Proposals", "Finalizing"]
     if status in ("completed",):

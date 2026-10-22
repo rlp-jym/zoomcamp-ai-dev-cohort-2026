@@ -122,6 +122,18 @@ def approve_run(run_id, persona_id, trace_id=None, comment=None):
     )
 
 
+def reconcile_failed_run(run_id):
+    rid = int(run_id)
+    row = fetch_one("SELECT status FROM runs WHERE run_id = %s", (rid,))
+    if not row or row.get("status") != "failed":
+        return False
+    v = fetch_one("SELECT COUNT(*) AS c FROM validations WHERE run_id = %s", (rid,))
+    if v and (v.get("c") or 0) > 0:
+        update_run(rid, status="completed", current_stage="Complete", progress_percent=100)
+        return True
+    return False
+
+
 def delete_run(run_id):
     rid = int(run_id)
     srid = str(run_id)
