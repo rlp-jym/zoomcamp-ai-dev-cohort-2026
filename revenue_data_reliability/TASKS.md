@@ -349,5 +349,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Refresh the example scenario - "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
+## 28. UI Workflow Enhancements
+- [x] Data generation form (seed, years back) triggering GitHub Actions with status tracking (`generating`/`ready`/`failed`).
+- [x] Generated Datasets table with Validate/Delete actions and HTMX polling on `/runs`.
+- [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
+- [x] Verification that generated seeds inject defects across all rule categories.
+
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS scenarios (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
 
 CREATE TABLE IF NOT EXISTS analysis_scenarios (
     scenario_id          SERIAL PRIMARY KEY,

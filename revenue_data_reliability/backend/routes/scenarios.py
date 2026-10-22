@@ -18,6 +18,14 @@ def _verify_token(request: Request, payload: dict):
     return token == settings.webhook_token
 
 
+@router.delete("/api/scenarios/{scenario_id}")
+async def delete_scenario(scenario_id: str):
+    from backend.services import scenarios as scen_svc
+
+    scen_svc.delete_scenario(scenario_id)
+    return JSONResponse({"status": "deleted", "scenario": scenario_id})
+
+
 @router.post("/api/scenarios/register")
 async def register_scenario(request: Request):
     try:
