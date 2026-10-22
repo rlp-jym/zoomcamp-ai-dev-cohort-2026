@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS scenarios (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS source_scenario TEXT;
+UPDATE scenarios SET source_scenario = name WHERE source_scenario IS NULL;
 
 CREATE TABLE IF NOT EXISTS analysis_scenarios (
     scenario_id          SERIAL PRIMARY KEY,

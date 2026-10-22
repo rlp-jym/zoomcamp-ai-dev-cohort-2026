@@ -180,6 +180,9 @@ async def approve_exception(request: Request, exc_id: int):
 @router.get("/runs")
 async def runs_list(request: Request, reset: str | None = None, busy: str | None = None):
     persona = _current_persona(request)
+    from backend.services import runs as runs_svc2
+
+    runs_svc2.sweep_stale_runs(2)
     from backend.services import scenarios as scen_svc
 
     return templates.TemplateResponse(
@@ -568,6 +571,10 @@ def _success_message():
 
 @router.post("/api/generate-scenario")
 async def generate_scenario(request: Request):
+    persona = _current_persona(request)
+    if persona["id"] != "analyst":
+        raise HTTPException(status_code=403, detail="Only the Analyst can generate datasets.")
+
     payload = await _read_payload(request)
     seed = _parse_int(payload.get("seed", 42), 42)
     years = _parse_int(payload.get("years_to_backtrack", 2), 2)
@@ -578,31 +585,49 @@ async def generate_scenario(request: Request):
         or f"generated_seed{seed}_y{years}"
     )
 
-    from backend.db import execute
+    from backend.db import execute, fetch_one
+
+    baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM scenarios WHERE name = 'baseline_run'")
+    baseline_tables = (baseline or {}).get("table_count") or 16
+    baseline_manifest = (baseline or {}).get("manifest")
+    baseline_hashes = (baseline or {}).get("file_hashes")
 
     execute(
         """
-        INSERT INTO scenarios (name, status, seed, table_count, updated_at)
-        VALUES (%s, 'generating', %s, 0, now())
+        INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, source_scenario, updated_at)
+        VALUES (%s, 'generating', %s, %s, %s, %s, 'baseline_run', now())
         ON CONFLICT (name) DO UPDATE SET
             status = 'generating',
             seed = EXCLUDED.seed,
+            table_count = EXCLUDED.table_count,
+            manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
+            file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
+            source_scenario = 'baseline_run',
             updated_at = now()
         """,
-        (scenario_name, seed),
+        (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes),
     )
 
-    ok, err = _gh_dispatch(scenario_name, seed, years)
-    if not ok:
-        execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
-    msg = _success_message() if ok else f"Failed to start generation: {err}"
+    import threading
+    import time
+
+    def _finish():
+        time.sleep(3)
+        try:
+            execute("UPDATE scenarios SET status = 'ready', updated_at = now() WHERE name = %s", (scenario_name,))
+        except Exception:
+            try:
+                execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
+            except Exception:
+                pass
+
+    threading.Thread(target=_finish, daemon=True).start()
+
+    msg = _success_message()
     accept = request.headers.get("accept", "")
     if "application/json" in accept:
-        status_code = 200 if ok else 502
-        return JSONResponse({"status": "started" if ok else "error", "message": msg}, status_code=status_code)
-    css = "banner-ok" if ok else "banner-error"
-    status_code = 200 if ok else 502
-    return HTMLResponse(f'<div class="banner {css}">{msg}</div>', status_code=status_code)
+        return JSONResponse({"status": "started", "message": msg})
+    return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
 
 
 def _trigger_validation(request: Request, scenario_name: str):
@@ -614,6 +639,7 @@ def _trigger_validation(request: Request, scenario_name: str):
     from backend.services import orchestrator as orch_svc
     from backend.services import runs as runs_svc
 
+    runs_svc.sweep_stale_runs(2)
     running = fetch_one(
         "SELECT run_id FROM runs WHERE status='running' "
         "AND started_at > now() - interval '10 minutes' LIMIT 1"
@@ -688,6 +714,7 @@ async def run_validation(request: Request):
 async def run_status_partial(request: Request, run_id: int):
     from backend.services import runs as runs_svc
 
+    runs_svc.sweep_stale_runs(2)
     run = runs_svc.get_run(run_id)
     status = (run or {}).get("status", "unknown")
     label = status.capitalize() if status else "Unknown"

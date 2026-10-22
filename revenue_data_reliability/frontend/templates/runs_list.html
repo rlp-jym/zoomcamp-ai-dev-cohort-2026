@@ -12,9 +12,10 @@
 <div class="banner banner-error">A pipeline is already running. Wait for it to finish.</div>
 {% endif %}
 
+{% if persona.id == "analyst" %}
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generate New Dataset</h2>
-  <p>Triggers the GitHub Actions generator. Data will appear when ready.</p>
+  <p>Creates a dataset instantly (demo mode). Data will appear when ready.</p>
   <form hx-post="/api/generate-scenario" hx-target="#generate-result" hx-swap="innerHTML">
     <label>Seed: <input type="number" name="seed" value="42" required></label>
     <label>Years to backtrack: <input type="number" name="years_to_backtrack" value="2" min="1" required></label>
@@ -22,6 +23,7 @@
   </form>
   <div id="generate-result"></div>
 </section>
+{% endif %}
 
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generated Datasets</h2>
