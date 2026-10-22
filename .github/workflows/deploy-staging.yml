@@ -5,7 +5,48 @@ on:
     branches: [staging]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rlp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: revenue_data_reliability
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp_test
+      APP_ENV: test
+      R2_ENDPOINT_URL: https://example.invalid
+      R2_ACCESS_KEY_ID: dummy
+      R2_SECRET_ACCESS_KEY: dummy
+      R2_BUCKET: dummy
+      GROQ_API_KEY: ""
+      WEBHOOK_TOKEN: dev-webhook-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Initialize database schema
+        run: uv run python -c "from backend.db import init_pool, apply_schema, seed; from backend.db.fixture import ensure_baseline_fixture; init_pool(); apply_schema(); seed(); ensure_baseline_fixture()"
+      - name: Tests
+        run: uv run pytest -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment: staging
     steps:
