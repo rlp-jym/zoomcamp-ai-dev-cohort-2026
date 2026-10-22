@@ -43,3 +43,31 @@ This is a representative subset intended to prove the platform's capability —
 anchored discussion threads, agent posts, and persona-driven review — rather
 than an exhaustive BI tool. A real-world FP&A dashboard would typically expose
 15-30 KPIs tailored to the specific business, industry, and reporting cadence.
+
+## Traceability: orders → revenue
+
+Revenue flow through the schema:
+
+- **Bookings:** `orders`, `order_lines` (`extended_price = qty_ordered × unit_price`)
+- **Fulfillment:** `shipments`, `shipment_lines` (`qty_shipped`, `freight_cost`); `shipment_lines.order_line_id → order_lines`
+- **Lost revenue:** `backorders` (`lost_sales_value`, `backorder_cost`)
+- **Billings (revenue event):** `invoices`, `invoice_lines` (`line_subtotal = qty_shipped × unit_price`; `line_total = subtotal + freight + tax − discount`); `invoice_lines` has no `order_line_id`
+- **Contra-revenue:** `returns` (`credit_amount`, `return_value`, `margin_loss`); `returns.order_line_id → order_lines`, `returns.shipment_id → shipments`
+- **Cash / DSO:** `ar_ledger` (`outstanding_balance`, `aging_bucket`, `payment_date`); `ar_ledger.invoice_id → invoices` (1:1)
+- **Segments:** `customers` (`segment`, `region`, `activity_tier`), `items` (`category`, `subcategory`, `abc_class`, `lifecycle_stage`, `product_mix`), `distribution_centers` (`region`, `revenue_tier`)
+- **Baseline:** `kpi_budget`
+
+**Revenue formula**
+
+- Gross billings = Σ `invoice_lines.line_subtotal` + `freight_allocated` − `discount_allocated` (exclude `tax_allocated`)
+- Less returns = Σ `returns.credit_amount`
+- **Net revenue = Gross billings − returns**
+
+**Traceability facts**
+
+- Order line → shipment line: **traceable** (`shipment_lines.order_line_id`)
+- Order line → invoice line: **not traceable** (`invoice_lines` has only `invoice_id`, `item_id`)
+- Order line → return: **traceable** (`returns.order_line_id`)
+- Invoice → AR: **1:1 traceable** (`ar_ledger.invoice_id`)
+
+Reconciliation is possible at **header level** (order total vs. invoice total vs. AR) and at **return level** (return vs. order line), but not at invoice-line-to-order-line level. That is the schema's limit and the rule catalog should not chase a link that does not exist.
