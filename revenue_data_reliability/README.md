@@ -90,14 +90,69 @@ Single command (app + Postgres via Docker): `docker compose -f infra/docker-comp
 - `/observability` shows traces, span trees, and linked logs.
 - Pipeline runs are triggered via script only (no in-app Run Pipeline button).
 
+## Problem Statement
+
+B2B distribution revenue data arrives from multiple systems (billing, GL, budget).
+Each run must be validated, reconciled, and reviewed before publication. Data
+issues need to be surfaced, discussed, and resolved by a team of AI agents and
+human reviewers.
+
+## System Functionality
+
+- Ingest synthetic revenue data (Parquet on R2) for a run.
+- Execute 11 DuckDB validation rules over the run's tables.
+- Reconcile billings to the General Ledger at `(period, account_id, item_category)`.
+- Raise exceptions for failed rules and material reconciliation gaps.
+- Run an agent team (Orchestrator, DQ, DE, FA, Controller) that posts to
+  discussion threads with template fallback when no LLM key is set.
+- Manager approves publication; published pointer + quarantine overlay.
+- Observability: OpenTelemetry spans/logs/metrics exported to Postgres with an
+  in-app viewer.
+
+## Expected Behavior
+
+See the "Expected Behavior" section above.
+
+## Demo Flow
+
+1. Start the app: `docker compose -f infra/docker-compose.yml up --build`.
+2. Open http://localhost:8000 — the dashboard is populated by the
+   `baseline_run` fixture.
+3. Switch persona in the header; navigation persists via cookie.
+4. Review `/data-issues`, `/validation`, `/audit`, `/observability`.
+5. Create a Scenario under `/scenarios`.
+6. Run the pipeline via script: `python run_generator.py` (or the scenario
+   generator workflow).
+
+## Two-Phase UI Build
+
+The UI was built in two phases: a skeleton with stub data (§1b) followed by
+wiring to real Postgres/DuckDB data (§19). Template edits between phases are
+expected.
+
+## OpenTelemetry Deviation
+
+Traces, spans, and logs are stored in Postgres and viewed in-app via
+`/observability`. No external Grafana/Jaeger backend is used (SPEC.md §20
+non-goal).
+
 ## Tests
-`pytest` (unit + integration). See `tests/`. Currently 5 smoke tests pass.
+
+Run all tests with a single command:
+
+```bash
+pytest
+```
+
+Unit and integration tests use a Postgres service container (CI) or the local
+Docker Postgres. R2 and Groq calls are mocked.
 
 ## Documentation Links
+
 - Architecture & Scope: `SPEC.md`
-- Metric Definitions & KPI Rationale: `definitions.md`
+- Metric Definitions: `definitions.md`
 - Build Roadmap: `TASKS.md`
-- Backlog Verification: `BACKLOG.md`
 - Agent Skill Definitions: `backend/skills/`
-- Data Generator: `data/README.md` and `data/AGENTS.md`
-- Data Generator Details: `docs/data_generator.md`
+- Data Generator: `data/README.md`, `data/AGENTS.md`
+- Infra: `infra/README.md`, `infra/NEON.md`, `infra/R2.md`, `infra/SECRETS.md`
+- Branching: `_docs/branching-strategy.md`
