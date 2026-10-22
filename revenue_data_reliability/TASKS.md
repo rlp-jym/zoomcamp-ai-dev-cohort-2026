@@ -18,8 +18,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [x] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
-- [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
-- [ ] Root `README.md` updated with project overview + link to `SPEC.md`.
+- [x] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
+- [x] Root `README.md` updated with project overview + link to `SPEC.md`.
 
 ## 1. Repository scaffolding
 - [x] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
@@ -265,7 +265,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Unit tests for reconciliation math.
 - [x] Unit tests for agent deterministic computations.
 - [x] Integration tests for routes with Postgres.
-- [ ] Integration test for pipeline happy path.
+- [x] Integration test for pipeline happy path.
 - [x] Test template fallback when LLM unavailable.
 - [x] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
 - [x] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
@@ -299,7 +299,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
 - [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
-- [ ] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
+- [x] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
 
 ## 26. Reliability fixes — pipeline and agents
 - [x] Pipeline runs off the request thread; a single-run lock returns `/runs?busy=1` instead of double-starting.
@@ -346,7 +346,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
 - [x] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
 - [ ] Optional: structure the projection (horizon + month/value pairs) so the detail page can plot the forecast against the snapshot actuals.
-- [ ] Refresh the example scenario — "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
+- [x] Refresh the example scenario - "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## Non-goals guardrail
