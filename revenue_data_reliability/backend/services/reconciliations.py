@@ -14,6 +14,11 @@ import json
 from backend.config import settings
 from backend.db.connection import execute, execute_many
 from backend.storage.duckdb_client import query_dicts_on
+from backend.storage.scenario_cache import (
+    ensure_local_scenario,
+    localize_sql,
+    scenario_s3_prefix,
+)
 
 RECON_SQL = """
 WITH bill AS (
@@ -52,12 +57,19 @@ def _severity(variance_pct):
     return "medium"
 
 
-def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None):
+def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None,
+                       cache_scenario=None):
     """Compute reconciliation rows, persist them, and open material-gap exceptions."""
     from backend.storage.s3_client import resolve_scenario_name
 
     scenario_name = resolve_scenario_name(scenario_name)
-    sql = RECON_SQL.format(bucket=settings.r2_bucket, scenario=scenario_name)
+    cache_name = cache_scenario or scenario_name
+    ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
+    sql = localize_sql(
+        RECON_SQL.format(bucket=settings.r2_bucket, scenario=scenario_name),
+        scenario_name,
+        cache_name,
+    )
     rows = query_dicts_on(conn, sql)
     tolerance = settings.recon_tolerance_pct
     if latest_period is None:

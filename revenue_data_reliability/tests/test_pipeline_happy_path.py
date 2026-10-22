@@ -15,6 +15,11 @@ def mock_duckdb(monkeypatch):
     fake_conn = MagicMock()
     monkeypatch.setattr("backend.services.orchestrator.open_connection", lambda: fake_conn)
     monkeypatch.setattr("backend.storage.duckdb_client.query_dicts_on", lambda *a, **k: [])
+    # The pipeline's first step downloads the local Parquet cache.  This test
+    # exercises orchestration only, so keep it off the network.
+    monkeypatch.setattr("backend.services.orchestrator.ensure_local_scenario", lambda *a, **k: None)
+    monkeypatch.setattr("backend.services.validations.ensure_local_scenario", lambda *a, **k: None)
+    monkeypatch.setattr("backend.services.reconciliations.ensure_local_scenario", lambda *a, **k: None)
     # Avoid DE/FA hitting the DB for exceptions; log one action each.
     def _de(run_id, trace_id):
         orchestrator._log_action("de", "remediation_proposal", "run", str(run_id), trace_id, {})
@@ -51,3 +56,33 @@ def test_pipeline_happy_path():
     execute("DELETE FROM agent_actions WHERE trace_id = %s", (trace_id,))
     execute("DELETE FROM messages WHERE trace_id = %s", (trace_id,))
     execute("DELETE FROM runs WHERE trace_id = %s", (trace_id,))
+
+
+def test_pipeline_uses_four_progress_stages(monkeypatch):
+    updates = []
+    real_update = runs_svc.update_run
+
+    def record_update(run_id, **fields):
+        if fields.get("current_stage"):
+            updates.append((fields["current_stage"], fields.get("progress_percent")))
+        return real_update(run_id, **fields)
+
+    monkeypatch.setattr(runs_svc, "update_run", record_update)
+
+    trace_id = uuid.uuid4().hex
+    execute(
+        "INSERT INTO runs (scenario_name, status, trace_id) VALUES (%s, %s, %s)",
+        ("baseline_run", "pending", trace_id),
+    )
+    row = fetch_one("SELECT run_id FROM runs WHERE trace_id = %s", (trace_id,))
+    run_id = row["run_id"]
+    try:
+        orchestrator.run_pipeline(run_id)
+        assert updates[:4] == [
+            ("Validation", 25),
+            ("Reconciliation", 50),
+            ("Discussion", 75),
+            ("Complete", 100),
+        ]
+    finally:
+        runs_svc.delete_run(run_id)

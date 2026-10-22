@@ -577,6 +577,13 @@ def _success_message():
     return "Generation started. Data will appear when ready."
 
 
+def _bad_request(request: Request, message: str):
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        return JSONResponse({"status": "error", "message": message}, status_code=400)
+    return HTMLResponse(f'<div class="banner banner-error">{message}</div>', status_code=400)
+
+
 @router.post("/api/generate-scenario")
 async def generate_scenario(request: Request):
     persona = _current_persona(request)
@@ -585,7 +592,12 @@ async def generate_scenario(request: Request):
 
     payload = await _read_payload(request)
     seed = _parse_int(payload.get("seed", 42), 42)
-    years = _parse_int(payload.get("years_to_backtrack", 2), 2)
+    try:
+        years = int(payload.get("years_to_backtrack", 2))
+    except (TypeError, ValueError):
+        return _bad_request(request, "Years to backtrack must be a whole number between 1 and 5.")
+    if not 1 <= years <= 5:
+        return _bad_request(request, "Years to backtrack must be between 1 and 5.")
     scenario_name = (
         payload.get("scenario_name")
         or payload.get("scenario")

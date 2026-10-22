@@ -1,6 +1,8 @@
 """Application entry point."""
 
 import logging
+import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,6 +23,7 @@ from backend.routes import debug, pages, personas, scenarios, threads
 from backend.services.backfill import trigger_backfill
 from backend.services.scheduler import shutdown_scheduler, start_scheduler
 from backend.storage import init_duckdb
+from backend.storage.scenario_cache import ensure_local_scenario, scenario_s3_prefix
 from observability.telemetry import setup_telemetry, shutdown_telemetry
 
 # Ensure templates dir exists (no-op if present)
@@ -28,6 +31,22 @@ TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger(__name__)
+
+
+def _warm_scenario_cache():
+    """Download the canonical 5-year scenario in the background at boot."""
+    try:
+        target = ensure_local_scenario(
+            "baseline_seed9_y5", scenario_s3_prefix("baseline_seed9_y5")
+        )
+        logger.info("Scenario cache warm at %s", target)
+    except Exception as exc:  # never block or crash app startup
+        logger.warning("Scenario cache warmup failed: %s", exc)
+
+
+def _cache_warmup_enabled() -> bool:
+    value = os.getenv("SCENARIO_CACHE_WARMUP", "1").strip().lower()
+    return value not in {"0", "false", "no", "off"}
 
 
 @asynccontextmanager
@@ -61,6 +80,16 @@ async def lifespan(app: FastAPI):
 
     # In-process scheduler (SPEC §6): controller verification + OTEL retention.
     start_scheduler()
+
+    # Warm the local Parquet cache so the first validation does not pay the
+    # S3 download cost.  This is a daemon thread: startup and health checks
+    # stay responsive while the ~400 MB fixture downloads.
+    if _cache_warmup_enabled():
+        threading.Thread(
+            target=_warm_scenario_cache,
+            name="scenario-cache-warmup",
+            daemon=True,
+        ).start()
 
     yield
 

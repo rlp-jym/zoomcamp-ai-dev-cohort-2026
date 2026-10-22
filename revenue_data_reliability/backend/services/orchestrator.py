@@ -14,6 +14,11 @@ from backend.services import runs as runs_svc
 from backend.services import stub_data
 from backend.services import validations as val_svc
 from backend.storage.duckdb_client import open_connection, query_dicts_on
+from backend.storage.scenario_cache import (
+    ensure_local_scenario,
+    localize_sql,
+    scenario_s3_prefix,
+)
 from backend.teams.de import DEAgent
 from backend.teams.fa import FAAgent
 
@@ -49,15 +54,19 @@ def _period_key(value):
     return s
 
 
-def _latest_data_period(conn, scenario_name):
+def _latest_data_period(conn, scenario_name, cache_scenario=None):
     """Return the latest period present in the GL revenue data."""
+    cache_name = cache_scenario or scenario_name
     try:
-        rows = query_dicts_on(
-            conn,
+        ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
+        sql = localize_sql(
             f"SELECT MAX(period) AS period "
             f"FROM read_parquet('s3://{settings.r2_bucket}/scenarios/{scenario_name}/gl_revenue.parquet') "
             f"WHERE version = 1",
+            scenario_name,
+            cache_name,
         )
+        rows = query_dicts_on(conn, sql)
         if rows and rows[0].get("period") is not None:
             return _period_key(rows[0]["period"])
     except Exception:
@@ -161,7 +170,8 @@ def run_pipeline(run_id):
     if not run:
         raise RuntimeError(f"run {run_id} not found")
     trace_id = run["trace_id"] or uuid.uuid4().hex
-    scenario_name = run["scenario"]
+    requested_scenario = run["scenario"]
+    scenario_name = requested_scenario
     try:
         from backend.storage.s3_client import resolve_scenario_name
 
@@ -198,16 +208,31 @@ def run_pipeline(run_id):
     )
 
     try:
-        runs_svc.update_run(run_id, current_stage="Running DQ Validation", progress_percent=20)
+        runs_svc.update_run(run_id, current_stage="Validation", progress_percent=25)
+        # Download once into the scenario cache before any DuckDB query.  The
+        # requested name (not the resolved source) selects the deduplicated
+        # cache folder for generated clones.
+        ensure_local_scenario(requested_scenario, scenario_s3_prefix(scenario_name))
         conn = open_connection()
         try:
-            latest_period = _latest_data_period(conn, scenario_name)
-            results = val_svc.execute_all_rules(conn, run_id, scenario_name)
-            runs_svc.update_run(run_id, current_stage="Reconciliation", progress_percent=40)
-            recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id, latest_period)
+            latest_period = _latest_data_period(
+                conn, scenario_name, cache_scenario=requested_scenario
+            )
+            results = val_svc.execute_all_rules(
+                conn, run_id, scenario_name, cache_scenario=requested_scenario
+            )
+            runs_svc.update_run(run_id, current_stage="Reconciliation", progress_percent=50)
+            recon = recon_svc.run_reconciliation(
+                conn,
+                run_id,
+                scenario_name,
+                trace_id,
+                latest_period,
+                cache_scenario=requested_scenario,
+            )
         finally:
             conn.close()
-        runs_svc.update_run(run_id, current_stage="Agent Proposals (DE)", progress_percent=60)
+        runs_svc.update_run(run_id, current_stage="Discussion", progress_percent=75)
 
         validations_total = len(results)
         validations_failed = sum(1 for r in results if r["status"] != "pass")
@@ -220,14 +245,12 @@ def run_pipeline(run_id):
 
         dq_svc.post_validation_summary(run_id, results, recon, trace_id)
 
-        # Run DE then FA so each stage's progress is observable in the UI.
+        # Both agents stay inside the single "Discussion" stage.
         de_agent = DEAgent()
         de_agent.propose_remediation_for_run(run_id, trace_id)
-        runs_svc.update_run(run_id, current_stage="Agent Impact (FA)", progress_percent=80)
         fa_agent = FAAgent()
         fa_agent.quantify_impact_for_run(run_id, trace_id)
 
-        runs_svc.update_run(run_id, current_stage="Finalizing", progress_percent=100)
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(
             run_id,

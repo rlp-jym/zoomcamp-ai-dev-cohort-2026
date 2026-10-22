@@ -5,6 +5,11 @@ import json
 from backend.config import settings
 from backend.db.connection import execute, fetch_all, fetch_one
 from backend.storage.duckdb_client import query_dicts_on
+from backend.storage.scenario_cache import (
+    ensure_local_scenario,
+    localize_sql,
+    scenario_s3_prefix,
+)
 
 # Short, human labels used for exceptions raised from a failed rule.
 EXCEPTION_TITLES = {
@@ -37,17 +42,20 @@ def _jsonable(v):
     return v
 
 
-def _render_sql(rule_sql, scenario_name):
-    return rule_sql.format(
+def _render_sql(rule_sql, scenario_name, cache_scenario=None):
+    rendered = rule_sql.format(
         bucket=settings.r2_bucket,
         scenario=scenario_name,
         tolerance=settings.recon_tolerance_pct,
     )
+    return localize_sql(rendered, scenario_name, cache_scenario)
 
 
-def run_rule(conn, rule, scenario_name):
+def run_rule(conn, rule, scenario_name, cache_scenario=None):
     """Execute a single rule's SQL and return the raw result rows."""
-    sql = _render_sql(rule["sql"], scenario_name)
+    cache_name = cache_scenario or scenario_name
+    ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
+    sql = _render_sql(rule["sql"], scenario_name, cache_name)
     rows = query_dicts_on(conn, sql)
     count = len(rows)
     sampled = [{c: _jsonable(v) for c, v in row.items()} for row in rows[:10]]
@@ -83,18 +91,22 @@ def store_validation(run_id, result):
     )
 
 
-def execute_all_rules(conn, run_id, scenario_name):
+def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None):
     """Run every seeded rule, persist the results, and return them.
 
     Rules are executed on the shared DuckDB connection so the Parquet files
-    are fetched once per pipeline run rather than once per rule.
+    are fetched once per pipeline run rather than once per rule.  The original
+    scenario name is kept separately for cache-folder selection because
+    generated clones resolve to ``baseline_run`` in S3.
     """
     from backend.storage.s3_client import resolve_scenario_name
 
     scenario_name = resolve_scenario_name(scenario_name)
+    cache_name = cache_scenario or scenario_name
+    ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
     results = []
     for rule in list_rules():
-        result = run_rule(conn, rule, scenario_name)
+        result = run_rule(conn, rule, scenario_name, cache_scenario=cache_name)
         store_validation(run_id, result)
         results.append(result)
     return results
