@@ -150,6 +150,7 @@ Docker Postgres. R2 and Groq calls are mocked.
 ## Documentation Links
 
 - Architecture & Scope: `SPEC.md`
+- Engineering Challenges: `CHALLENGES.md`
 - Metric Definitions: `definitions.md`
 - Build Roadmap: `TASKS.md`
 - Agent Skill Definitions: `backend/skills/`

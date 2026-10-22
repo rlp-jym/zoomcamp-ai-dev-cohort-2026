@@ -25,9 +25,10 @@ class Settings:
         self.gh_token = os.getenv("GH_TOKEN") or None
         self.webhook_token = os.getenv("WEBHOOK_TOKEN", "dev-webhook-token")
         self.persona_cookie = os.getenv("PERSONA_COOKIE_NAME", "persona")
-        # Two threads fit the 512MB container now that the demo window keeps
-        # DuckDB's working set well below the 300MB memory limit.
-        self.duckdb_threads = int(os.getenv("DUCKDB_THREADS", "2"))
+        # One thread is the stable maximum for Render's 512MB container.
+        # Two threads (even with a lower DuckDB limit) push total process
+        # memory over the edge and cause 502s during validation.
+        self.duckdb_threads = int(os.getenv("DUCKDB_THREADS", "1"))
         self.app_env = os.getenv("APP_ENV", "dev")
         # Materiality / tolerance for billings-vs-GL reconciliation.
         # config uses a percentage (0.5 == 0.5%); we store it as a fraction.
