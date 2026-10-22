@@ -20,7 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check for changes
+        id: changes
+        run: |
+          git fetch origin staging
+          count=$(git rev-list --count origin/staging..origin/main)
+          echo "count=$count" >> $GITHUB_OUTPUT
+          if [ "$count" -eq 0 ]; then
+            echo "No new commits on main relative to staging. Skipping."
+          fi
+
       - name: Create PR from main to staging
+        if: steps.changes.outputs.count != '0'
         run: |
           if ! gh pr list --base staging --head main --state open --json number --jq '.[].number' | grep -q .; then
             echo "No open PR found. Creating one..."
@@ -44,7 +55,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check for changes
+        id: changes
+        run: |
+          git fetch origin main
+          count=$(git rev-list --count origin/main..origin/staging)
+          echo "count=$count" >> $GITHUB_OUTPUT
+          if [ "$count" -eq 0 ]; then
+            echo "No new commits on staging relative to main. Skipping."
+          fi
+
       - name: Create PR from staging to main
+        if: steps.changes.outputs.count != '0'
         run: |
           if ! gh pr list --base main --head staging --state open --json number --jq '.[].number' | grep -q .; then
             echo "No open PR found. Creating one..."
