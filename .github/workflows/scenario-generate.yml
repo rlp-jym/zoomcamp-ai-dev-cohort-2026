@@ -19,6 +19,7 @@ jobs:
       run:
         working-directory: revenue_data_reliability
     env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp
       R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
