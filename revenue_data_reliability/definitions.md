@@ -46,6 +46,32 @@ than an exhaustive BI tool. A real-world FP&A dashboard would typically expose
 
 ## Traceability: orders → revenue
 
+```text
+orders -> order_lines                    [BOOKINGS]
+              |  extended_price = qty_ordered x unit_price
+              |
+              +-> shipments -> shipment_lines   [FULFILLMENT]
+              |       |  qty_shipped, freight_cost
+              |       |  shipment_lines.order_line_id -> order_lines
+              |       |
+              |       +-> backorders              [LOST REVENUE]
+              |               lost_sales_value, backorder_cost
+              |
+              +-> invoices -> invoice_lines      [BILLINGS = REVENUE EVENT]
+                      |  line_subtotal = qty_shipped x unit_price
+                      |  line_total = subtotal + freight + tax - discount
+                      |  (invoice_lines has no order_line_id)
+                      |
+                      +-> ar_ledger               [CASH / DSO]
+                      |       outstanding_balance, aging_bucket, payment_date
+                      |
+                      +-> returns                 [CONTRA-REVENUE]
+                              credit_amount, return_value, margin_loss
+                              returns.order_line_id -> order_lines
+                              returns.shipment_id   -> shipments
+```
+
+
 Revenue flow through the schema:
 
 - **Bookings:** `orders`, `order_lines` (`extended_price = qty_ordered × unit_price`)
