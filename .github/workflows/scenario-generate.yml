@@ -19,6 +19,7 @@ jobs:
       run:
         working-directory: revenue_data_reliability
     env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp
       R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -50,6 +51,7 @@ jobs:
       - name: Upload to R2
         run: uv run python upload.py --scenario "${{ github.event.inputs.scenario_name }}"
       - name: Register scenario via webhook
+        if: ${{ env.APP_URL != '' }}
         run: |
           curl -fsS -X POST "${APP_URL}/api/scenarios/register" \
             -H "X-Webhook-Token: ${WEBHOOK_TOKEN}" \
