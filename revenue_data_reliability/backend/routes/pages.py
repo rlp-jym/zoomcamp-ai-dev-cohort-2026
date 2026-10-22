@@ -600,11 +600,16 @@ async def generate_scenario(request: Request):
         baseline_tables = (baseline or {}).get("table_count") or 16
         baseline_manifest = (baseline or {}).get("manifest")
         baseline_hashes = (baseline or {}).get("file_hashes")
+        if baseline_manifest is not None and not isinstance(baseline_manifest, str):
+            baseline_manifest = json.dumps(baseline_manifest)
+        if baseline_hashes is not None and not isinstance(baseline_hashes, str):
+            baseline_hashes = json.dumps(baseline_hashes)
 
         execute(
             """
-            INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, source_scenario, updated_at)
-            VALUES (%s, 'generating', %s, %s, %s, %s, 'baseline_run', now())
+            INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes,
+                                   source_scenario, years_to_backtrack, updated_at)
+            VALUES (%s, 'generating', %s, %s, %s::jsonb, %s::jsonb, 'baseline_run', %s, now())
             ON CONFLICT (name) DO UPDATE SET
                 status = 'generating',
                 seed = EXCLUDED.seed,
@@ -612,9 +617,10 @@ async def generate_scenario(request: Request):
                 manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
                 file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
                 source_scenario = 'baseline_run',
+                years_to_backtrack = EXCLUDED.years_to_backtrack,
                 updated_at = now()
             """,
-            (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes),
+            (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes, years),
         )
 
         execute("UPDATE scenarios SET status = 'ready', updated_at = now() WHERE name = %s", (scenario_name,))

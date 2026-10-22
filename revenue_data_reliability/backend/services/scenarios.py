@@ -17,7 +17,8 @@ def _fmt_dt(value):
 
 def list_scenarios():
     rows = fetch_all(
-        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, created_at "
+        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, "
+        "years_to_backtrack, created_at "
         "FROM scenarios ORDER BY created_at DESC, name"
     )
     out = []
@@ -32,6 +33,7 @@ def list_scenarios():
                 "manifest": r["manifest"],
                 "file_hashes": r["file_hashes"],
                 "source_scenario": r.get("source_scenario") or r["name"],
+                "years_to_backtrack": r.get("years_to_backtrack"),
             }
         )
     return out
@@ -148,8 +150,8 @@ def get_analysis_scenario(scenario_id):
 
 def get_scenario(name):
     r = fetch_one(
-        "SELECT name, status, seed, table_count, manifest, file_hashes, created_at "
-        "FROM scenarios WHERE name = %s",
+        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, "
+        "years_to_backtrack, created_at FROM scenarios WHERE name = %s",
         (name,),
     )
     if not r:
@@ -162,6 +164,8 @@ def get_scenario(name):
         "created_at": _fmt_dt(r["created_at"]),
         "manifest": r["manifest"],
         "file_hashes": r["file_hashes"],
+        "source_scenario": r.get("source_scenario") or r["name"],
+        "years_to_backtrack": r.get("years_to_backtrack"),
     }
 
 
@@ -181,6 +185,17 @@ def register_scenario(payload):
         seed = None
     manifest = payload.get("manifest")
     file_hashes = payload.get("file_hashes")
+    years_to_backtrack = payload.get("years_to_backtrack")
+    try:
+        years_to_backtrack = (
+            int(years_to_backtrack) if years_to_backtrack not in (None, "") else None
+        )
+    except (TypeError, ValueError):
+        years_to_backtrack = None
+    if years_to_backtrack is None:
+        from backend.services.dataset_scale import parse_years_to_backtrack
+
+        years_to_backtrack = parse_years_to_backtrack(name)
     table_count = payload.get("table_count")
     if table_count is None and isinstance(manifest, dict):
         table_count = len(manifest.get("tables", {}))
@@ -194,19 +209,21 @@ def register_scenario(payload):
 
     fetch_one(
         """
-        INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, now())
+        INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes,
+                               years_to_backtrack, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, now())
         ON CONFLICT (name) DO UPDATE SET
             status = EXCLUDED.status,
             seed = COALESCE(EXCLUDED.seed, scenarios.seed),
             table_count = EXCLUDED.table_count,
             manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
             file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
+            years_to_backtrack = COALESCE(EXCLUDED.years_to_backtrack, scenarios.years_to_backtrack),
             updated_at = now()
         RETURNING name
         """,
         (name, status, seed, table_count, json.dumps(manifest) if manifest is not None else None,
-         json.dumps(file_hashes) if file_hashes is not None else None),
+         json.dumps(file_hashes) if file_hashes is not None else None, years_to_backtrack),
     )
     return get_scenario(name)
 

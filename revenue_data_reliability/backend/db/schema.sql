@@ -30,8 +30,12 @@ CREATE TABLE IF NOT EXISTS scenarios (
 );
 ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
 ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS source_scenario TEXT;
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS years_to_backtrack INTEGER;
 UPDATE scenarios SET source_scenario = name WHERE source_scenario IS NULL;
 UPDATE scenarios SET source_scenario = 'baseline_run' WHERE name LIKE 'generated_%' AND source_scenario = name;
+UPDATE scenarios
+SET years_to_backtrack = substring(name from '_y([0-9]+)$')::int
+WHERE years_to_backtrack IS NULL AND name ~ '_y[0-9]+$';
 
 CREATE TABLE IF NOT EXISTS analysis_scenarios (
     scenario_id          SERIAL PRIMARY KEY,
