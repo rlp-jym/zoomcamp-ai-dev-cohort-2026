@@ -244,21 +244,21 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Display approvals and publications.
 
 ## 21. CI/CD (Level 3)
-- [ ] `.github/workflows/test.yml`: lint, unit, integration on PRs and pushes.
-- [ ] `.github/workflows/deploy-staging.yml`: push to `staging`.
-- [ ] `.github/workflows/deploy-prod.yml`: push to `main` with manual approval via GitHub Environments.
-- [ ] `.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.
-- [ ] Integration tests use Postgres service container.
+- [x] `.github/workflows/test.yml`: lint, unit, integration on PRs and pushes.
+- [x] `.github/workflows/deploy-staging.yml`: push to `staging`.
+- [x] `.github/workflows/deploy-prod.yml`: push to `main` with manual approval via GitHub Environments.
+- [x] `.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.
+- [x] Integration tests use Postgres service container.
 - [ ] `main` requires green tests + manual approval.
 
 ## 22. Infra and deployment
-- [ ] `infra/Dockerfile`.
-- [ ] `infra/render.yaml` (or Render config) for staging/prod services.
+- [x] `infra/Dockerfile`.
+- [x] `infra/render.yaml` (or Render config) for staging/prod services.
 - [ ] Neon DB setup docs (staging/prod DBs).
 - [ ] R2 bucket/prefix and lifecycle policy docs.
 - [ ] Secrets documentation.
-- [ ] `infra/docker-compose.yml` runs app + Postgres via `docker compose up`
-- [ ] `README.md` documents `docker compose up` as the local single command
+- [x] `infra/docker-compose.yml` runs app + Postgres via `docker compose up`
+- [x] `README.md` documents `docker compose up` as the local single command
 
 ## 23. Testing
 - [ ] Unit tests for validation rules SQL.
