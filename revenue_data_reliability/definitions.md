@@ -1,5 +1,30 @@
 # Definitions — Revenue Data Reliability Platform
 
+## Revenue
+Recognized revenue recorded in the General Ledger (`gl_revenue.recognized_revenue_amt`)
+at the `(period, account_id, item_category)` grain. Used as the actuals baseline
+for FP&A assessment and target attainment.
+
+## Billings
+Invoice-line subtotals aggregated by period and item category from
+`invoice_lines` joined to `invoices` and `items`. Billings represent the
+amount invoiced to customers before revenue recognition adjustments.
+
+## DSO (Days Sales Outstanding)
+Average number of days to collect payment after a sale. Computed as
+`(Accounts Receivable / Total Credit Sales) * Days in Period`. A lower DSO
+indicates faster collection.
+
+## Fill Rate
+Percentage of customer demand met from available inventory. Computed as
+`Shipped Quantity / Ordered Quantity`. Used to measure supply-chain
+reliability.
+
+## Materiality
+The tolerance threshold (percentage) applied to reconciliation variances.
+Variances above `recon_tolerance_pct` are flagged as failures; those below
+are considered immaterial and pass. Default tolerance is 5%.
+
 ## Dashboard KPI Selection Rationale
 
 The 6 KPIs previously shown on the dashboard (Revenue, Billings, GL Variance %,
@@ -18,50 +43,3 @@ This is a representative subset intended to prove the platform's capability —
 anchored discussion threads, agent posts, and persona-driven review — rather
 than an exhaustive BI tool. A real-world FP&A dashboard would typically expose
 15-30 KPIs tailored to the specific business, industry, and reporting cadence.
-The demo deliberately keeps the set small so the layout, threads, and
-interactions stay reviewable on a single screen.
-
-## Reconciliation Definitions
-
-- **Grain:** `(run_id, period, account_id, item_category)` per GL row, plus a
-  top-N-customer slice where `gl_revenue.customer_id` is populated.
-- **Billings:** sum of `invoice_lines.line_subtotal` attributed to the invoice
-  period (`invoices.invoice_date`, formatted `YYYY-MM`).
-- **GL:** `gl_revenue.recognized_revenue_amt` for the matching grain. Version 1
-  is the baseline; restatements (`version > 1`) are handled by
-  `VAL_RESTATEMENT_DETECTED`, not by reconciliation.
-- **Allocation:** Billings are attributed to `(period, item_category)` by joining
-  `invoice_lines` to the item master. GL is generated from the same per-category
-  billings (scaled by a small per-category bias, then split across accounts), so
-  the two sides reconcile at the category grain. Each category's billings are
-  then expanded across its account rows in proportion to each row's GL share,
-  so every row in a category carries the category-level variance.
-- **Variance %:** `(billings − gl) / gl`.
-- **Status:** `pass` when `|variance_pct| <= tolerance`, otherwise `fail`.
-- **Materiality tolerance:** `RECON_TOLERANCE_PCT` (default `0.5%`, i.e. `0.005`),
-  read from configuration.
-- **Material gap:** a reconciliation row whose status is `fail`; each affected
-  period opens exactly one `reconciliation` exception.
-
-## Dashboard Visuals
-
-The dashboard shows six KPIs, three charts and one assessment card. Each
-visual carries a distinct quantity — the same series is never drawn twice:
-
-- **Revenue, Billings & Plan:** General Ledger revenue (actuals) against
-  billings and the targeted plan over the trailing six months. Forward-looking
-  projections are not shown here -- they are authored and reviewed under
-  Scenarios, which bind to the published run as their baseline.
-- **Variances by Category:** average billing-vs-General-Ledger variance %
-  per item category, from the reconciliation rows of the published run.
-- **Month-over-Month Growth:** month-over-month change in General Ledger
-  revenue for the trailing months.
-- **Target Attainment:** General Ledger revenue as a percentage of the targeted
-  plan for the same window. Shown at the top of the dashboard with no
-  discussion thread -- the same trend is discussed in the trailing 6-month
-  chart.
-- **Billings by Customer Segment:** billings share by customer segment (who
-  buys), shown as bars. Customer segments are independent of item categories
-  (what's sold) -- the variance chart groups by item category, this groups by
-  customer segment. A segment the source system does not recognise is a
-  customer-master mapping drift and is flagged rather than blended into the mix.

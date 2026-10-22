@@ -80,7 +80,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] HTMX-friendly partial responses.
 - [x] Global error handling and structured logging.
 - [x] Health/readiness endpoint.
-- [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
+- [x] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
 ## 5. Observability (OTEL)
 - [x] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB. (DuckDB has no auto-instrumentor; manual `duckdb.query` spans in `backend/storage/duckdb_client.py`.)
@@ -100,7 +100,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 7. Scenarios and scenario creation flow
 - [x] Scenario CRUD service and repository (raw SQL).
 - [x] `/scenarios` route: list + "New Scenario" button (Analyst only).
-- [ ] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
+- [x] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
 - [x] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
 - [x] Store manifest, file hashes, and scenario metadata.
 - [x] Display scenario list with status.
@@ -111,7 +111,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] `/runs` and `/runs/{id}` routes (Analyst, Manager).
 - [x] Run detail thread and approve/reject actions.
 - [x] Orchestrator service: posts "run started", runs pipeline, posts finish.
-- [ ] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
+- [x] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
 - [x] Run status tracking and trace correlation.
 **Done when:** Clicking Run Pipeline creates a run row, posts orchestrator messages to the run thread, and returns a run detail page.
 
@@ -269,7 +269,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Test template fallback when LLM unavailable.
 - [x] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
 - [x] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
-- [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
+- [x] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
 - [x] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
 - [x] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
 - [x] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
@@ -320,7 +320,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 > Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
 
 ### Dashboard — FP&A outputs
-- [ ] Remove Run Pipeline button from dashboard (pipeline runs via script only) — done
+- [x] Remove Run Pipeline button from dashboard (pipeline runs via script only) - done
 - [x] Add Target Attainment Assessment (variance from plan, decomposed by category/segment/region)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
 - [x] Consolidate the FP&A outputs into the chart layer — the four output cards duplicated the charts above them (the General Ledger series was plotted twice, the projection and the growth table were re-cuts of the same revenue series). "Revenue, Billings & Plan" carries actuals, billings and target (no projection — see above); "Month-over-Month Growth" is a diverging bar chart; "Target Attainment" is a progress bar (moved to the top of the page, no thread) plus a "Billings by Customer Segment" bar chart with its own thread. 8 cards → 4.

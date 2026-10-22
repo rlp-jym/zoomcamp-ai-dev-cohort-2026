@@ -105,6 +105,24 @@ def _ensure_discussion(run_id: int):
     )
 
 
+def _ensure_example_scenario():
+    row = fetch_one("SELECT scenario_id FROM analysis_scenarios WHERE title = %s", ("Q3 Target Attainment Sensitivity",))
+    if row:
+        return
+    execute(
+        """
+        INSERT INTO analysis_scenarios (title, outcome, assessment, baseline_run)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (
+            "Q3 Target Attainment Sensitivity",
+            "Revenue projected at 85.5% of target",
+            "Current attainment is 85.5% of target; scenario explores sensitivity to EMEA demand.",
+            "baseline_run",
+        ),
+    )
+
+
 def ensure_baseline_fixture() -> None:
     if os.getenv("SEED_BASELINE_FIXTURE", "1") == "0":
         return
@@ -112,3 +130,4 @@ def ensure_baseline_fixture() -> None:
     run_id = _ensure_baseline_run()
     _ensure_publication(run_id)
     _ensure_discussion(run_id)
+    _ensure_example_scenario()
