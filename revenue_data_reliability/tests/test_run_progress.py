@@ -217,8 +217,8 @@ def test_delete_run_cascades_to_threads_and_results():
             "SELECT * FROM agent_actions WHERE trace_id = %s", (trace_id,)
         ) is None
         assert fetch_one(
-            "SELECT * FROM discussions WHERE anchor_id IN (%s, %s)",
-            (str(run_id), exception_id),
+            "SELECT * FROM discussions WHERE discussion_id IN (%s, %s)",
+            (run_discussion, exc_discussion),
         ) is None
     finally:
         runs_svc.delete_run(run_id)
