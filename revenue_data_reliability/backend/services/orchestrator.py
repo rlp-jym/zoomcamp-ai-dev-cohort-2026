@@ -198,16 +198,16 @@ def run_pipeline(run_id):
     )
 
     try:
-        runs_svc.update_run(run_id, current_stage="Running DQ Validation", progress_percent=10)
+        runs_svc.update_run(run_id, current_stage="Running DQ Validation", progress_percent=20)
         conn = open_connection()
         try:
             latest_period = _latest_data_period(conn, scenario_name)
             results = val_svc.execute_all_rules(conn, run_id, scenario_name)
-            runs_svc.update_run(run_id, current_stage="Reconciliation", progress_percent=30)
+            runs_svc.update_run(run_id, current_stage="Reconciliation", progress_percent=40)
             recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id, latest_period)
         finally:
             conn.close()
-        runs_svc.update_run(run_id, current_stage="Generating Agent Proposals", progress_percent=50)
+        runs_svc.update_run(run_id, current_stage="Agent Proposals (DE)", progress_percent=60)
 
         validations_total = len(results)
         validations_failed = sum(1 for r in results if r["status"] != "pass")
@@ -220,23 +220,14 @@ def run_pipeline(run_id):
 
         dq_svc.post_validation_summary(run_id, results, recon, trace_id)
 
-        # DE + FA are independent; run them concurrently to keep large runs
-        # bounded (each posts one message per open exception, capped).
-        from concurrent.futures import ThreadPoolExecutor
-
+        # Run DE then FA so each stage's progress is observable in the UI.
         de_agent = DEAgent()
+        de_agent.propose_remediation_for_run(run_id, trace_id)
+        runs_svc.update_run(run_id, current_stage="Agent Impact (FA)", progress_percent=80)
         fa_agent = FAAgent()
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            de_future = pool.submit(
-                de_agent.propose_remediation_for_run, run_id, trace_id
-            )
-            fa_future = pool.submit(
-                fa_agent.quantify_impact_for_run, run_id, trace_id
-            )
-            de_future.result()
-            fa_future.result()
+        fa_agent.quantify_impact_for_run(run_id, trace_id)
 
-        runs_svc.update_run(run_id, current_stage="Finalizing and Saving Results", progress_percent=90)
+        runs_svc.update_run(run_id, current_stage="Finalizing", progress_percent=100)
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(
             run_id,

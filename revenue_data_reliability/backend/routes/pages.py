@@ -651,7 +651,6 @@ def _trigger_validation(request: Request, scenario_name: str):
     from backend.services import orchestrator as orch_svc
     from backend.services import runs as runs_svc
 
-    runs_svc.sweep_stale_runs(10)
     running = fetch_one(
         "SELECT run_id FROM runs WHERE status='running' "
         "AND started_at > now() - interval '10 minutes' LIMIT 1"
@@ -713,62 +712,56 @@ async def run_validation(request: Request):
     run_id, err = _trigger_validation(request, str(scenario_name))
     accept = request.headers.get("accept", "")
     if err:
-        html = f'<div class="banner banner-error">{err}</div>'
         if "application/json" in accept:
             return JSONResponse({"status": "busy", "message": err}, status_code=409)
-        return HTMLResponse(html, status_code=409)
-    poll_url = f"/runs/{run_id}/status"
-    html = (
-        f'<div class="banner banner-ok" id="run-status-{run_id}" '
-        f'hx-get="{poll_url}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML">'
-        f'Validation run #{run_id} started for {scenario_name}. Status: Running'
-        f'</div>'
-    )
+        return HTMLResponse(
+            f'<tr><td colspan="6" class="banner banner-error">{err}</td></tr>',
+            status_code=409,
+        )
+
+    from backend.services import runs as runs_svc
+
+    run = runs_svc.get_run(run_id) or {
+        "id": run_id,
+        "scenario": str(scenario_name),
+        "status": "running",
+        "current_stage": "Queued",
+        "progress_percent": 0,
+        "started_at": None,
+        "duration_seconds": None,
+    }
     if "application/json" in accept:
-        return JSONResponse({"status": "running", "run_id": run_id, "scenario": scenario_name, "poll_url": poll_url})
-    return HTMLResponse(html)
+        return JSONResponse(
+            {
+                "status": run.get("status"),
+                "run_id": run_id,
+                "scenario": scenario_name,
+                "poll_url": f"/runs/{run_id}/status",
+            }
+        )
+    return templates.TemplateResponse(
+        request, "partials/run_row.html", {"run": run, "initial": True}
+    )
 
 
 @router.get("/runs/{run_id}/status")
 async def run_status_partial(request: Request, run_id: int):
-    from backend.db.connection import fetch_one
     from backend.services import runs as runs_svc
 
-    runs_svc.sweep_stale_runs(10)
-    try:
-        row = fetch_one("SELECT status, current_stage, progress_percent FROM runs WHERE run_id = %s", (run_id,))
-        status = (row or {}).get("status", "unknown")
-        stage = (row or {}).get("current_stage") or status.capitalize()
-        pct = (row or {}).get("progress_percent")
-    except Exception:
-        return HTMLResponse('<div class="banner">Still running...</div>')
-    if pct is None:
-        pct = 10
-    label = status.capitalize() if status else "Unknown"
-    stages = ["DQ Validation", "Reconciliation", "Agent Proposals", "Finalizing"]
-    if status in ("completed",):
-        pct = 100
-    elif status in ("failed", "rejected"):
-        pct = 100
-    else:
-        if stage in stages:
-            pct = int((stages.index(stage) + 1) / len(stages) * 100)
-        else:
-            pct = 10
-    if status in ("running", "pending"):
-        poll = f'hx-get="/runs/{run_id}/status" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"'
-    else:
-        poll = ""
-    css = "banner-ok" if status == "completed" else ("banner-error" if status in ("failed", "rejected") else "")
-    html = (
-        f'<div class="banner {css}" {poll}>'
-        f'Validation run #{run_id}: {label} — {stage}'
-        f'<div style="background:#eee;border-radius:4px;height:8px;margin-top:4px;">'
-        f'<div style="background:#3b4a7a;height:8px;border-radius:4px;width:{pct}%;"></div>'
-        f'</div>'
-        f'</div>'
-    )
-    return HTMLResponse(html)
+    run = runs_svc.get_run(run_id)
+    if not run:
+        run = {
+            "id": run_id,
+            "scenario": "—",
+            "status": "unknown",
+            "current_stage": "Unknown",
+            "progress_percent": 0,
+            "started_at": None,
+            "duration_seconds": None,
+        }
+    elif run.get("status") in ("completed", "failed", "rejected"):
+        run["progress_percent"] = 100
+    return templates.TemplateResponse(request, "partials/run_row.html", {"run": run})
 
 
 @router.delete("/runs/{run_id}")

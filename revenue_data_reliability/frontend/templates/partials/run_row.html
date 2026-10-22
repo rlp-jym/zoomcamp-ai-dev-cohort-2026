@@ -1,0 +1,21 @@
+<tr id="run-row-{{ run.id }}">
+  <td><a href="/runs/{{ run.id }}">{{ run.id }}</a></td>
+  <td>{{ run.scenario }}</td>
+  <td>{{ run.status }}</td>
+  <td>
+    <div class="progress-bar"><div class="progress-fill" style="width:{{ run.progress_percent or 0 }}%"></div></div>
+    <span class="progress-label">{{ run.current_stage or run.status }}</span>
+  </td>
+  <td>{{ run.started_at or "—" }}</td>
+  <td>
+    {% if run.status in ("running", "queued", "pending", "unknown") %}
+    <div hx-get="/runs/{{ run.id }}/status"
+         hx-trigger="{{ 'load, ' if initial else '' }}every 2s"
+         hx-target="#run-row-{{ run.id }}"
+         hx-swap="outerHTML">
+    </div>
+    {% else %}
+    {% if run.duration_seconds is not none %}{{ run.duration_seconds }}s{% else %}—{% endif %}
+    {% endif %}
+  </td>
+</tr>

@@ -16,8 +16,9 @@ def _fmt_dt(value):
 def create_run(scenario_name, triggered_by, trace_id):
     row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, started_at, triggered_by, trace_id)
-        VALUES (%s, 'running', now(), %s, %s)
+        INSERT INTO runs (scenario_name, status, current_stage, progress_percent,
+                          started_at, triggered_by, trace_id)
+        VALUES (%s, 'running', 'Queued', 0, now(), %s, %s)
         RETURNING run_id
         """,
         (scenario_name, triggered_by, trace_id),
