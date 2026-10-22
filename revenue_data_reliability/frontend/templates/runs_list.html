@@ -24,17 +24,13 @@
 </section>
 
 <section class="card" style="margin-bottom:1.5rem;">
+  <h2>Generated Datasets</h2>
+  {% include "partials/datasets_table.html" %}
+</section>
+
+<section class="card" style="margin-bottom:1.5rem;">
   <h2>Run Validation</h2>
-  <form hx-post="/runs/validate" hx-target="#run-result" hx-swap="innerHTML">
-    <label>Dataset / Scenario:
-      <select name="scenario" required>
-        {% for s in scenarios %}
-        <option value="{{ s.name }}">{{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <button type="submit" class="btn-primary">Run Validation</button>
-  </form>
+  <p>Use the Validate button next to a dataset above to trigger the pipeline.</p>
   <div id="run-result"></div>
 </section>
 

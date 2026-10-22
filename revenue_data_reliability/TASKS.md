@@ -350,8 +350,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## 28. UI Workflow Enhancements
-- [x] Data generation form (seed, years back) triggering GitHub Actions.
-- [x] Validation trigger dropdown and button on the `/runs` page.
+- [x] Data generation form (seed, years back) triggering GitHub Actions with status tracking (`generating`/`ready`/`failed`).
+- [x] Generated Datasets table with Validate/Delete actions and HTMX polling on `/runs`.
 - [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
 - [x] Verification that generated seeds inject defects across all rule categories.
 

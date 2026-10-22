@@ -578,7 +578,23 @@ async def generate_scenario(request: Request):
         or f"generated_seed{seed}_y{years}"
     )
 
+    from backend.db import execute
+
+    execute(
+        """
+        INSERT INTO scenarios (name, status, seed, table_count, updated_at)
+        VALUES (%s, 'generating', %s, 0, now())
+        ON CONFLICT (name) DO UPDATE SET
+            status = 'generating',
+            seed = EXCLUDED.seed,
+            updated_at = now()
+        """,
+        (scenario_name, seed),
+    )
+
     ok, err = _gh_dispatch(scenario_name, seed, years)
+    if not ok:
+        execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
     msg = _success_message() if ok else f"Failed to start generation: {err}"
     accept = request.headers.get("accept", "")
     if "application/json" in accept:
@@ -682,3 +698,13 @@ async def run_status_partial(request: Request, run_id: int):
     css = "banner-ok" if status == "completed" else ("banner-error" if status in ("failed", "rejected") else "")
     html = f'<div class="banner {css}" {poll}>Validation run #{run_id}: {label}</div>'
     return HTMLResponse(html)
+
+
+@router.get("/api/datasets")
+async def datasets_partial(request: Request):
+    from backend.services import scenarios as scen_svc
+
+    scens = scen_svc.list_scenarios()
+    return templates.TemplateResponse(
+        request, "partials/datasets_table.html", _ctx(request, scenarios=scens)
+    )
