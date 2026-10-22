@@ -75,7 +75,7 @@ def call_llm(
                 ],
                 "temperature": temperature,
             },
-            timeout=8.0,
+            timeout=3.0,
         )
         resp.raise_for_status()
         data = resp.json()

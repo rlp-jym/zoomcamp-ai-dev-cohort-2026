@@ -117,3 +117,9 @@ def run_query(sql: str):
 def query_rows(sql: str) -> list[dict]:
     cols, rows = run_query(sql)
     return [dict(zip(cols, r, strict=False)) for r in rows]
+
+
+def resolve_scenario_name(scenario: str) -> str:
+    if str(scenario).startswith("generated_"):
+        return "baseline_run"
+    return scenario
