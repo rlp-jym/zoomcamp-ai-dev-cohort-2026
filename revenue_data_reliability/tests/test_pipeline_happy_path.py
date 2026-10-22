@@ -1,12 +1,13 @@
 """Integration test for pipeline happy path (R2 mocked)."""
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from backend.db.connection import execute, fetch_one
-from backend.services import orchestrator, runs as runs_svc
+from backend.services import orchestrator
+from backend.services import runs as runs_svc
 
 
 @pytest.fixture(autouse=True)

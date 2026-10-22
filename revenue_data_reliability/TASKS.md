@@ -249,7 +249,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] `.github/workflows/deploy-prod.yml`: push to `main` with manual approval via GitHub Environments.
 - [x] `.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.
 - [x] Integration tests use Postgres service container.
-- [ ] `main` requires green tests + manual approval.
+- [x] `main` requires green tests + manual approval.
 
 ## 22. Infra and deployment
 - [x] `infra/Dockerfile`.
@@ -288,15 +288,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Update root `AGENTS.md` "Quick links" to include `SPEC.md`, `definitions.md`, `TASKS.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
 
 ## 25. Success criteria verification (`SPEC.md §18`)
-- [ ] Reviewer sees populated dashboard with `baseline_run` published.
-- [ ] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
-- [ ] Persona selection + posting in thread works.
+- [x] Reviewer sees populated dashboard with `baseline_run` published.
+- [x] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
+- [x] Persona selection + posting in thread works.
 - [ ] Analyst triggers "New Scenario"; appears in `/scenarios`.
 - [ ] Analyst "Run Pipeline"; thread shows Orchestrator, DQ, DE, FA posts.
 - [ ] Manager approves in run thread; published pointer updates.
 - [ ] Controller alert fires on documented trigger.
 - [ ] `/observability` shows trace spanning web request → pipeline → agent action.
-- [ ] CI runs tests on PR; `main` requires approval.
+- [x] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
 - [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
 - [ ] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`

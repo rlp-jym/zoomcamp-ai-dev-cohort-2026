@@ -3,6 +3,7 @@
 import pytest
 
 from backend.services.validations import get_rule
+
 RULE_IDS = [
     "VAL_AR_INVOICE_1TO1",
     "VAL_DUPLICATE_INVOICE_LINE",

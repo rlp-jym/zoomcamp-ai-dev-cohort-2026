@@ -1,7 +1,6 @@
 """Test setup: ensure the Postgres schema exists before tests run."""
 
 from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 
