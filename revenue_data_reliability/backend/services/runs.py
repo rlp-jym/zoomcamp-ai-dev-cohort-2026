@@ -135,12 +135,46 @@ def reconcile_failed_run(run_id):
     return False
 
 
+def _run_anchor_filter():
+    """SQL predicate matching discussions/actions owned by a run.
+
+    Reads the run id from two parameters: the run's own anchor id and the
+    exception ids that belong to the run.
+    """
+    return """
+        (anchor_type = 'run' AND anchor_id = %s)
+        OR (
+            anchor_type = 'exception'
+            AND anchor_id IN (
+                SELECT CAST(exception_id AS TEXT) FROM exceptions WHERE run_id = %s
+            )
+        )
+    """
+
+
 def delete_run(run_id):
     rid = int(run_id)
     srid = str(run_id)
-    execute("DELETE FROM messages WHERE discussion_id IN (SELECT discussion_id FROM discussions WHERE anchor_type = 'run' AND anchor_id = %s)", (srid,))
-    execute("DELETE FROM discussions WHERE anchor_type = 'run' AND anchor_id = %s", (srid,))
-    execute("DELETE FROM agent_actions WHERE anchor_type = 'run' AND anchor_id = %s", (srid,))
+    anchor_filter = _run_anchor_filter()
+    # Remove messages and discussions for the run thread and every exception
+    # thread raised by this run before deleting the exceptions themselves.
+    execute(
+        f"""
+        DELETE FROM messages
+        WHERE discussion_id IN (
+            SELECT discussion_id FROM discussions WHERE {anchor_filter}
+        )
+        """,
+        (srid, rid),
+    )
+    execute(
+        f"DELETE FROM discussions WHERE {anchor_filter}",
+        (srid, rid),
+    )
+    execute(
+        f"DELETE FROM agent_actions WHERE {anchor_filter}",
+        (srid, rid),
+    )
     execute("DELETE FROM validations WHERE run_id = %s", (rid,))
     execute("DELETE FROM exceptions WHERE run_id = %s", (rid,))
     execute("DELETE FROM reconciliations WHERE run_id = %s", (rid,))

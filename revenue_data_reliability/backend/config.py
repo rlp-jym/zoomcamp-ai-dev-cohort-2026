@@ -25,6 +25,7 @@ class Settings:
         self.gh_token = os.getenv("GH_TOKEN") or None
         self.webhook_token = os.getenv("WEBHOOK_TOKEN", "dev-webhook-token")
         self.persona_cookie = os.getenv("PERSONA_COOKIE_NAME", "persona")
+        self.duckdb_threads = int(os.getenv("DUCKDB_THREADS", "2"))
         self.app_env = os.getenv("APP_ENV", "dev")
         # Materiality / tolerance for billings-vs-GL reconciliation.
         # config uses a percentage (0.5 == 0.5%); we store it as a fraction.

@@ -65,6 +65,25 @@ def test_run_row_completed_stops_polling():
     assert "hx-get" not in html
     assert "width:100%" in html
     assert "12s" in html
+    assert 'hx-delete="/runs/8"' in html
+    assert 'hx-target="closest tr"' in html
+    assert 'hx-swap="outerHTML"' in html
+
+
+def test_run_row_active_run_delete_disabled():
+    run = {
+        "id": 9,
+        "scenario": "baseline_run",
+        "status": "running",
+        "current_stage": "Discussion",
+        "progress_percent": 75,
+        "started_at": "2026-10-23 09:00:00",
+        "duration_seconds": None,
+    }
+    html = templates.get_template("partials/run_row.html").render(run=run)
+    assert "disabled" in html
+    assert "Wait for the run to finish" in html
+    assert 'hx-delete="/runs/9"' not in html
 
 
 def test_status_endpoint_returns_row_and_stops_when_completed():
@@ -120,3 +139,86 @@ def test_status_endpoint_unknown_run_still_returns_row():
     assert response.status_code == 200
     assert '<tr id="run-row-999999999">' in response.text
     assert "unknown" in response.text
+
+
+def test_delete_run_cascades_to_threads_and_results():
+    from backend.services import runs as runs_svc
+
+    trace_id = uuid.uuid4().hex
+    run_row = fetch_one(
+        """
+        INSERT INTO runs (scenario_name, status, trace_id)
+        VALUES ('baseline_run', 'completed', %s)
+        RETURNING run_id
+        """,
+        (trace_id,),
+    )
+    run_id = run_row["run_id"]
+    try:
+        exc_row = fetch_one(
+            """
+            INSERT INTO exceptions (run_id, type, severity, title, status, trace_id, rule_id)
+            VALUES (%s, 'validation', 'high', 'test exception', 'open', %s,
+                    'VAL_FK_ITEM_EXISTS')
+            RETURNING exception_id
+            """,
+            (run_id, trace_id),
+        )
+        exception_id = str(exc_row["exception_id"])
+        run_discussion = fetch_one(
+            """
+            INSERT INTO discussions (anchor_type, anchor_id)
+            VALUES ('run', %s) RETURNING discussion_id
+            """,
+            (str(run_id),),
+        )["discussion_id"]
+        exc_discussion = fetch_one(
+            """
+            INSERT INTO discussions (anchor_type, anchor_id)
+            VALUES ('exception', %s) RETURNING discussion_id
+            """,
+            (exception_id,),
+        )["discussion_id"]
+        execute(
+            "INSERT INTO messages (discussion_id, persona_id, content, trace_id) "
+            "VALUES (%s, 'orchestrator', 'run message', %s)",
+            (run_discussion, trace_id),
+        )
+        execute(
+            "INSERT INTO messages (discussion_id, persona_id, content, trace_id) "
+            "VALUES (%s, 'de', 'exception message', %s)",
+            (exc_discussion, trace_id),
+        )
+        execute(
+            "INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id) "
+            "VALUES ('orchestrator', 'run_started', 'run', %s, %s)",
+            (str(run_id), trace_id),
+        )
+        execute(
+            "INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id) "
+            "VALUES ('de', 'remediation_proposal', 'exception', %s, %s)",
+            (exception_id, trace_id),
+        )
+        execute(
+            "INSERT INTO validations (run_id, rule_id, status, summary_count, sampled_failures) "
+            "VALUES (%s, 'VAL_FK_ITEM_EXISTS', 'fail', 1, '[]')",
+            (run_id,),
+        )
+
+        runs_svc.delete_run(run_id)
+
+        assert fetch_one("SELECT * FROM runs WHERE run_id = %s", (run_id,)) is None
+        assert fetch_one("SELECT * FROM exceptions WHERE run_id = %s", (run_id,)) is None
+        assert fetch_one("SELECT * FROM validations WHERE run_id = %s", (run_id,)) is None
+        assert fetch_one(
+            "SELECT * FROM messages WHERE trace_id = %s", (trace_id,)
+        ) is None
+        assert fetch_one(
+            "SELECT * FROM agent_actions WHERE trace_id = %s", (trace_id,)
+        ) is None
+        assert fetch_one(
+            "SELECT * FROM discussions WHERE anchor_id IN (%s, %s)",
+            (str(run_id), exception_id),
+        ) is None
+    finally:
+        runs_svc.delete_run(run_id)

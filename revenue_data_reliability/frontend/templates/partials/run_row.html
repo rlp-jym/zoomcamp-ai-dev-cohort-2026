@@ -18,4 +18,17 @@
     {% if run.duration_seconds is not none %}{{ run.duration_seconds }}s{% else %}—{% endif %}
     {% endif %}
   </td>
+  <td>
+    {% if run.status in ("running", "queued", "pending") %}
+    <button class="btn-danger" type="button" disabled title="Wait for the run to finish">Delete</button>
+    {% else %}
+    <button class="btn-danger"
+            hx-delete="/runs/{{ run.id }}"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-confirm="Delete run {{ run.id }}?">
+      Delete
+    </button>
+    {% endif %}
+  </td>
 </tr>

@@ -70,10 +70,11 @@ def test_exceptions_status_filter_and_trend():
     assert len(test_resolved) == 2, test_resolved
     assert len(all_exc) >= 4
 
-    # Only non-resolved rows are open by default; default list ≤ 20.
+    # Only non-resolved rows are open by default; the service caps the list
+    # at 50 rows per page so multiple scenarios don't render unbounded.
     default_open = exc_svc.list_exceptions()
     assert all(e["status"] != "resolved" for e in default_open)
-    assert len(default_open) <= 20
+    assert len(default_open) <= 50
 
     trend = exc_svc.exception_trend(run_id)
     assert set(trend.keys()) >= {"labels", "detected", "resolved", "open", "cumulative"}

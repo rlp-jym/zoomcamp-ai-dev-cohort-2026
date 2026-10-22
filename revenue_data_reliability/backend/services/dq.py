@@ -6,11 +6,9 @@ by a template for now; an LLM call can be layered on later without changing
 the numbers.
 """
 
-import json
-
-from backend.db.connection import execute
 from backend.services import messages as msg_svc
 from backend.services import stub_data
+from backend.services.write_buffer import record_action
 
 
 def build_summary(results, recon=None):
@@ -47,24 +45,16 @@ def post_validation_summary(run_id, results, recon=None, trace_id=None):
         trace_id=trace_id,
         evidence={"failed_rules": [r["rule_id"] for r in results if r["status"] != "pass"]},
     )
-    execute(
-        """
-        INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id, payload)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        (
-            "dq",
-            "validation_summary",
-            "run",
-            str(run_id),
-            trace_id,
-            json.dumps(
-                {
-                    "total": len(results),
-                    "failed": [r["rule_id"] for r in results if r["status"] != "pass"],
-                    "reconciliation": recon,
-                }
-            ),
-        ),
+    record_action(
+        "dq",
+        "validation_summary",
+        "run",
+        run_id,
+        trace_id,
+        {
+            "total": len(results),
+            "failed": [r["rule_id"] for r in results if r["status"] != "pass"],
+            "reconciliation": recon,
+        },
     )
     return content

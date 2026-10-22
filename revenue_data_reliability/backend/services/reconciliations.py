@@ -57,9 +57,8 @@ def _severity(variance_pct):
     return "medium"
 
 
-def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None,
-                       cache_scenario=None):
-    """Compute reconciliation rows, persist them, and open material-gap exceptions."""
+def compute_reconciliation(conn, scenario_name, cache_scenario=None):
+    """Run the reconciliation scan once and return every grain."""
     from backend.storage.s3_client import resolve_scenario_name
 
     scenario_name = resolve_scenario_name(scenario_name)
@@ -70,7 +69,11 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period
         scenario_name,
         cache_name,
     )
-    rows = query_dicts_on(conn, sql)
+    return query_dicts_on(conn, sql)
+
+
+def persist_reconciliation(run_id, rows, trace_id=None, latest_period=None):
+    """Persist reconciliation rows and open material-gap exceptions."""
     tolerance = settings.recon_tolerance_pct
     if latest_period is None:
         try:
@@ -78,9 +81,20 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period
         except Exception:
             latest_period = None
 
-    # Idempotent re-run for this run.
-    execute("DELETE FROM exceptions WHERE run_id = %s AND type = 'reconciliation'", (run_id,))
-    execute("DELETE FROM reconciliations WHERE run_id = %s", (run_id,))
+    # Idempotent re-run for this run; both deletes share one round trip.
+    execute(
+        """
+        WITH deleted_exceptions AS (
+            DELETE FROM exceptions
+            WHERE run_id = %s AND type = 'reconciliation'
+            RETURNING 1
+        ), deleted_reconciliations AS (
+            DELETE FROM reconciliations WHERE run_id = %s RETURNING 1
+        )
+        SELECT 1
+        """,
+        (run_id, run_id),
+    )
 
     recon_params = []
     by_period = {}
@@ -194,7 +208,16 @@ def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period
         "passed": passed,
         "failed": failed,
         "exceptions_created": len(exc_params),
+        "open_exceptions": sum(1 for p in exc_params if p[5] == "open"),
     }
+
+
+def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None,
+                       cache_scenario=None, rows=None):
+    """Compute and persist reconciliation in one call (backwards compatible)."""
+    if rows is None:
+        rows = compute_reconciliation(conn, scenario_name, cache_scenario)
+    return persist_reconciliation(run_id, rows, trace_id, latest_period)
 
 
 def list_reconciliations(run_id):

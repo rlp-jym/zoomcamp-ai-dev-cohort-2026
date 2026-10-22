@@ -5,11 +5,10 @@ Every agent (Orchestrator, DQ, DE, FA, Controller) inherits from
 ``agent_actions`` table, correlated by ``trace_id``.
 """
 
-import json
 from typing import Any
 
-from backend.db.connection import execute
 from backend.services import stub_data
+from backend.services.write_buffer import record_action
 
 
 class BaseAgent:
@@ -50,18 +49,11 @@ class BaseAgent:
             trace_id: Distributed trace identifier for correlation.
             payload: Optional dict serialised to JSONB.
         """
-        execute(
-            """
-            INSERT INTO agent_actions
-                (agent_id, action, anchor_type, anchor_id, trace_id, payload)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                self.agent_id,
-                action,
-                anchor_type,
-                str(anchor_id),
-                trace_id,
-                json.dumps(payload, default=str) if payload is not None else None,
-            ),
+        record_action(
+            self.agent_id,
+            action,
+            anchor_type,
+            anchor_id,
+            trace_id,
+            payload,
         )

@@ -41,13 +41,13 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Progress</th><th>Started</th><th>Duration</th></tr>
+    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Progress</th><th>Started</th><th>Duration</th><th>Actions</th></tr>
   </thead>
   <tbody id="runs-tbody">
     {% for run in runs %}
     {% include "partials/run_row.html" %}
     {% else %}
-    <tr><td colspan="6" class="empty">No runs yet.</td></tr>
+    <tr><td colspan="7" class="empty">No runs yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from backend.db.connection import execute, fetch_all, fetch_one
 from backend.services import stub_data
+from backend.services.write_buffer import current_buffer
 
 
 def _fmt_dt(value):
@@ -112,15 +113,36 @@ def get_messages_for_threads(anchor_type, anchor_ids):
 
 
 def post_message(anchor_type, anchor_id, persona, content, trace_id=None, evidence=None):
-    did = _ensure_discussion(anchor_type, anchor_id)
     persona_id = persona["id"] if isinstance(persona, dict) else persona
-    execute(
-        """
-        INSERT INTO messages (discussion_id, persona_id, content, trace_id, evidence)
-        VALUES (%s, %s, %s, %s, %s)
-        """,
-        (did, persona_id, content, trace_id, json.dumps(evidence) if evidence is not None else None),
-    )
+    buffer = current_buffer()
+    if buffer is not None:
+        buffer.add_message(anchor_type, anchor_id, persona_id, content, trace_id, evidence)
+    else:
+        evidence_json = json.dumps(evidence) if evidence is not None else None
+        # One round trip creates the discussion on first use and appends the
+        # message; the old upsert + insert pair doubled Neon latency here.
+        execute(
+            """
+            WITH d AS (
+                INSERT INTO discussions (anchor_type, anchor_id)
+                VALUES (%s, %s)
+                ON CONFLICT (anchor_type, anchor_id)
+                DO UPDATE SET anchor_type = EXCLUDED.anchor_type
+                RETURNING discussion_id
+            )
+            INSERT INTO messages
+                (discussion_id, persona_id, content, trace_id, evidence)
+            SELECT discussion_id, %s, %s, %s, %s FROM d
+            """,
+            (
+                anchor_type,
+                str(anchor_id),
+                persona_id,
+                content,
+                trace_id,
+                evidence_json,
+            ),
+        )
     persona_obj = stub_data.get_persona(persona_id) if persona_id else None
     title = persona_obj["title"] if persona_obj else persona_id
     is_agent = (persona_obj["type"] == "agent") if persona_obj else False

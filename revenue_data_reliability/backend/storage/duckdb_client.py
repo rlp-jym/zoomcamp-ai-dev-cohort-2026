@@ -6,6 +6,11 @@ span tree readable in ``/observability`` without leaking credentials (the
 S3 connection ``SET`` commands are never traced).
 """
 
+import os
+import tempfile
+import threading
+import uuid
+from pathlib import Path
 from urllib.parse import urlparse
 
 import duckdb
@@ -14,6 +19,23 @@ from opentelemetry import trace
 from backend.config import settings
 
 _TRACER = trace.get_tracer("backend.duckdb")
+_temp_state = threading.local()
+
+
+def _temp_directory() -> str:
+    """Return a thread-local DuckDB spill directory.
+
+    Concurrent DuckDB connections otherwise share the default ``.tmp`` folder
+    and can race while deleting spill files.  One directory per thread keeps
+    the pipeline and the dashboard scheduler isolated.
+    """
+    path = getattr(_temp_state, "path", None)
+    if path is None:
+        root = Path(tempfile.gettempdir()) / "revenue_duckdb"
+        path = root / f"{os.getpid()}-{uuid.uuid4().hex}"
+        path.mkdir(parents=True, exist_ok=True)
+        _temp_state.path = path
+    return path.as_posix()
 
 
 def _normalized_host() -> str:
@@ -25,9 +47,11 @@ def _normalized_host() -> str:
 
 def _configure(conn) -> None:
     # Keep DuckDB within Render's 512MB container limit.
-    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("SET memory_limit = '350MB';")
     conn.execute("PRAGMA disable_object_cache;")
-    conn.execute("SET threads = 1;")
+    conn.execute(f"SET threads = {settings.duckdb_threads};")
+    temp_dir = _temp_directory().replace("'", "''")
+    conn.execute(f"SET temp_directory = '{temp_dir}';")
     host = _normalized_host()
     conn.execute("LOAD httpfs;")
     conn.execute(f"SET s3_endpoint='{host}';")
@@ -40,9 +64,9 @@ def _configure(conn) -> None:
 def verify_httpfs() -> None:
     """Install + load httpfs at startup; fail loudly if unavailable."""
     conn = duckdb.connect()
-    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("SET memory_limit = '350MB';")
     conn.execute("PRAGMA disable_object_cache;")
-    conn.execute("SET threads = 1;")
+    conn.execute(f"SET threads = {settings.duckdb_threads};")
     try:
         conn.execute("INSTALL httpfs;")
     except Exception:
@@ -68,9 +92,9 @@ def open_connection():
     S3 for every rule in a pipeline run.
     """
     conn = duckdb.connect()
-    conn.execute("SET memory_limit = '200MB';")
+    conn.execute("SET memory_limit = '350MB';")
     conn.execute("PRAGMA disable_object_cache;")
-    conn.execute("SET threads = 1;")
+    conn.execute(f"SET threads = {settings.duckdb_threads};")
     try:
         conn.execute("INSTALL httpfs;")
     except Exception:

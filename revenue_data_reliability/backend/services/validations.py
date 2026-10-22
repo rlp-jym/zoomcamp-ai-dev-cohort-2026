@@ -1,15 +1,19 @@
 """Validation rule execution service (DuckDB over Parquet + Postgres results)."""
 
 import json
+import logging
+import time
 
 from backend.config import settings
-from backend.db.connection import execute, fetch_all, fetch_one
+from backend.db.connection import execute, execute_many, fetch_all, fetch_one
 from backend.storage.duckdb_client import query_dicts_on
 from backend.storage.scenario_cache import (
     ensure_local_scenario,
     localize_sql,
     scenario_s3_prefix,
 )
+
+logger = logging.getLogger(__name__)
 
 # Short, human labels used for exceptions raised from a failed rule.
 EXCEPTION_TITLES = {
@@ -51,12 +55,8 @@ def _render_sql(rule_sql, scenario_name, cache_scenario=None):
     return localize_sql(rendered, scenario_name, cache_scenario)
 
 
-def run_rule(conn, rule, scenario_name, cache_scenario=None):
-    """Execute a single rule's SQL and return the raw result rows."""
-    cache_name = cache_scenario or scenario_name
-    ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
-    sql = _render_sql(rule["sql"], scenario_name, cache_name)
-    rows = query_dicts_on(conn, sql)
+def _result_from_rows(rule, rows):
+    """Build the standard rule result payload from already-fetched rows."""
     count = len(rows)
     sampled = [{c: _jsonable(v) for c, v in row.items()} for row in rows[:10]]
     return {
@@ -69,6 +69,29 @@ def run_rule(conn, rule, scenario_name, cache_scenario=None):
         "sampled_failures": sampled,
         "rows": rows,
     }
+
+
+def run_rule(conn, rule, scenario_name, cache_scenario=None):
+    """Execute a single rule's SQL and return the raw result rows."""
+    cache_name = cache_scenario or scenario_name
+    ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
+    sql = _render_sql(rule["sql"], scenario_name, cache_name)
+    query_start = time.perf_counter()
+    rows = query_dicts_on(conn, sql)
+    logger.info(
+        "Validation rule %s: %.2fs (%d row(s))",
+        rule["rule_id"],
+        time.perf_counter() - query_start,
+        len(rows),
+    )
+    return _result_from_rows(rule, rows)
+
+
+def result_from_recon_rows(rule, rows):
+    """Build VAL_RECON_BILLINGS_GL from a shared reconciliation scan."""
+    tolerance = settings.recon_tolerance_pct
+    failed = [row for row in rows if abs(float(row["variance_pct"])) > tolerance]
+    return _result_from_rows(rule, failed)
 
 
 def store_validation(run_id, result):
@@ -91,13 +114,38 @@ def store_validation(run_id, result):
     )
 
 
-def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None):
+def store_validations(run_id, results):
+    """Persist every rule result for a run in one round trip."""
+    execute_many(
+        """
+        INSERT INTO validations (run_id, rule_id, status, summary_count, sampled_failures)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (run_id, rule_id) DO UPDATE SET
+            status = EXCLUDED.status,
+            summary_count = EXCLUDED.summary_count,
+            sampled_failures = EXCLUDED.sampled_failures
+        """,
+        [
+            (
+                run_id,
+                result["rule_id"],
+                result["status"],
+                result["summary_count"],
+                json.dumps(result["sampled_failures"], default=str),
+            )
+            for result in results
+        ],
+    )
+
+
+def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None, recon_rows=None):
     """Run every seeded rule, persist the results, and return them.
 
     Rules are executed on the shared DuckDB connection so the Parquet files
     are fetched once per pipeline run rather than once per rule.  The original
     scenario name is kept separately for cache-folder selection because
-    generated clones resolve to ``baseline_run`` in S3.
+    generated clones resolve to ``baseline_run`` in S3.  ``recon_rows`` lets
+    the caller reuse the reconciliation scan for ``VAL_RECON_BILLINGS_GL``.
     """
     from backend.storage.s3_client import resolve_scenario_name
 
@@ -106,9 +154,12 @@ def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None):
     ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
     results = []
     for rule in list_rules():
-        result = run_rule(conn, rule, scenario_name, cache_scenario=cache_name)
-        store_validation(run_id, result)
-        results.append(result)
+        if rule["rule_id"] == "VAL_RECON_BILLINGS_GL" and recon_rows is not None:
+            results.append(result_from_recon_rows(rule, recon_rows))
+            logger.info("Validation rule %s: reused reconciliation scan", rule["rule_id"])
+            continue
+        results.append(run_rule(conn, rule, scenario_name, cache_scenario=cache_name))
+    store_validations(run_id, results)
     return results
 
 
