@@ -42,6 +42,7 @@ def _row_to_msg(r):
         except Exception:
             pass
     return {
+        "message_id": r.get("message_id"),
         "persona_id": r["persona_id"],
         "persona_title": title,
         "is_agent": is_agent,
@@ -144,6 +145,10 @@ def delete_discussion(discussion_id):
     did = int(discussion_id)
     execute("DELETE FROM messages WHERE discussion_id = %s", (did,))
     execute("DELETE FROM discussions WHERE discussion_id = %s", (did,))
+
+
+def delete_message(message_id):
+    execute("DELETE FROM messages WHERE message_id = %s", (int(message_id),))
 
 
 def delete_discussion_by_anchor(anchor_type, anchor_id):

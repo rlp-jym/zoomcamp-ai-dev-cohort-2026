@@ -15,7 +15,7 @@
 {% if persona.id == "analyst" %}
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generate New Dataset</h2>
-  <p>Creates a dataset instantly (demo mode). Data will appear when ready.</p>
+  <p>Creates a dataset instantly. Data will appear when ready.</p>
   <form hx-post="/api/generate-scenario" hx-target="#generate-result" hx-swap="innerHTML">
     <label>Seed: <input type="number" name="seed" value="42" required></label>
     <label>Years to backtrack: <input type="number" name="years_to_backtrack" value="2" min="1" required></label>

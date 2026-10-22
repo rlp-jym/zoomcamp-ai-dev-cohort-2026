@@ -1,19 +1,17 @@
 <div id="thread-{{ anchor_type }}-{{ anchor_id }}" class="thread">
-  <div class="thread-actions" style="text-align:right;margin-bottom:0.5rem;">
-    <button class="btn-danger btn-sm"
-            hx-delete="/threads/{{ anchor_type }}/{{ anchor_id }}"
-            hx-target="#thread-{{ anchor_type }}-{{ anchor_id }}"
-            hx-swap="outerHTML"
-            hx-confirm="Delete this thread?">
-      Delete Thread
-    </button>
-  </div>
   <div class="thread-messages">
     {% for m in messages %}
       <div class="message {% if m.is_agent %}agent{% endif %}">
         <div class="message-meta">
           <span class="badge badge-{{ 'agent' if m.is_agent else 'human' }}">{{ m.persona_title }}</span>
           <span class="ts">{{ m.created_at }}</span>
+          <button class="btn-danger btn-sm"
+                  hx-delete="/api/messages/{{ m.message_id }}"
+                  hx-target="closest .message"
+                  hx-swap="outerHTML"
+                  hx-confirm="Delete this message?">
+            Delete
+          </button>
         </div>
         <div class="message-body">{{ m.content }}</div>
         {% if m.evidence %}

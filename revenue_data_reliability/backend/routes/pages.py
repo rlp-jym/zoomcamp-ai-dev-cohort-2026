@@ -587,47 +587,45 @@ async def generate_scenario(request: Request):
 
     from backend.db import execute, fetch_one
 
-    baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM scenarios WHERE name = 'baseline_run'")
-    baseline_tables = (baseline or {}).get("table_count") or 16
-    baseline_manifest = (baseline or {}).get("manifest")
-    baseline_hashes = (baseline or {}).get("file_hashes")
+    try:
+        baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM scenarios WHERE name = 'baseline_run'")
+        baseline_tables = (baseline or {}).get("table_count") or 16
+        baseline_manifest = (baseline or {}).get("manifest")
+        baseline_hashes = (baseline or {}).get("file_hashes")
 
-    execute(
-        """
-        INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, source_scenario, updated_at)
-        VALUES (%s, 'generating', %s, %s, %s, %s, 'baseline_run', now())
-        ON CONFLICT (name) DO UPDATE SET
-            status = 'generating',
-            seed = EXCLUDED.seed,
-            table_count = EXCLUDED.table_count,
-            manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
-            file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
-            source_scenario = 'baseline_run',
-            updated_at = now()
-        """,
-        (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes),
-    )
+        execute(
+            """
+            INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes, source_scenario, updated_at)
+            VALUES (%s, 'generating', %s, %s, %s, %s, 'baseline_run', now())
+            ON CONFLICT (name) DO UPDATE SET
+                status = 'generating',
+                seed = EXCLUDED.seed,
+                table_count = EXCLUDED.table_count,
+                manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
+                file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
+                source_scenario = 'baseline_run',
+                updated_at = now()
+            """,
+            (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes),
+        )
 
-    import threading
-    import time
+        execute("UPDATE scenarios SET status = 'ready', updated_at = now() WHERE name = %s", (scenario_name,))
 
-    def _finish():
-        time.sleep(3)
+        msg = _success_message()
+        accept = request.headers.get("accept", "")
+        if "application/json" in accept:
+            return JSONResponse({"status": "ready", "message": msg})
+        return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
+    except Exception as exc:
         try:
-            execute("UPDATE scenarios SET status = 'ready', updated_at = now() WHERE name = %s", (scenario_name,))
+            execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
         except Exception:
-            try:
-                execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
-            except Exception:
-                pass
-
-    threading.Thread(target=_finish, daemon=True).start()
-
-    msg = _success_message()
-    accept = request.headers.get("accept", "")
-    if "application/json" in accept:
-        return JSONResponse({"status": "started", "message": msg})
-    return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
+            pass
+        err_msg = f"Failed to generate dataset: {exc}"
+        accept = request.headers.get("accept", "")
+        if "application/json" in accept:
+            return JSONResponse({"status": "error", "message": err_msg}, status_code=500)
+        return HTMLResponse(f'<div class="banner banner-error">{err_msg}</div>', status_code=500)
 
 
 def _trigger_validation(request: Request, scenario_name: str):
@@ -740,6 +738,14 @@ async def delete_discussion_endpoint(request: Request, discussion_id: int):
     from backend.services import messages as msg_svc
 
     msg_svc.delete_discussion(discussion_id)
+    return HTMLResponse("")
+
+
+@router.delete("/api/messages/{message_id}")
+async def delete_message_endpoint(request: Request, message_id: int):
+    from backend.services import messages as msg_svc
+
+    msg_svc.delete_message(message_id)
     return HTMLResponse("")
 
 
