@@ -38,8 +38,11 @@ CREATE TABLE IF NOT EXISTS analysis_scenarios (
     open_issues          INTEGER,
     source_anchor_type   TEXT,
     source_anchor_id     TEXT,
+    baseline_snapshot    JSONB,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE analysis_scenarios ADD COLUMN IF NOT EXISTS baseline_snapshot JSONB;
 
 CREATE TABLE IF NOT EXISTS runs (
     run_id               SERIAL PRIMARY KEY,

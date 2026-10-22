@@ -19,6 +19,7 @@ EXCEPTION_TITLES = {
     "VAL_FK_RETURN_SHIPMENT": "Phantom return shipment",
     "VAL_AR_INVOICE_1TO1": "AR invoice 1:1 invariant",
     "VAL_ORDER_LINE_UNIQUE": "Order line uniqueness invariant",
+    "VAL_SEGMENT_DRIFT": "Unrecognised customer segment",
 }
 
 

@@ -27,13 +27,17 @@ def make_manufacturers(n: int, rng: np.random.Generator) -> pd.DataFrame:
     })
 
 
-def make_distribution_centers(n: int, rng: np.random.Generator) -> pd.DataFrame:
+def make_distribution_centers(n: int, rng: np.random.Generator, drift: dict | None = None) -> pd.DataFrame:
     ids = np.arange(1, n + 1)
     regions = rng.choice(["North", "South", "East", "West"], size=n)
     ownership = rng.choice(["owned", "leased"], size=n)
     if n > 0:
         ownership = ownership.copy()
         ownership[0] = "leased" if ownership[0] == "owned" else "owned"
+    if drift and n > 0:
+        n_changes = int(drift.get("dc_ownership_changes", 0))
+        for i in range(min(n_changes, n)):
+            ownership[i] = "leased" if ownership[i] == "owned" else "owned"
     return pd.DataFrame({
         "dc_id": ids,
         "dc_name": [f"DC {i}" for i in ids],
@@ -57,7 +61,8 @@ def make_distribution_centers(n: int, rng: np.random.Generator) -> pd.DataFrame:
     })
 
 
-def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame) -> pd.DataFrame:
+def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame,
+               drift: dict | None = None) -> pd.DataFrame:
     ids = np.arange(1, n + 1)
     cats = rng.choice(["Electronics", "Industrial", "Office", "Safety", "Misc"], size=n)
     subcats = rng.choice(["A", "B", "C"], size=n)
@@ -66,9 +71,18 @@ def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame) ->
     xyz = rng.choice(["X", "Y", "Z"], size=n)
     lifecycle = rng.choice(["active", "active", "active", "retired"], size=n)
     sku = [f"SKU-{i:06d}" for i in ids]
-    if n >= 2:
-        sku[0] = "SKU-RENAMED-1"
-        sku[1] = "SKU-RENAMED-2"
+    if drift:
+        n_renames = int(drift.get("sku_renames", 0))
+        for i in range(min(n_renames, n)):
+            sku[i] = f"SKU-RENAMED-{i + 1}"
+        n_retirements = int(drift.get("sku_retirements", 0))
+        for i in range(min(n_retirements, n)):
+            if i < len(lifecycle):
+                lifecycle[i] = "retired"
+    else:
+        if n >= 2:
+            sku[0] = "SKU-RENAMED-1"
+            sku[1] = "SKU-RENAMED-2"
     cats = np.array(cats)
     if n >= 2:
         cats[0] = "RemappedCat"
@@ -231,9 +245,10 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
 
 def generate_dimensions(cfg: dict, rng: np.random.Generator) -> dict:
     scale = cfg["scale"]
+    drift = cfg.get("dimension_drift", {})
     manufacturers = make_manufacturers(int(scale["manufacturers"]), rng)
-    dcs = make_distribution_centers(int(scale["distribution_centers"]), rng)
-    items = make_items(int(scale["items"]), rng, manufacturers)
+    dcs = make_distribution_centers(int(scale["distribution_centers"]), rng, drift)
+    items = make_items(int(scale["items"]), rng, manufacturers, drift)
     customers = make_customers(cfg, rng, dcs)
     return {
         "manufacturers": manufacturers,

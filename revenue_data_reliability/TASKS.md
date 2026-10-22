@@ -313,8 +313,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Reduce per-run wall time further (currently ~286s for `baseline_run`; dominated by remote DB round-trip latency).
 - [x] Exception lifecycle: only the latest data period stays `open`; earlier periods are inserted as `resolved` (auto-closed within period) so the list is a pending work queue. Validation and recon both honour this.
 - [x] `/exceptions` filters by status (default `open`) with counts; trend chart (detected / resolved / open backlog / cumulative-if-unresolved) on the page.
-- [ ] Dashboard's `open_exceptions` series removed (it grouped by `created_at` and mismatched month labels); current open count remains a KPI.
-- [ ] Reset should also delete anchor discussions for removed exceptions/analysis (currently leaves orphan threads).
+- [x] Dashboard's `open_exceptions` series removed (it grouped by `created_at` and mismatched month labels); current open count remains a KPI.
+- [x] Reset should also delete anchor discussions for removed exceptions/analysis (currently leaves orphan threads).
 
 ## 27. FP&A dashboard outputs and sensitivity scenarios
 > Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
@@ -327,8 +327,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Drop Revenue Concentration Risk card — the generator spreads billings uniformly across ~440 customers, so the top 5 hold 1.9% of billings and differ by 3%; the card asserted a risk that the data does not contain. Segment mix (a real, visible distribution) is kept in the attainment card instead.
 - [x] Flag unrecognised customer segments — the customer master contains a segment the source system does not recognise (a mapping drift). It is rendered in red and labelled "unrecognised" in the segment-mix strip rather than blended into the normal mix. Root cause: numpy truncated the intended `remapped_segment` label to `remapped_s` (fixed-width `<U10` string array) — fixed in `data/dimensions.py` by drawing the segment array as `dtype=object`.
 - [x] Remove the KPI card grid in favour of charts + threads — the six KPIs (Revenue, Billings, GL Variance %, Open Exceptions, DQ Pass Rate, Published Runs) are snapshots with no discussion value. Open Exceptions survives as a threadless stat strip (a reminder that current numbers still have pending exceptions); the other five already have natural homes (charts, /runs, /exceptions). Each chart card now carries its own discussion thread (chart-revenue-plan, chart-variance-category, chart-growth, chart-attainment). Orphaned `kpi-*` discussion rows stay in the DB but are no longer rendered.
-- [ ] Surface the segment-mapping drift as a validation exception, not only as a dashboard strip. There is no rule covering an unrecognised customer segment today (the drift is visible only through the segment-mix strip); add a `VAL_SEGMENT_DRIFT` rule or extend `VAL_FK_CUSTOMER_EXISTS` so it appears on `/audit` and `/exceptions` like other data-quality issues.
-- [ ] Wire the remaining `dimension_drift` config keys to the generator — `sku_retirements`, `sku_renames` and `dc_ownership_changes` are declared in `config.yaml` and required by `config.py`, but nothing in `dimensions.py` reads them, so the drift is hardcoded and the config keys are decorative. `segment_remaps` was wired up in the same pass that fixed the numpy truncation; the other three still need the same treatment (AGENTS.md: "All config values read from config; no hardcoded parameters from the listed config").
+- [x] Surface the segment-mapping drift as a validation exception, not only as a dashboard strip. There is no rule covering an unrecognised customer segment today (the drift is visible only through the segment-mix strip); add a `VAL_SEGMENT_DRIFT` rule or extend `VAL_FK_CUSTOMER_EXISTS` so it appears on `/audit` and `/exceptions` like other data-quality issues.
+- [x] Wire the remaining `dimension_drift` config keys to the generator — `sku_retirements`, `sku_renames` and `dc_ownership_changes` are declared in `config.yaml` and required by `config.py`, but nothing in `dimensions.py` reads them, so the drift is hardcoded and the config keys are decorative. `segment_remaps` was wired up in the same pass that fixed the numpy truncation; the other three still need the same treatment (AGENTS.md: "All config values read from config; no hardcoded parameters from the listed config").
 
 ### Dashboard — charts
 - [x] Shift synthetic data window to end in 2026: config start_month 2022-01, update budget_growth_target_by_year keys 2022-2026, regenerate + republish baseline.
@@ -339,15 +339,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ### Scenarios — sensitivity analysis workspace
 - [x] Repurpose `/scenarios` from data scenario list to sensitivity analysis workspace
-- [ ] Each scenario has: title, outcome/projection, assessment, data snapshot (from published run), thread (title/outcome/assessment/thread done; data snapshot pending)
+- [x] Each scenario has: title, outcome/projection, assessment, data snapshot (from published run), thread (title/outcome/assessment/thread done; data snapshot pending)
 - [x] Scenarios bind to the latest published run as the baseline for sensitivity
 - [x] Add page description consistent with dashboard, exceptions, runs, scenarios pages
 - [x] Remove Run Pipeline button from `/scenarios` (moved to dashboard)
-- [ ] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
-- [ ] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
+- [x] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
+- [x] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
 - [ ] Optional: structure the projection (horizon + month/value pairs) so the detail page can plot the forecast against the snapshot actuals.
 - [ ] Refresh the example scenario — "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
-- [ ] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
+- [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
