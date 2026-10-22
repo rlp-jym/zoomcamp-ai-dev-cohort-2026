@@ -355,5 +355,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
 - [x] Verification that generated seeds inject defects across all rule categories.
 
+## 29. Pre-Submission Checklist (Temporary Pauses)
+- [ ] Re-enable all GitHub Actions workflows (rename .yml.disabled back to .yml) before final submission.
+- [ ] Re-enable GitHub Rulesets for branch protection (currently disabled for direct pushes).
+
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
