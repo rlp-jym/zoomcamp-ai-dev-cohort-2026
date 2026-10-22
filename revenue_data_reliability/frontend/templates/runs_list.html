@@ -38,7 +38,7 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th></tr>
+    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th><th>Actions</th></tr>
   </thead>
   <tbody>
     {% for r in runs %}
@@ -49,6 +49,15 @@
       <td>{{ r.started_at }}</td>
       <td>{{ r.duration }}</td>
       <td>{{ "yes" if r.published else "no" }}</td>
+      <td>
+        <button class="btn-danger"
+                hx-delete="/runs/{{ r.id }}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+                hx-confirm="Delete run {{ r.id }}?">
+          Delete
+        </button>
+      </td>
     </tr>
     {% endfor %}
   </tbody>

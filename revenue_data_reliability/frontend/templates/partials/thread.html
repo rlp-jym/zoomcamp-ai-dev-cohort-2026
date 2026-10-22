@@ -1,4 +1,13 @@
 <div id="thread-{{ anchor_type }}-{{ anchor_id }}" class="thread">
+  <div class="thread-actions" style="text-align:right;margin-bottom:0.5rem;">
+    <button class="btn-danger btn-sm"
+            hx-delete="/threads/{{ anchor_type }}/{{ anchor_id }}"
+            hx-target="#thread-{{ anchor_type }}-{{ anchor_id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Delete this thread?">
+      Delete Thread
+    </button>
+  </div>
   <div class="thread-messages">
     {% for m in messages %}
       <div class="message {% if m.is_agent %}agent{% endif %}">

@@ -138,3 +138,18 @@ def post_message(anchor_type, anchor_id, persona, content, trace_id=None, eviden
     if row.get("type"):
         msg["is_agent"] = (row["type"] == "agent")
     return msg
+
+
+def delete_discussion(discussion_id):
+    did = int(discussion_id)
+    execute("DELETE FROM messages WHERE discussion_id = %s", (did,))
+    execute("DELETE FROM discussions WHERE discussion_id = %s", (did,))
+
+
+def delete_discussion_by_anchor(anchor_type, anchor_id):
+    row = fetch_one(
+        "SELECT discussion_id FROM discussions WHERE anchor_type = %s AND anchor_id = %s",
+        (anchor_type, str(anchor_id)),
+    )
+    if row:
+        delete_discussion(row["discussion_id"])

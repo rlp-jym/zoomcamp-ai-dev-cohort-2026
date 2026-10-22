@@ -727,6 +727,22 @@ async def run_status_partial(request: Request, run_id: int):
     return HTMLResponse(html)
 
 
+@router.delete("/runs/{run_id}")
+async def delete_run_endpoint(request: Request, run_id: int):
+    from backend.services import runs as runs_svc
+
+    runs_svc.delete_run(run_id)
+    return HTMLResponse("")
+
+
+@router.delete("/api/discussions/{discussion_id}")
+async def delete_discussion_endpoint(request: Request, discussion_id: int):
+    from backend.services import messages as msg_svc
+
+    msg_svc.delete_discussion(discussion_id)
+    return HTMLResponse("")
+
+
 @router.get("/api/datasets")
 async def datasets_partial(request: Request):
     from backend.services import scenarios as scen_svc

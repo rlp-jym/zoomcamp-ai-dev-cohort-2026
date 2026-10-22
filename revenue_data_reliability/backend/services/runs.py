@@ -114,6 +114,21 @@ def approve_run(run_id, persona_id, trace_id=None, comment=None):
     )
 
 
+def delete_run(run_id):
+    rid = int(run_id)
+    srid = str(run_id)
+    execute("DELETE FROM messages WHERE discussion_id IN (SELECT discussion_id FROM discussions WHERE anchor_type = 'run' AND anchor_id = %s)", (srid,))
+    execute("DELETE FROM discussions WHERE anchor_type = 'run' AND anchor_id = %s", (srid,))
+    execute("DELETE FROM agent_actions WHERE anchor_type = 'run' AND anchor_id = %s", (srid,))
+    execute("DELETE FROM validations WHERE run_id = %s", (rid,))
+    execute("DELETE FROM exceptions WHERE run_id = %s", (rid,))
+    execute("DELETE FROM reconciliations WHERE run_id = %s", (rid,))
+    execute("DELETE FROM quarantines WHERE run_id = %s", (rid,))
+    execute("DELETE FROM approvals WHERE target_type = 'run' AND target_id = %s", (srid,))
+    execute("DELETE FROM publications WHERE run_id = %s", (rid,))
+    execute("DELETE FROM runs WHERE run_id = %s", (rid,))
+
+
 def reject_run(run_id, persona_id, trace_id=None, comment=None):
     execute("UPDATE runs SET status = 'rejected' WHERE run_id = %s", (run_id,))
     execute(
