@@ -1,5 +1,6 @@
 """Test setup: ensure the Postgres schema exists before tests run."""
 
+from io import BytesIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,12 +17,31 @@ def pytest_sessionstart(session):
 
 
 @pytest.fixture
-def s3_fixture():
-    """A minimal stand-in for an S3 client."""
-    client = MagicMock()
-    client.put_object.return_value = {}
-    client.get_object.return_value = {"Body": MagicMock(read=lambda: b"")}
-    return client
+def s3_fixture(tmp_path):
+    """A local-filesystem stand-in for an S3 bucket."""
+    root = tmp_path / "bucket"
+    root.mkdir()
+    (root / "scenarios").mkdir()
+
+    class LocalS3:
+        def __init__(self, root):
+            self.root = root
+
+        def put_object(self, Bucket=None, Key=None, Body=None):
+            path = self.root / Key
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if hasattr(Body, "read"):
+                data = Body.read()
+            else:
+                data = Body
+            path.write_bytes(data if isinstance(data, (bytes, bytearray)) else str(data).encode())
+            return {}
+
+        def get_object(self, Bucket=None, Key=None):
+            path = self.root / Key
+            return {"Body": BytesIO(path.read_bytes())}
+
+    return LocalS3(root)
 
 
 @pytest.fixture
