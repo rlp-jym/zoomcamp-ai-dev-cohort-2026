@@ -254,9 +254,9 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 22. Infra and deployment
 - [x] `infra/Dockerfile`.
 - [x] `infra/render.yaml` (or Render config) for staging/prod services.
-- [ ] Neon DB setup docs (staging/prod DBs).
-- [ ] R2 bucket/prefix and lifecycle policy docs.
-- [ ] Secrets documentation.
+- [x] Neon DB setup docs (staging/prod DBs).
+- [x] R2 bucket/prefix and lifecycle policy docs.
+- [x] Secrets documentation.
 - [x] `infra/docker-compose.yml` runs app + Postgres via `docker compose up`
 - [x] `README.md` documents `docker compose up` as the local single command
 
@@ -264,28 +264,28 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Unit tests for validation rules SQL.
 - [ ] Unit tests for reconciliation math.
 - [ ] Unit tests for agent deterministic computations.
-- [ ] Integration tests for routes with Postgres.
+- [x] Integration tests for routes with Postgres.
 - [ ] Integration test for pipeline happy path.
 - [ ] Test template fallback when LLM unavailable.
-- [ ] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
+- [x] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
 - [ ] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
 - [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
 - [ ] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
-- [ ] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
-- [ ] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
-- [ ] `pytest` (single command) runs all unit and integration tests and exits 0
-- [ ] `README.md` documents the single test command
+- [x] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
+- [x] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
+- [x] `pytest` (single command) runs all unit and integration tests and exits 0
+- [x] `README.md` documents the single test command
 **Done when:** `pytest` (single command) runs all unit and integration tests and exits 0.
 
 ## 24. Documentation
-- [ ] Update root `README.md`.
-- [ ] Ensure `definitions.md` present.
-- [ ] Document OTEL deviation (no external Grafana).
-- [ ] Document persona switch and demo flow.
-- [ ] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
-- [ ] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so reviewers understand template edits are expected.
-- [ ] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `SPEC.md`
-- [ ] Update root `AGENTS.md` "Quick links" to include `SPEC.md`, `definitions.md`, `TASKS.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
+- [x] Update root `README.md`.
+- [x] Ensure `definitions.md` present.
+- [x] Document OTEL deviation (no external Grafana).
+- [x] Document persona switch and demo flow.
+- [x] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
+- [x] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so reviewers understand template edits are expected.
+- [x] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `SPEC.md`
+- [x] Update root `AGENTS.md` "Quick links" to include `SPEC.md`, `definitions.md`, `TASKS.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
 
 ## 25. Success criteria verification (`SPEC.md §18`)
 - [ ] Reviewer sees populated dashboard with `baseline_run` published.
