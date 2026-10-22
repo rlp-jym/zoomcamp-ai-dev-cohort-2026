@@ -27,6 +27,8 @@ RULES = [
         LEFT JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/items.parquet') i
              ON il.item_id = i.item_id
         WHERE i.item_id IS NULL
+          AND inv.invoice_date >= DATE '{window_start_date}'
+          AND inv.invoice_date < DATE '{window_end_date}'
         """,
         "orphaned_item_id",
     ),
@@ -42,6 +44,8 @@ RULES = [
             FROM read_parquet('s3://{bucket}/scenarios/{scenario}/invoice_lines.parquet') il
             JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/invoices.parquet') inv
                  ON il.invoice_id = inv.invoice_id
+            WHERE inv.invoice_date >= DATE '{window_start_date}'
+              AND inv.invoice_date < DATE '{window_end_date}'
         )
         GROUP BY period, invoice_id, item_id
         HAVING COUNT(*) > 1
@@ -59,6 +63,8 @@ RULES = [
         LEFT JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/customers.parquet') c
              ON inv.customer_id = c.customer_id
         WHERE c.customer_id IS NULL
+          AND inv.invoice_date >= DATE '{window_start_date}'
+          AND inv.invoice_date < DATE '{window_end_date}'
         """,
         "missing_customer_mapping",
     ),
@@ -69,8 +75,12 @@ RULES = [
         """
         SELECT period, account_id, item_category
         FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
-        WHERE load_date IS NULL
-           OR load_date < CAST(period || '-01' AS DATE)
+        WHERE period >= '{window_start_period}'
+          AND period <= '{window_end_period}'
+          AND (
+              load_date IS NULL
+              OR load_date < CAST(period || '-01' AS DATE)
+          )
         """,
         "stale_load",
     ),
@@ -89,6 +99,8 @@ RULES = [
                  ON il.invoice_id = inv.invoice_id
             JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/items.parquet') it
                  ON il.item_id = it.item_id
+            WHERE inv.invoice_date >= DATE '{window_start_date}'
+              AND inv.invoice_date < DATE '{window_end_date}'
             GROUP BY 1, 2
         ), gl AS (
             SELECT period, account_id, item_category,
@@ -96,6 +108,8 @@ RULES = [
                    SUM(recognized_revenue_amt) OVER (PARTITION BY period, item_category) AS gl_cat
             FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
             WHERE version = 1
+              AND period >= '{window_start_period}'
+              AND period <= '{window_end_period}'
         )
         SELECT gl.period, gl.account_id, gl.item_category,
                bill.billings * gl.gl / gl.gl_cat AS billings,
@@ -114,6 +128,8 @@ RULES = [
         SELECT period, account_id, item_category, version
         FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
         WHERE version > 1
+          AND period >= '{window_start_period}'
+          AND period <= '{window_end_period}'
         """,
         "restatement",
     ),
@@ -131,6 +147,8 @@ RULES = [
              ON f.currency = c.currency
             AND f.period = strftime(inv.invoice_date, '%Y-%m')
         WHERE f.currency IS NULL
+          AND inv.invoice_date >= DATE '{window_start_date}'
+          AND inv.invoice_date < DATE '{window_end_date}'
         """,
         "fx_gap",
     ),
@@ -139,6 +157,9 @@ RULES = [
         "Foreign key: every backorder references an existing order line",
         "medium",
         """
+        -- No date window here: injected orphan rows clone the first backorder
+        -- and therefore carry an old date.  The backorders file is small
+        -- relative to the invoice/order facts, so the full anti-join is kept.
         SELECT b.backorder_id, b.order_line_id
         FROM read_parquet('s3://{bucket}/scenarios/{scenario}/backorders.parquet') b
         LEFT JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/order_lines.parquet') ol
@@ -152,6 +173,9 @@ RULES = [
         "Foreign key: every return references an existing shipment",
         "medium",
         """
+        -- No date window here: injected phantom returns clone the first
+        -- return and therefore carry an old date.  The returns file is small
+        -- relative to the invoice/order facts, so the full anti-join is kept.
         SELECT strftime(o.order_date, '%Y-%m') AS period,
                r.return_id, r.shipment_id
         FROM read_parquet('s3://{bucket}/scenarios/{scenario}/returns.parquet') r
@@ -170,9 +194,13 @@ RULES = [
         "Invariant: each invoice has exactly one AR ledger row",
         "low",
         """
-        SELECT invoice_id, COUNT(*) AS c
-        FROM read_parquet('s3://{bucket}/scenarios/{scenario}/ar_ledger.parquet')
-        GROUP BY invoice_id
+        SELECT a.invoice_id, COUNT(*) AS c
+        FROM read_parquet('s3://{bucket}/scenarios/{scenario}/ar_ledger.parquet') a
+        JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/invoices.parquet') inv
+             ON a.invoice_id = inv.invoice_id
+        WHERE inv.invoice_date >= DATE '{window_start_date}'
+          AND inv.invoice_date < DATE '{window_end_date}'
+        GROUP BY a.invoice_id
         HAVING COUNT(*) <> 1
         """,
         "invariant",
@@ -187,6 +215,8 @@ RULES = [
         FROM read_parquet('s3://{bucket}/scenarios/{scenario}/order_lines.parquet') ol
         JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/orders.parquet') o
              ON ol.order_id = o.order_id
+        WHERE o.order_date >= DATE '{window_start_date}'
+          AND o.order_date < DATE '{window_end_date}'
         GROUP BY period, ol.order_id, ol.item_id
         HAVING COUNT(*) > 1
         """,

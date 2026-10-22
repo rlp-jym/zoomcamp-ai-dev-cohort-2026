@@ -25,9 +25,9 @@ class Settings:
         self.gh_token = os.getenv("GH_TOKEN") or None
         self.webhook_token = os.getenv("WEBHOOK_TOKEN", "dev-webhook-token")
         self.persona_cookie = os.getenv("PERSONA_COOKIE_NAME", "persona")
-        # One thread keeps DuckDB's per-thread overhead low in the 512MB
-        # container; the batching and shared scans keep the runtime acceptable.
-        self.duckdb_threads = int(os.getenv("DUCKDB_THREADS", "1"))
+        # Two threads fit the 512MB container now that the demo window keeps
+        # DuckDB's working set well below the 300MB memory limit.
+        self.duckdb_threads = int(os.getenv("DUCKDB_THREADS", "2"))
         self.app_env = os.getenv("APP_ENV", "dev")
         # Materiality / tolerance for billings-vs-GL reconciliation.
         # config uses a percentage (0.5 == 0.5%); we store it as a fraction.

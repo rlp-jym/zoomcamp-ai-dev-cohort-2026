@@ -15,6 +15,8 @@ from backend.services import reconciliations as recon_svc
 from backend.services import runs as runs_svc
 from backend.services import stub_data
 from backend.services import validations as val_svc
+from backend.services.dataset_scale import resolve_years
+from backend.services.demo_window import demo_window
 from backend.services.write_buffer import buffered_writes, record_action
 from backend.storage.duckdb_client import open_connection, query_dicts_on
 from backend.storage.scenario_cache import (
@@ -96,6 +98,18 @@ def _period_key(value):
     if len(s) >= 7 and s[4] == "-":
         return s[:7]
     return s
+
+
+def _scenario_years(scenario_name):
+    """Resolve a scenario's requested history length for the demo window."""
+    try:
+        row = fetch_one(
+            "SELECT name, years_to_backtrack FROM scenarios WHERE name = %s",
+            (scenario_name,),
+        )
+    except Exception:
+        row = None
+    return resolve_years(row or {"name": scenario_name})
 
 
 def _latest_data_period(conn, scenario_name, cache_scenario=None):
@@ -206,6 +220,15 @@ def run_pipeline(run_id):
     )
     trace_id = run["trace_id"] or uuid.uuid4().hex
     requested_scenario = run["scenario"]
+    years_to_backtrack = _scenario_years(requested_scenario)
+    window = demo_window(years_to_backtrack)
+    logger.info(
+        "Pipeline demo window [run %s]: %s..%s (years_to_backtrack=%s)",
+        run_id,
+        window.start_period,
+        window.end_period,
+        years_to_backtrack,
+    )
     scenario_name = requested_scenario
     try:
         from backend.storage.s3_client import resolve_scenario_name
@@ -254,7 +277,10 @@ def run_pipeline(run_id):
                 conn, scenario_name, cache_scenario=requested_scenario
             )
             recon_rows = recon_svc.compute_reconciliation(
-                conn, scenario_name, cache_scenario=requested_scenario
+                conn,
+                scenario_name,
+                cache_scenario=requested_scenario,
+                years_to_backtrack=years_to_backtrack,
             )
             results = val_svc.execute_all_rules(
                 conn,
@@ -262,6 +288,7 @@ def run_pipeline(run_id):
                 scenario_name,
                 cache_scenario=requested_scenario,
                 recon_rows=recon_rows,
+                years_to_backtrack=years_to_backtrack,
             )
             logger.info(
                 "Pipeline timing [run %s] DQ Validation: %.2fs",

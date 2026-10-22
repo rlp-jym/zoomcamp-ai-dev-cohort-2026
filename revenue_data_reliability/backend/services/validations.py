@@ -6,6 +6,7 @@ import time
 
 from backend.config import settings
 from backend.db.connection import execute, execute_many, fetch_all, fetch_one
+from backend.services.demo_window import demo_window
 from backend.storage.duckdb_client import query_dicts_on
 from backend.storage.scenario_cache import (
     ensure_local_scenario,
@@ -46,11 +47,16 @@ def _jsonable(v):
     return v
 
 
-def _render_sql(rule_sql, scenario_name, cache_scenario=None):
+def _render_sql(rule_sql, scenario_name, cache_scenario=None, years_to_backtrack=None):
+    window = demo_window(years_to_backtrack)
     rendered = rule_sql.format(
         bucket=settings.r2_bucket,
         scenario=scenario_name,
         tolerance=settings.recon_tolerance_pct,
+        window_start_period=window.start_period,
+        window_end_period=window.end_period,
+        window_start_date=window.start_date,
+        window_end_date=window.end_date,
     )
     return localize_sql(rendered, scenario_name, cache_scenario)
 
@@ -71,11 +77,11 @@ def _result_from_rows(rule, rows):
     }
 
 
-def run_rule(conn, rule, scenario_name, cache_scenario=None):
+def run_rule(conn, rule, scenario_name, cache_scenario=None, years_to_backtrack=None):
     """Execute a single rule's SQL and return the raw result rows."""
     cache_name = cache_scenario or scenario_name
     ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
-    sql = _render_sql(rule["sql"], scenario_name, cache_name)
+    sql = _render_sql(rule["sql"], scenario_name, cache_name, years_to_backtrack)
     query_start = time.perf_counter()
     rows = query_dicts_on(conn, sql)
     logger.info(
@@ -138,7 +144,14 @@ def store_validations(run_id, results):
     )
 
 
-def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None, recon_rows=None):
+def execute_all_rules(
+    conn,
+    run_id,
+    scenario_name,
+    cache_scenario=None,
+    recon_rows=None,
+    years_to_backtrack=None,
+):
     """Run every seeded rule, persist the results, and return them.
 
     Rules are executed on the shared DuckDB connection so the Parquet files
@@ -146,6 +159,8 @@ def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None, recon_ro
     scenario name is kept separately for cache-folder selection because
     generated clones resolve to ``baseline_run`` in S3.  ``recon_rows`` lets
     the caller reuse the reconciliation scan for ``VAL_RECON_BILLINGS_GL``.
+    ``years_to_backtrack`` narrows the deterministic demo window when the
+    scenario promises a shorter history.
     """
     from backend.storage.s3_client import resolve_scenario_name
 
@@ -158,7 +173,15 @@ def execute_all_rules(conn, run_id, scenario_name, cache_scenario=None, recon_ro
             results.append(result_from_recon_rows(rule, recon_rows))
             logger.info("Validation rule %s: reused reconciliation scan", rule["rule_id"])
             continue
-        results.append(run_rule(conn, rule, scenario_name, cache_scenario=cache_name))
+        results.append(
+            run_rule(
+                conn,
+                rule,
+                scenario_name,
+                cache_scenario=cache_name,
+                years_to_backtrack=years_to_backtrack,
+            )
+        )
     store_validations(run_id, results)
     return results
 

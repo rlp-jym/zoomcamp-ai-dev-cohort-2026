@@ -240,7 +240,7 @@ def _compute_and_cache(pending: list[dict], results: dict) -> None:
         conn = open_connection()
         # Footer reads are tiny (no data pages). Four threads keep the parallel
         # file reads fast without risking the 512MB Render container; the
-        # connection's own 200MB limit is tightened further for this batch.
+        # connection's own 300MB limit is tightened further for this batch.
         conn.execute("SET threads=4")
         conn.execute("SET memory_limit='100MB'")
         by_key: dict[tuple[str, int | None], dict | None] = {}

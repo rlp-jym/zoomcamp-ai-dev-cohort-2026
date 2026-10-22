@@ -13,6 +13,7 @@ import json
 
 from backend.config import settings
 from backend.db.connection import execute, execute_many
+from backend.services.demo_window import demo_window
 from backend.storage.duckdb_client import query_dicts_on
 from backend.storage.scenario_cache import (
     ensure_local_scenario,
@@ -31,6 +32,8 @@ WITH bill AS (
          ON il.invoice_id = inv.invoice_id
     JOIN read_parquet('s3://{bucket}/scenarios/{scenario}/items.parquet') it
          ON il.item_id = it.item_id
+    WHERE inv.invoice_date >= DATE '{window_start_date}'
+      AND inv.invoice_date < DATE '{window_end_date}'
     GROUP BY 1, 2
 ), gl AS (
     SELECT period, account_id, item_category,
@@ -38,6 +41,8 @@ WITH bill AS (
            SUM(recognized_revenue_amt) OVER (PARTITION BY period, item_category) AS gl_cat
     FROM read_parquet('s3://{bucket}/scenarios/{scenario}/gl_revenue.parquet')
     WHERE version = 1
+      AND period >= '{window_start_period}'
+      AND period <= '{window_end_period}'
 )
 SELECT gl.period, gl.account_id, gl.item_category,
        bill.billings * gl.gl / gl.gl_cat AS billings,
@@ -57,15 +62,23 @@ def _severity(variance_pct):
     return "medium"
 
 
-def compute_reconciliation(conn, scenario_name, cache_scenario=None):
+def compute_reconciliation(conn, scenario_name, cache_scenario=None, years_to_backtrack=None):
     """Run the reconciliation scan once and return every grain."""
     from backend.storage.s3_client import resolve_scenario_name
 
     scenario_name = resolve_scenario_name(scenario_name)
     cache_name = cache_scenario or scenario_name
     ensure_local_scenario(cache_name, scenario_s3_prefix(scenario_name))
+    window = demo_window(years_to_backtrack)
     sql = localize_sql(
-        RECON_SQL.format(bucket=settings.r2_bucket, scenario=scenario_name),
+        RECON_SQL.format(
+            bucket=settings.r2_bucket,
+            scenario=scenario_name,
+            window_start_period=window.start_period,
+            window_end_period=window.end_period,
+            window_start_date=window.start_date,
+            window_end_date=window.end_date,
+        ),
         scenario_name,
         cache_name,
     )
@@ -213,10 +226,12 @@ def persist_reconciliation(run_id, rows, trace_id=None, latest_period=None):
 
 
 def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None,
-                       cache_scenario=None, rows=None):
+                       cache_scenario=None, rows=None, years_to_backtrack=None):
     """Compute and persist reconciliation in one call (backwards compatible)."""
     if rows is None:
-        rows = compute_reconciliation(conn, scenario_name, cache_scenario)
+        rows = compute_reconciliation(
+            conn, scenario_name, cache_scenario, years_to_backtrack
+        )
     return persist_reconciliation(run_id, rows, trace_id, latest_period)
 
 
