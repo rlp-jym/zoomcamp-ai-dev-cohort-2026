@@ -18,8 +18,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [x] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
-- [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
-- [ ] Root `README.md` updated with project overview + link to `SPEC.md`.
+- [x] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
+- [x] Root `README.md` updated with project overview + link to `SPEC.md`.
 
 ## 1. Repository scaffolding
 - [x] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
@@ -80,7 +80,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] HTMX-friendly partial responses.
 - [x] Global error handling and structured logging.
 - [x] Health/readiness endpoint.
-- [ ] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
+- [x] Mount `POST /api/scenarios/register` webhook route (verify `WEBHOOK_TOKEN`); delegates to §7 handler.
 
 ## 5. Observability (OTEL)
 - [x] Configure OTEL SDK auto-instrumentation for FastAPI, psycopg3, boto3, DuckDB. (DuckDB has no auto-instrumentor; manual `duckdb.query` spans in `backend/storage/duckdb_client.py`.)
@@ -100,7 +100,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 7. Scenarios and scenario creation flow
 - [x] Scenario CRUD service and repository (raw SQL).
 - [x] `/scenarios` route: list + "New Scenario" button (Analyst only).
-- [ ] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
+- [x] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
 - [x] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
 - [x] Store manifest, file hashes, and scenario metadata.
 - [x] Display scenario list with status.
@@ -111,7 +111,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] `/runs` and `/runs/{id}` routes (Analyst, Manager).
 - [x] Run detail thread and approve/reject actions.
 - [x] Orchestrator service: posts "run started", runs pipeline, posts finish.
-- [ ] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
+- [x] Pipeline steps: DQ validation → reconciliation → exception creation → DE proposals → FA impact.
 - [x] Run status tracking and trace correlation.
 **Done when:** Clicking Run Pipeline creates a run row, posts orchestrator messages to the run thread, and returns a run detail page.
 
@@ -265,11 +265,11 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Unit tests for reconciliation math.
 - [x] Unit tests for agent deterministic computations.
 - [x] Integration tests for routes with Postgres.
-- [ ] Integration test for pipeline happy path.
+- [x] Integration test for pipeline happy path.
 - [x] Test template fallback when LLM unavailable.
 - [x] Test: two alerts with same `(alert_type, anchor_id)` within 1 hour produce exactly one `alerts` row and one thread message (dedup).
 - [x] Test: every agent post produces exactly one `agent_actions` row sharing the same `trace_id` as the thread message.
-- [ ] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
+- [x] Integration tests mock R2 (localstack or filesystem fixture) and Groq (fake client returning fixture responses).
 - [x] Integration test asserts `trace_id` propagates from HTTP request through pipeline run to agent post.
 - [x] Test `/observability` route returns a trace list and renders a span tree for a known `trace_id`.
 - [x] Test persona selection persists across requests (cookie or `X-Persona` header) and is echoed in the header on every page.
@@ -299,7 +299,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
 - [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
-- [ ] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
+- [x] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
 
 ## 26. Reliability fixes — pipeline and agents
 - [x] Pipeline runs off the request thread; a single-run lock returns `/runs?busy=1` instead of double-starting.
@@ -320,7 +320,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 > Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
 
 ### Dashboard — FP&A outputs
-- [ ] Remove Run Pipeline button from dashboard (pipeline runs via script only) — done
+- [x] Remove Run Pipeline button from dashboard (pipeline runs via script only) - done
 - [x] Add Target Attainment Assessment (variance from plan, decomposed by category/segment/region)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
 - [x] Consolidate the FP&A outputs into the chart layer — the four output cards duplicated the charts above them (the General Ledger series was plotted twice, the projection and the growth table were re-cuts of the same revenue series). "Revenue, Billings & Plan" carries actuals, billings and target (no projection — see above); "Month-over-Month Growth" is a diverging bar chart; "Target Attainment" is a progress bar (moved to the top of the page, no thread) plus a "Billings by Customer Segment" bar chart with its own thread. 8 cards → 4.
@@ -346,7 +346,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
 - [x] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
 - [ ] Optional: structure the projection (horizon + month/value pairs) so the detail page can plot the forecast against the snapshot actuals.
-- [ ] Refresh the example scenario — "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
+- [x] Refresh the example scenario - "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## Non-goals guardrail
