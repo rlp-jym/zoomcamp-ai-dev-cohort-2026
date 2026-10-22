@@ -16,6 +16,24 @@
 <h2>Assessment</h2>
 <p>{{ scenario.assessment }}</p>
 
+{% if scenario.baseline_snapshot %}
+<h2>Baseline Data Snapshot</h2>
+<p class="evidence">Run {{ scenario.baseline_snapshot.run_id }} — trailing {{ scenario.baseline_snapshot.months|length }} months.</p>
+<table style="width:100%; border-collapse:collapse; margin:0.5rem 0;">
+  <thead><tr><th>Month</th><th>GL</th><th>Billings</th><th>Budget</th></tr></thead>
+  <tbody>
+  {% for i in range(scenario.baseline_snapshot.months|length) %}
+    <tr>
+      <td>{{ scenario.baseline_snapshot.months[i] }}</td>
+      <td>{{ scenario.baseline_snapshot.actual[i] }}</td>
+      <td>{{ scenario.baseline_snapshot.billings[i] }}</td>
+      <td>{{ scenario.baseline_snapshot.budget[i] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if imported is not none %}
 <p style="color:#0a6;">Imported {{ imported }} message(s) into this scenario's thread.</p>
 {% endif %}

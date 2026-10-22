@@ -62,9 +62,14 @@ def _delete_messages_non_baseline() -> int:
 
 def _delete_discussions_non_baseline() -> int:
     res = execute(
-        "DELETE FROM discussions WHERE anchor_type='run' AND anchor_id NOT IN ("
+        "DELETE FROM discussions WHERE "
+        "(anchor_type='run' AND anchor_id NOT IN ("
         "  SELECT run_id::text FROM runs WHERE scenario_name='baseline_run' AND published=TRUE"
-        ") RETURNING discussion_id",
+        ")) OR ("
+        "anchor_type='exception' AND anchor_id NOT IN ("
+        "  SELECT exception_id::text FROM exceptions"
+        ")) "
+        "RETURNING discussion_id",
         fetch=True,
     )
     if res:

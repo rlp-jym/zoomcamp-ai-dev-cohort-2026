@@ -62,22 +62,44 @@ def list_analysis_scenarios():
 
 def create_analysis_scenario(title, outcome, assessment, baseline_run="baseline_run",
                             source_anchor_type=None, source_anchor_id=None,
-                            open_issues=None):
+                            open_issues=None, baseline_snapshot=None):
     if open_issues is None:
         try:
             from backend.services import exceptions as exc_svc
             open_issues = exc_svc.exception_counts().get("open")
         except Exception:
             open_issues = None
+    if baseline_snapshot is None:
+        try:
+            from backend.services import dashboard as dash_svc
+            data, _ = dash_svc.get_from_cache()
+            if data and data.get("available"):
+                chart = (data.get("charts") or {}).get("revenue_plan", {})
+                labels = chart.get("labels") or []
+                actual = chart.get("actual") or []
+                billings = chart.get("billings") or []
+                budget = chart.get("budget") or []
+                n = min(6, len(labels))
+                baseline_snapshot = {
+                    "run_id": data.get("published_run"),
+                    "months": labels[-n:],
+                    "actual": actual[-n:],
+                    "billings": billings[-n:],
+                    "budget": budget[-n:],
+                }
+        except Exception:
+            baseline_snapshot = None
     row = fetch_one(
         """
         INSERT INTO analysis_scenarios (title, outcome, assessment, baseline_run,
-                                       open_issues, source_anchor_type, source_anchor_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                       open_issues, source_anchor_type, source_anchor_id,
+                                       baseline_snapshot)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING scenario_id
         """,
         (title, outcome, assessment, baseline_run, open_issues,
-         source_anchor_type, source_anchor_id),
+         source_anchor_type, source_anchor_id,
+         json.dumps(baseline_snapshot) if baseline_snapshot is not None else None),
     )
     return str(row["scenario_id"])
 
@@ -97,12 +119,18 @@ def get_source_messages(scenario):
 def get_analysis_scenario(scenario_id):
     r = fetch_one(
         "SELECT scenario_id, title, outcome, assessment, baseline_run, "
-        "open_issues, source_anchor_type, source_anchor_id, created_at "
+        "open_issues, source_anchor_type, source_anchor_id, baseline_snapshot, created_at "
         "FROM analysis_scenarios WHERE scenario_id = %s",
         (scenario_id,),
     )
     if not r:
         return None
+    snapshot = r.get("baseline_snapshot")
+    if isinstance(snapshot, str):
+        try:
+            snapshot = json.loads(snapshot)
+        except Exception:
+            pass
     return {
         "scenario_id": str(r["scenario_id"]),
         "title": r["title"],
@@ -112,6 +140,7 @@ def get_analysis_scenario(scenario_id):
         "open_issues": r.get("open_issues"),
         "source_anchor_type": r.get("source_anchor_type"),
         "source_anchor_id": r.get("source_anchor_id"),
+        "baseline_snapshot": snapshot,
         "created_at": _fmt_dt(r["created_at"]),
     }
 

@@ -192,6 +192,17 @@ RULES = [
         """,
         "invariant",
     ),
+    (
+        "VAL_SEGMENT_DRIFT",
+        "Unrecognised customer segment: customer master contains a segment not in the source mapping",
+        "medium",
+        """
+        SELECT customer_id, segment
+        FROM read_parquet('s3://{bucket}/scenarios/{scenario}/customers.parquet')
+        WHERE segment = 'remapped_segment'
+        """,
+        "segment_drift",
+    ),
 ]
 
 
