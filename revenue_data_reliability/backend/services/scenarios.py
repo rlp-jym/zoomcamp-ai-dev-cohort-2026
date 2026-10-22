@@ -164,6 +164,10 @@ def get_scenario(name):
     }
 
 
+def delete_scenario(name):
+    execute("DELETE FROM scenarios WHERE name = %s", (name,))
+
+
 def register_scenario(payload):
     payload = payload or {}
     name = payload.get("name") or payload.get("scenario_name") or payload.get("scenario")
@@ -185,7 +189,7 @@ def register_scenario(payload):
         table_count = int(table_count)
     except (TypeError, ValueError):
         table_count = 0
-    status = payload.get("status") or "registered"
+    status = "ready"
 
     fetch_one(
         """

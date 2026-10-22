@@ -78,13 +78,26 @@ def get_exception(exc_id):
     return _to_dict(r)
 
 
-def list_exceptions(status=None):
+def list_exceptions(status=None, limit=50, offset=0):
     """List exceptions, optionally filtered by status bucket.
 
     Default (None/'open') returns only non-resolved rows so the page stays
     a pending work queue; 'resolved' returns closed rows and 'all' returns
-    everything.
+    everything. Results are bounded by ``limit`` (default 50) with ``offset``
+    for pagination to avoid rendering unbounded result sets.
     """
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = int(offset)
+    except (TypeError, ValueError):
+        offset = 0
+    if limit < 1:
+        limit = 50
+    if offset < 0:
+        offset = 0
     if status in (None, "", "open"):
         where = "WHERE status <> 'resolved'"
     elif status == "resolved":
@@ -92,7 +105,9 @@ def list_exceptions(status=None):
     else:
         where = ""
     rows = fetch_all(
-        f"SELECT * FROM exceptions {where} ORDER BY created_at DESC, exception_id DESC"
+        f"SELECT * FROM exceptions {where} ORDER BY created_at DESC, exception_id DESC "
+        f"LIMIT %s OFFSET %s",
+        (limit, offset),
     )
     out = []
     for r in rows:

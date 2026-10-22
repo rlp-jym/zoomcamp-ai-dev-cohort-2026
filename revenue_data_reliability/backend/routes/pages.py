@@ -7,7 +7,7 @@ import threading
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from backend.config import settings
 from backend.db import execute, fetch_one
@@ -68,15 +68,17 @@ async def dashboard_refresh(request: Request):
 
 
 @router.get("/exceptions")
-async def exceptions_list(request: Request, status: str | None = None):
+async def exceptions_list(request: Request, status: str | None = None, limit: int = 50, offset: int = 0):
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
         _ctx(request,
-             exceptions=exc_svc.list_exceptions(status),
+             exceptions=exc_svc.list_exceptions(status, limit=limit, offset=offset),
              status_filter=status or "open",
              counts=exc_svc.exception_counts(),
-             trend=exc_svc.exception_trend()),
+             trend=exc_svc.exception_trend(),
+             limit=limit,
+             offset=offset),
     )
 
 
@@ -178,10 +180,13 @@ async def approve_exception(request: Request, exc_id: int):
 @router.get("/runs")
 async def runs_list(request: Request, reset: str | None = None, busy: str | None = None):
     persona = _current_persona(request)
+    from backend.services import scenarios as scen_svc
+
     return templates.TemplateResponse(
         request,
         "runs_list.html",
-        _ctx(request, runs=runs_svc.list_runs(), reset_status=reset, busy=busy,
+        _ctx(request, runs=runs_svc.list_runs(), scenarios=scen_svc.list_scenarios(),
+             reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
                  and persona["id"] == "manager"
@@ -494,4 +499,212 @@ async def observability(request: Request, trace_id: str | None = None):
             trace_logs=logs,
             summary=summary,
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Validation page enhancements: generate data + trigger validation runs
+# ---------------------------------------------------------------------------
+
+def _parse_int(value, default):
+    try:
+        if value is None or value == "":
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+async def _read_payload(request):
+    try:
+        data = await request.json()
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    try:
+        form = await request.form()
+        return dict(form)
+    except Exception:
+        return {}
+
+
+def _gh_dispatch(scenario_name, seed, years_to_backtrack):
+    import os
+
+    import httpx
+
+    from backend.config import settings
+
+    if not settings.gh_token:
+        return False, "GH_TOKEN not configured"
+    repo = os.getenv("GITHUB_REPOSITORY", "rlp-jym/zoomcamp-ai-dev-cohort-2026")
+    workflow = os.getenv("SCENARIO_GENERATE_WORKFLOW", "scenario-generate.yml")
+    ref = os.getenv("GITHUB_REF_NAME", "main")
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+    headers = {
+        "Authorization": f"Bearer {settings.gh_token}",
+        "Accept": "application/vnd.github+json",
+    }
+    payload = {
+        "ref": ref,
+        "inputs": {
+            "scenario_name": str(scenario_name),
+            "seed": str(seed),
+            "years_to_backtrack": str(years_to_backtrack),
+        },
+    }
+    try:
+        resp = httpx.post(url, headers=headers, json=payload, timeout=10.0)
+        resp.raise_for_status()
+        return True, None
+    except Exception as exc:  # pragma: no cover - network dependent
+        return False, str(exc)
+
+
+def _success_message():
+    return "Generation started. Data will appear when ready."
+
+
+@router.post("/api/generate-scenario")
+async def generate_scenario(request: Request):
+    payload = await _read_payload(request)
+    seed = _parse_int(payload.get("seed", 42), 42)
+    years = _parse_int(payload.get("years_to_backtrack", 2), 2)
+    scenario_name = (
+        payload.get("scenario_name")
+        or payload.get("scenario")
+        or payload.get("scenario_id")
+        or f"generated_seed{seed}_y{years}"
+    )
+
+    from backend.db import execute
+
+    execute(
+        """
+        INSERT INTO scenarios (name, status, seed, table_count, updated_at)
+        VALUES (%s, 'generating', %s, 0, now())
+        ON CONFLICT (name) DO UPDATE SET
+            status = 'generating',
+            seed = EXCLUDED.seed,
+            updated_at = now()
+        """,
+        (scenario_name, seed),
+    )
+
+    ok, err = _gh_dispatch(scenario_name, seed, years)
+    if not ok:
+        execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
+    msg = _success_message() if ok else f"Failed to start generation: {err}"
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        status_code = 200 if ok else 502
+        return JSONResponse({"status": "started" if ok else "error", "message": msg}, status_code=status_code)
+    css = "banner-ok" if ok else "banner-error"
+    status_code = 200 if ok else 502
+    return HTMLResponse(f'<div class="banner {css}">{msg}</div>', status_code=status_code)
+
+
+def _trigger_validation(request: Request, scenario_name: str):
+    import threading
+    import uuid
+    from datetime import datetime
+
+    from backend.db.connection import fetch_one
+    from backend.services import orchestrator as orch_svc
+    from backend.services import runs as runs_svc
+
+    running = fetch_one(
+        "SELECT run_id FROM runs WHERE status='running' "
+        "AND started_at > now() - interval '10 minutes' LIMIT 1"
+    )
+    if running:
+        return None, "A pipeline is already running. Wait for it to finish."
+
+    trace_id = uuid.uuid4().hex
+    run_id = runs_svc.create_run(scenario_name, "analyst", trace_id)
+
+    def _job():
+        try:
+            orch_svc.run_pipeline(run_id)
+        except Exception:
+            try:
+                runs_svc.update_run(run_id, status="failed", finished_at=datetime.utcnow())
+            except Exception:
+                pass
+
+    threading.Thread(target=_job, daemon=True).start()
+    return run_id, None
+
+
+@router.post("/runs")
+@router.post("/runs/validate")
+@router.post("/runs/run")
+@router.post("/runs/trigger")
+@router.post("/api/runs")
+@router.post("/api/run-pipeline")
+@router.post("/api/validate")
+@router.post("/api/trigger-validation")
+async def run_validation(request: Request):
+    payload = await _read_payload(request)
+    scenario_name = (
+        payload.get("scenario")
+        or payload.get("scenario_name")
+        or payload.get("scenario_id")
+        or payload.get("name")
+    )
+    if not scenario_name:
+        try:
+            from backend.services import scenarios as scen_svc
+
+            scens = scen_svc.list_scenarios()
+            if scens:
+                scenario_name = scens[0].get("name")
+        except Exception:
+            scenario_name = None
+    if not scenario_name:
+        scenario_name = "baseline_run"
+
+    run_id, err = _trigger_validation(request, str(scenario_name))
+    accept = request.headers.get("accept", "")
+    if err:
+        html = f'<div class="banner banner-error">{err}</div>'
+        if "application/json" in accept:
+            return JSONResponse({"status": "busy", "message": err}, status_code=409)
+        return HTMLResponse(html, status_code=409)
+    poll_url = f"/runs/{run_id}/status"
+    html = (
+        f'<div class="banner banner-ok" id="run-status-{run_id}" '
+        f'hx-get="{poll_url}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML">'
+        f'Validation run #{run_id} started for {scenario_name}. Status: Running'
+        f'</div>'
+    )
+    if "application/json" in accept:
+        return JSONResponse({"status": "running", "run_id": run_id, "scenario": scenario_name, "poll_url": poll_url})
+    return HTMLResponse(html)
+
+
+@router.get("/runs/{run_id}/status")
+async def run_status_partial(request: Request, run_id: int):
+    from backend.services import runs as runs_svc
+
+    run = runs_svc.get_run(run_id)
+    status = (run or {}).get("status", "unknown")
+    label = status.capitalize() if status else "Unknown"
+    if status in ("running", "pending"):
+        poll = f'hx-get="/runs/{run_id}/status" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"'
+    else:
+        poll = ""
+    css = "banner-ok" if status == "completed" else ("banner-error" if status in ("failed", "rejected") else "")
+    html = f'<div class="banner {css}" {poll}>Validation run #{run_id}: {label}</div>'
+    return HTMLResponse(html)
+
+
+@router.get("/api/datasets")
+async def datasets_partial(request: Request):
+    from backend.services import scenarios as scen_svc
+
+    scens = scen_svc.list_scenarios()
+    return templates.TemplateResponse(
+        request, "partials/datasets_table.html", _ctx(request, scenarios=scens)
     )

@@ -17,6 +17,7 @@ Module layout:
 from __future__ import annotations
 
 import argparse
+import os
 
 import numpy as np
 from config import load_config
@@ -28,10 +29,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--years-to-backtrack", "--years_to_backtrack", dest="years_to_backtrack", type=int, default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
     if args.seed is not None:
         cfg["seed"] = args.seed
+    y = args.years_to_backtrack
+    if y is None:
+        env_y = os.getenv("YEARS_TO_BACKTRACK")
+        if env_y not in (None, ""):
+            y = int(env_y)
+    if y is not None:
+        cfg["timeline"]["start_month"] = f"{2026 - int(y):04d}-01"
+        cfg["timeline"]["n_months"] = (int(y) + 1) * 12
     rng = np.random.default_rng(int(cfg["seed"]))
 
     counts = monthly_order_counts(cfg)

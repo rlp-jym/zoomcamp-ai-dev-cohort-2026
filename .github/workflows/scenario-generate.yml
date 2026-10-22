@@ -11,6 +11,10 @@ on:
         description: "Random seed (integer)"
         required: true
         default: "9"
+      years_to_backtrack:
+        description: "Years prior to the 2026 baseline (integer)"
+        required: false
+        default: "4"
 
 jobs:
   generate:
@@ -47,7 +51,7 @@ jobs:
           SCENARIO_NAME: ${{ github.event.inputs.scenario_name }}
           SEED: ${{ github.event.inputs.seed }}
       - name: Run generator
-        run: uv run --project data python data/generate.py --config data/.run_config.yaml
+        run: uv run --project data python data/generate.py --config data/.run_config.yaml --years-to-backtrack "${{ github.event.inputs.years_to_backtrack }}"
       - name: Upload to R2
         run: uv run python upload.py --scenario "${{ github.event.inputs.scenario_name }}"
       - name: Register scenario via webhook

@@ -11,6 +11,29 @@
 {% if busy %}
 <div class="banner banner-error">A pipeline is already running. Wait for it to finish.</div>
 {% endif %}
+
+<section class="card" style="margin-bottom:1.5rem;">
+  <h2>Generate New Dataset</h2>
+  <p>Triggers the GitHub Actions generator. Data will appear when ready.</p>
+  <form hx-post="/api/generate-scenario" hx-target="#generate-result" hx-swap="innerHTML">
+    <label>Seed: <input type="number" name="seed" value="42" required></label>
+    <label>Years to backtrack: <input type="number" name="years_to_backtrack" value="2" min="1" required></label>
+    <button type="submit" class="btn-primary">Generate New Dataset</button>
+  </form>
+  <div id="generate-result"></div>
+</section>
+
+<section class="card" style="margin-bottom:1.5rem;">
+  <h2>Generated Datasets</h2>
+  {% include "partials/datasets_table.html" %}
+</section>
+
+<section class="card" style="margin-bottom:1.5rem;">
+  <h2>Run Validation</h2>
+  <p>Use the Validate button next to a dataset above to trigger the pipeline.</p>
+  <div id="run-result"></div>
+</section>
+
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th></tr>
