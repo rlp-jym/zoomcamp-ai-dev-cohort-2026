@@ -30,6 +30,7 @@ def init_pool() -> ConnectionPool:
                 "keepalives_idle": 30,
                 "keepalives_interval": 10,
                 "keepalives_count": 3,
+                "prepare_threshold": None,
             },
             check=ConnectionPool.check_connection,
         )

@@ -298,3 +298,5 @@ def run_pipeline(run_id):
         _log_action("orchestrator", "run_failed", anchor_type, anchor_id, trace_id,
                     {"error": str(exc)})
         raise
+    finally:
+        runs_svc.update_run(run_id, duration_seconds=int(time.time() - started))
