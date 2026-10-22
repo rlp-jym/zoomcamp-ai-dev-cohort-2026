@@ -5,6 +5,15 @@
 <dl class="meta">
   <dt>Scenario</dt><dd>{{ run.scenario }}</dd>
   <dt>Status</dt><dd>{{ run.status }}</dd>
+  {% if run.status == "running" %}
+  <dt>Progress</dt><dd>
+    <div style="background:#eee;border-radius:4px;height:8px;width:200px;">
+      <div style="background:#3b4a7a;height:8px;border-radius:4px;width:{{ run.progress_percent or 0 }}%;"></div>
+    </div>
+    <small>{{ run.current_stage }} ({{ run.progress_percent or 0 }}%)</small>
+  </dd>
+  {% endif %}
+  <dt>Duration</dt><dd>{% if run.duration_seconds %}{{ run.duration_seconds }}s{% else %}{{ run.duration }}{% endif %}</dd>
   <dt>Started</dt><dd>{{ run.started_at }}</dd>
   <dt>Finished</dt><dd>{{ run.finished_at if run.finished_at is defined else run.get('finished_at','') }}</dd>
   <dt>Duration</dt><dd>{{ run.duration }}</dd>

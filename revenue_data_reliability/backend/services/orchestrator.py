@@ -198,16 +198,16 @@ def run_pipeline(run_id):
     )
 
     try:
-        runs_svc.update_run(run_id, current_stage="DQ Validation")
+        runs_svc.update_run(run_id, current_stage="Running DQ Validation", progress_percent=10)
         conn = open_connection()
         try:
             latest_period = _latest_data_period(conn, scenario_name)
             results = val_svc.execute_all_rules(conn, run_id, scenario_name)
-            runs_svc.update_run(run_id, current_stage="Reconciliation")
+            runs_svc.update_run(run_id, current_stage="Reconciliation", progress_percent=30)
             recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id, latest_period)
         finally:
             conn.close()
-        runs_svc.update_run(run_id, current_stage="Agent Proposals")
+        runs_svc.update_run(run_id, current_stage="Generating Agent Proposals", progress_percent=50)
 
         validations_total = len(results)
         validations_failed = sum(1 for r in results if r["status"] != "pass")
@@ -236,11 +236,14 @@ def run_pipeline(run_id):
             de_future.result()
             fa_future.result()
 
-        runs_svc.update_run(run_id, current_stage="Finalizing")
+        runs_svc.update_run(run_id, current_stage="Finalizing and Saving Results", progress_percent=90)
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(
             run_id,
             status="completed",
+            current_stage="Complete",
+            progress_percent=100,
+            duration_seconds=int(time.time() - started),
             finished_at=datetime.utcnow(),
             duration=duration,
             validations_total=validations_total,
@@ -274,7 +277,17 @@ def run_pipeline(run_id):
             },
         )
     except Exception as exc:
-        runs_svc.update_run(run_id, status="failed", finished_at=datetime.utcnow())
+        import traceback
+
+        runs_svc.update_run(
+            run_id,
+            status="failed",
+            current_stage="Failed",
+            progress_percent=100,
+            duration_seconds=int(time.time() - started),
+            finished_at=datetime.utcnow(),
+            error_message=f"{exc}\n{traceback.format_exc()}",
+        )
         msg_svc.post_message(
             anchor_type,
             anchor_id,

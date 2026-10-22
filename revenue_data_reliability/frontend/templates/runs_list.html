@@ -41,7 +41,7 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Started</th><th>Duration</th><th>Published</th><th>Actions</th></tr>
+    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Progress</th><th>Started</th><th>Duration</th><th>Published</th><th>Actions</th></tr>
   </thead>
   <tbody>
     {% for r in runs %}
@@ -49,8 +49,20 @@
       <td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td>
       <td>{{ r.scenario }}</td>
       <td>{{ r.status }}</td>
+      <td>
+        {% if r.status == "running" %}
+        <div style="background:#eee;border-radius:4px;height:8px;width:120px;">
+          <div style="background:#3b4a7a;height:8px;border-radius:4px;width:{{ r.progress_percent or 0 }}%;"></div>
+        </div>
+        <small>{{ r.current_stage }} ({{ r.progress_percent or 0 }}%)</small>
+        {% elif r.status == "completed" %}
+        100%
+        {% else %}
+        -
+        {% endif %}
+      </td>
       <td>{{ r.started_at }}</td>
-      <td>{{ r.duration }}</td>
+      <td>{% if r.duration_seconds %}{{ r.duration_seconds }}s{% else %}{{ r.duration }}{% endif %}</td>
       <td>{{ "yes" if r.published else "no" }}</td>
       <td>
         <button class="btn-danger"

@@ -34,6 +34,9 @@ def get_run(run_id):
         "scenario": r["scenario_name"],
         "status": r["status"],
         "current_stage": r.get("current_stage"),
+        "progress_percent": r.get("progress_percent"),
+        "error_message": r.get("error_message"),
+        "duration_seconds": r.get("duration_seconds"),
         "started_at": _fmt_dt(r["started_at"]),
         "finished_at": _fmt_dt(r["finished_at"]),
         "duration": r["duration"],
@@ -57,6 +60,9 @@ def list_runs():
                 "id": r["run_id"],
                 "scenario": r["scenario_name"],
                 "status": r["status"],
+                "current_stage": r.get("current_stage"),
+                "progress_percent": r.get("progress_percent"),
+                "duration_seconds": r.get("duration_seconds"),
                 "started_at": _fmt_dt(r["started_at"]),
                 "duration": r["duration"] if r["duration"] else "-",
                 "published": r["published"],
@@ -84,7 +90,8 @@ def update_run(run_id, **fields):
     if not fields:
         return
     allowed = {
-        "status", "current_stage", "finished_at", "duration", "validations_total",
+        "status", "current_stage", "progress_percent", "error_message",
+        "duration_seconds", "finished_at", "duration", "validations_total",
         "validations_failed", "exceptions_created", "published", "published_at",
         "approved_at", "trace_id",
     }

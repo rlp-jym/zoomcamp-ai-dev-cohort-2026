@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS scenarios (
 ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
 ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS source_scenario TEXT;
 UPDATE scenarios SET source_scenario = name WHERE source_scenario IS NULL;
+UPDATE scenarios SET source_scenario = 'baseline_run' WHERE name LIKE 'generated_%' AND source_scenario = name;
 
 CREATE TABLE IF NOT EXISTS analysis_scenarios (
     scenario_id          SERIAL PRIMARY KEY,
@@ -52,6 +53,9 @@ CREATE TABLE IF NOT EXISTS runs (
     scenario_name        TEXT REFERENCES scenarios(name) ON DELETE SET NULL,
     status               TEXT NOT NULL DEFAULT 'pending',
     current_stage        TEXT,
+    progress_percent     INTEGER DEFAULT 0,
+    error_message        TEXT,
+    duration_seconds     INTEGER,
     started_at           TIMESTAMPTZ,
     finished_at          TIMESTAMPTZ,
     duration             TEXT,
@@ -66,6 +70,9 @@ CREATE TABLE IF NOT EXISTS runs (
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS current_stage TEXT;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
 
 CREATE TABLE IF NOT EXISTS validations (
     validation_id    SERIAL PRIMARY KEY,

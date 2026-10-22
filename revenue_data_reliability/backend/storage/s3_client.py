@@ -57,6 +57,8 @@ def resolve_scenario_name(scenario: str) -> str:
             return row["source_scenario"]
     except Exception:
         pass
+    if str(scenario).startswith("generated_"):
+        return "baseline_run"
     return scenario
 
 
