@@ -6,6 +6,8 @@ import time
 import uuid
 from datetime import datetime
 
+import psutil
+
 from backend.config import settings
 from backend.db.connection import execute, execute_many, fetch_one
 from backend.services import dq as dq_svc
@@ -197,6 +199,11 @@ def run_pipeline(run_id):
     run = runs_svc.get_run(run_id)
     if not run:
         raise RuntimeError(f"run {run_id} not found")
+    logger.info(
+        "Pipeline memory [run %s] base RSS: %.1f MB",
+        run_id,
+        psutil.Process().memory_info().rss / 1024 / 1024,
+    )
     trace_id = run["trace_id"] or uuid.uuid4().hex
     requested_scenario = run["scenario"]
     scenario_name = requested_scenario
