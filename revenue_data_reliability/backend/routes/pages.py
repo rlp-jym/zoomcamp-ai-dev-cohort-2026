@@ -715,13 +715,31 @@ async def run_status_partial(request: Request, run_id: int):
     runs_svc.sweep_stale_runs(2)
     run = runs_svc.get_run(run_id)
     status = (run or {}).get("status", "unknown")
+    stage = (run or {}).get("current_stage") or status.capitalize()
     label = status.capitalize() if status else "Unknown"
+    stages = ["DQ Validation", "Reconciliation", "Agent Proposals", "Finalizing"]
+    if status in ("completed",):
+        pct = 100
+    elif status in ("failed", "rejected"):
+        pct = 100
+    else:
+        if stage in stages:
+            pct = int((stages.index(stage) + 1) / len(stages) * 100)
+        else:
+            pct = 10
     if status in ("running", "pending"):
         poll = f'hx-get="/runs/{run_id}/status" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"'
     else:
         poll = ""
     css = "banner-ok" if status == "completed" else ("banner-error" if status in ("failed", "rejected") else "")
-    html = f'<div class="banner {css}" {poll}>Validation run #{run_id}: {label}</div>'
+    html = (
+        f'<div class="banner {css}" {poll}>'
+        f'Validation run #{run_id}: {label} — {stage}'
+        f'<div style="background:#eee;border-radius:4px;height:8px;margin-top:4px;">'
+        f'<div style="background:#3b4a7a;height:8px;border-radius:4px;width:{pct}%;"></div>'
+        f'</div>'
+        f'</div>'
+    )
     return HTMLResponse(html)
 
 

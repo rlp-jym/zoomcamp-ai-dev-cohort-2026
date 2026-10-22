@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS runs (
     run_id               SERIAL PRIMARY KEY,
     scenario_name        TEXT REFERENCES scenarios(name) ON DELETE SET NULL,
     status               TEXT NOT NULL DEFAULT 'pending',
+    current_stage        TEXT,
     started_at           TIMESTAMPTZ,
     finished_at          TIMESTAMPTZ,
     duration             TEXT,
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS runs (
     approved_at          TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS current_stage TEXT;
 
 CREATE TABLE IF NOT EXISTS validations (
     validation_id    SERIAL PRIMARY KEY,

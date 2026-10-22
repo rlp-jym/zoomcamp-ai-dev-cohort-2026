@@ -12,18 +12,21 @@
 <div class="banner banner-error">A pipeline is already running. Wait for it to finish.</div>
 {% endif %}
 
-{% if persona.id == "analyst" %}
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generate New Dataset</h2>
   <p>Creates a dataset instantly. Data will appear when ready.</p>
   <form hx-post="/api/generate-scenario" hx-target="#generate-result" hx-swap="innerHTML">
     <label>Seed: <input type="number" name="seed" value="42" required></label>
     <label>Years to backtrack: <input type="number" name="years_to_backtrack" value="2" min="1" required></label>
-    <button type="submit" class="btn-primary">Generate New Dataset</button>
+    <button type="submit" class="btn-primary" {% if persona.id != "analyst" %}disabled{% endif %}>Generate New Dataset</button>
+    {% if persona.id == "analyst" %}
+      <span style="color:green;font-size:0.8rem;">&#10003; Verified Analyst</span>
+    {% else %}
+      <span style="color:red;font-size:0.8rem;">Requires Analyst</span>
+    {% endif %}
   </form>
   <div id="generate-result"></div>
 </section>
-{% endif %}
 
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generated Datasets</h2>

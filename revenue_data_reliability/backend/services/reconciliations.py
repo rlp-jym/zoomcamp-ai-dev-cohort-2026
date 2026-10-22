@@ -54,6 +54,9 @@ def _severity(variance_pct):
 
 def run_reconciliation(conn, run_id, scenario_name, trace_id=None, latest_period=None):
     """Compute reconciliation rows, persist them, and open material-gap exceptions."""
+    from backend.storage.s3_client import resolve_scenario_name
+
+    scenario_name = resolve_scenario_name(scenario_name)
     sql = RECON_SQL.format(bucket=settings.r2_bucket, scenario=scenario_name)
     rows = query_dicts_on(conn, sql)
     tolerance = settings.recon_tolerance_pct

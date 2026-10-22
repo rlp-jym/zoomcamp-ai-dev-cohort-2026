@@ -198,13 +198,16 @@ def run_pipeline(run_id):
     )
 
     try:
+        runs_svc.update_run(run_id, current_stage="DQ Validation")
         conn = open_connection()
         try:
             latest_period = _latest_data_period(conn, scenario_name)
             results = val_svc.execute_all_rules(conn, run_id, scenario_name)
+            runs_svc.update_run(run_id, current_stage="Reconciliation")
             recon = recon_svc.run_reconciliation(conn, run_id, scenario_name, trace_id, latest_period)
         finally:
             conn.close()
+        runs_svc.update_run(run_id, current_stage="Agent Proposals")
 
         validations_total = len(results)
         validations_failed = sum(1 for r in results if r["status"] != "pass")
@@ -233,6 +236,7 @@ def run_pipeline(run_id):
             de_future.result()
             fa_future.result()
 
+        runs_svc.update_run(run_id, current_stage="Finalizing")
         duration = f"{round(time.time() - started, 2)}s"
         runs_svc.update_run(
             run_id,

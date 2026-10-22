@@ -89,6 +89,9 @@ def execute_all_rules(conn, run_id, scenario_name):
     Rules are executed on the shared DuckDB connection so the Parquet files
     are fetched once per pipeline run rather than once per rule.
     """
+    from backend.storage.s3_client import resolve_scenario_name
+
+    scenario_name = resolve_scenario_name(scenario_name)
     results = []
     for rule in list_rules():
         result = run_rule(conn, rule, scenario_name)

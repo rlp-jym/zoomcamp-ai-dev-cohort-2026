@@ -33,6 +33,7 @@ def get_run(run_id):
         "id": r["run_id"],
         "scenario": r["scenario_name"],
         "status": r["status"],
+        "current_stage": r.get("current_stage"),
         "started_at": _fmt_dt(r["started_at"]),
         "finished_at": _fmt_dt(r["finished_at"]),
         "duration": r["duration"],
@@ -83,7 +84,7 @@ def update_run(run_id, **fields):
     if not fields:
         return
     allowed = {
-        "status", "finished_at", "duration", "validations_total",
+        "status", "current_stage", "finished_at", "duration", "validations_total",
         "validations_failed", "exceptions_created", "published", "published_at",
         "approved_at", "trace_id",
     }
