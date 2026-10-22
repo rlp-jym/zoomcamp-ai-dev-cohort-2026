@@ -6,6 +6,7 @@
           <span class="badge badge-{{ 'agent' if m.is_agent else 'human' }}">{{ m.persona_title }}</span>
           <span class="ts">{{ m.created_at }}</span>
           <button class="btn-danger btn-sm"
+                  style="font-size:0.75rem;padding:0.1rem 0.4rem;"
                   hx-delete="/api/messages/{{ m.message_id }}"
                   hx-target="closest .message"
                   hx-swap="outerHTML"

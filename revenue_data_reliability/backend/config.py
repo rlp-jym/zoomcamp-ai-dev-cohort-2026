@@ -32,7 +32,7 @@ class Settings:
 
         # Safety valve: cap per-exception agent messages per pipeline run.
         self.max_agent_messages_per_run = int(
-            os.getenv("MAX_AGENT_MESSAGES_PER_RUN", "50")
+            os.getenv("MAX_AGENT_MESSAGES_PER_RUN", "5")
         )
 
         # OTEL (SPEC §13): Postgres exporter is always on; intervals only

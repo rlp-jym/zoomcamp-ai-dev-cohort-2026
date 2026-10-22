@@ -121,24 +121,18 @@ def post_message(anchor_type, anchor_id, persona, content, trace_id=None, eviden
         """,
         (did, persona_id, content, trace_id, json.dumps(evidence) if evidence is not None else None),
     )
-    # return last message
-    row = fetch_one(
-        """
-        SELECT m.*, p.title, p.type
-        FROM messages m
-        LEFT JOIN personas p ON p.persona_id = m.persona_id
-        WHERE m.discussion_id = %s
-        ORDER BY m.message_id DESC
-        LIMIT 1
-        """,
-        (did,),
-    )
-    rr = dict(row)
-    rr["title"] = row.get("title")
-    msg = _row_to_msg(rr)
-    if row.get("type"):
-        msg["is_agent"] = (row["type"] == "agent")
-    return msg
+    persona_obj = stub_data.get_persona(persona_id) if persona_id else None
+    title = persona_obj["title"] if persona_obj else persona_id
+    is_agent = (persona_obj["type"] == "agent") if persona_obj else False
+    return {
+        "persona_id": persona_id,
+        "persona_title": title,
+        "is_agent": is_agent,
+        "content": content,
+        "created_at": None,
+        "evidence": evidence,
+        "trace_id": trace_id,
+    }
 
 
 def delete_discussion(discussion_id):

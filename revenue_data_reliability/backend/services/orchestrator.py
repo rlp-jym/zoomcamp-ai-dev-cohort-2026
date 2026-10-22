@@ -163,11 +163,16 @@ def run_pipeline(run_id):
     trace_id = run["trace_id"] or uuid.uuid4().hex
     scenario_name = run["scenario"]
     try:
-        row = fetch_one("SELECT source_scenario FROM scenarios WHERE name = %s", (scenario_name,))
-        if row and row.get("source_scenario"):
-            scenario_name = row["source_scenario"]
+        from backend.storage.s3_client import resolve_scenario_name
+
+        scenario_name = resolve_scenario_name(scenario_name)
     except Exception:
-        pass
+        try:
+            row = fetch_one("SELECT source_scenario FROM scenarios WHERE name = %s", (scenario_name,))
+            if row and row.get("source_scenario"):
+                scenario_name = row["source_scenario"]
+        except Exception:
+            pass
     anchor_type = "run"
     anchor_id = str(run_id)
 

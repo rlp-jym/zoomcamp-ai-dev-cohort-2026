@@ -47,6 +47,19 @@ def list_scenario_keys(scenario: str = "baseline_run") -> list[str]:
     return list_keys(prefix=prefix)
 
 
+def resolve_scenario_name(scenario: str) -> str:
+    """Resolve a (possibly cloned) scenario to its backing S3 scenario."""
+    try:
+        from backend.db.connection import fetch_one
+
+        row = fetch_one("SELECT source_scenario FROM scenarios WHERE name = %s", (scenario,))
+        if row and row.get("source_scenario"):
+            return row["source_scenario"]
+    except Exception:
+        pass
+    return scenario
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
