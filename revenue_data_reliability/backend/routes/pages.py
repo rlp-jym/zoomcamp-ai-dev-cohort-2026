@@ -186,12 +186,14 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     for r in runs_svc2.list_runs():
         if r.get("status") == "failed":
             runs_svc2.reconcile_failed_run(r["id"])
+    from backend.services import dataset_scale
     from backend.services import scenarios as scen_svc
 
+    scenarios = dataset_scale.attach_scale_info(scen_svc.list_scenarios())
     return templates.TemplateResponse(
         request,
         "runs_list.html",
-        _ctx(request, runs=runs_svc.list_runs(), scenarios=scen_svc.list_scenarios(),
+        _ctx(request, runs=runs_svc.list_runs(), scenarios=scenarios,
              reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
@@ -789,9 +791,10 @@ async def delete_message_endpoint(request: Request, message_id: int):
 
 @router.get("/api/datasets")
 async def datasets_partial(request: Request):
+    from backend.services import dataset_scale
     from backend.services import scenarios as scen_svc
 
-    scens = scen_svc.list_scenarios()
+    scens = dataset_scale.attach_scale_info(scen_svc.list_scenarios())
     return templates.TemplateResponse(
         request, "partials/datasets_table.html", _ctx(request, scenarios=scens)
     )

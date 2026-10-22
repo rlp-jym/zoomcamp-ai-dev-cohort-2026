@@ -17,7 +17,7 @@ def _fmt_dt(value):
 
 def list_scenarios():
     rows = fetch_all(
-        "SELECT name, status, seed, table_count, manifest, file_hashes, created_at "
+        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, created_at "
         "FROM scenarios ORDER BY created_at DESC, name"
     )
     out = []
@@ -31,6 +31,7 @@ def list_scenarios():
                 "created_at": _fmt_dt(r["created_at"]).split(" ")[0] if r["created_at"] else "",
                 "manifest": r["manifest"],
                 "file_hashes": r["file_hashes"],
+                "source_scenario": r.get("source_scenario") or r["name"],
             }
         )
     return out

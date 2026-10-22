@@ -352,6 +352,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 ## 28. UI Workflow Enhancements
 - [x] Data generation form (seed, years back) triggering GitHub Actions with status tracking (`generating`/`ready`/`failed`).
 - [x] Generated Datasets table with Validate/Delete actions and HTMX polling on `/runs`.
+- [x] Generated Datasets table shows scale (Rows, Months, Size MB) read lazily from Parquet footers (`parquet_file_metadata` / `parquet_metadata`), cached in `scenarios.manifest`, with a 3s render budget (`—` when the read fails or is slow).
 - [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
 - [x] Verification that generated seeds inject defects across all rule categories.
 

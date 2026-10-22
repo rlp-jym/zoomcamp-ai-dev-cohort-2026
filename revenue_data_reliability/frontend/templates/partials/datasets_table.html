@@ -1,7 +1,7 @@
 <div id="datasets-table" hx-get="/api/datasets" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
   <table class="table">
     <thead>
-      <tr><th>Dataset Name</th><th>Created At</th><th>Status</th><th>Actions</th></tr>
+      <tr><th>Dataset Name</th><th>Created At</th><th>Status</th><th>Rows</th><th>Months</th><th>Size (MB)</th><th>Actions</th></tr>
     </thead>
     <tbody>
       {% for s in scenarios %}
@@ -9,6 +9,9 @@
         <td>{{ s.name }}</td>
         <td>{{ s.created_at }}</td>
         <td>{{ s.status }}</td>
+        <td>{{ s.rows or "—" }}</td>
+        <td>{{ s.months or "—" }}</td>
+        <td>{{ s.size or "—" }}</td>
         <td>
           <form style="display:inline;" hx-post="/runs" hx-target="#run-result" hx-swap="innerHTML">
             <input type="hidden" name="scenario" value="{{ s.name }}">
@@ -24,7 +27,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="empty">No datasets yet.</td></tr>
+      <tr><td colspan="7" class="empty">No datasets yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>
