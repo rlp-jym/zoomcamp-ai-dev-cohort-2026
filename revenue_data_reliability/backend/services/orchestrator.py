@@ -25,7 +25,7 @@ from backend.storage.scenario_cache import (
     scenario_s3_prefix,
 )
 from backend.teams.de import DEAgent
-from backend.teams.fa import FAAgent
+from backend.teams.fa import FinancialImpactAgent
 
 logger = logging.getLogger(__name__)
 
@@ -156,10 +156,9 @@ def _rule_exception_params(run_id, result, trace_id, latest_period=None):
     params = []
     for period, rows in grouped.items():
         count = len(rows)
-        if period:
-            title = f"{base_title} ({count} record(s) in {period})"
-        else:
-            title = f"{base_title} ({count} record(s))"
+        # Keep the rule-level title identical to the Validation Results view;
+        # period and record count live in dedicated columns/details.
+        title = base_title
         p_key = _period_key(period)
         is_current = (p_key is None) or (latest_period is None) or (p_key == latest_period)
         status = "open" if is_current else "resolved"
@@ -356,11 +355,11 @@ def run_pipeline(run_id):
                 run_id,
                 time.perf_counter() - de_start,
             )
-            fa_agent = FAAgent()
+            fa_agent = FinancialImpactAgent()
             fa_start = time.perf_counter()
             fa_agent.quantify_impact_for_run(run_id, trace_id)
             logger.info(
-                "Pipeline timing [run %s] FA impact: %.2fs",
+                "Pipeline timing [run %s] Financial Impact Agent: %.2fs",
                 run_id,
                 time.perf_counter() - fa_start,
             )

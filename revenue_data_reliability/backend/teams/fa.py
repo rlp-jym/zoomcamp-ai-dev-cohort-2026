@@ -1,18 +1,19 @@
-"""Financial Analyst (FA) agent.
+"""Financial Impact Agent.
 
 Quantifies the financial impact of open exceptions by:
-1. Loading the fa_impact_narrative skill
+1. Loading the financial_impact_agent skill
 2. Building context from exception details and reconciliation data
 3. Calling the LLM (or template fallback)
 4. Posting the impact narrative to the exception thread
-5. Logging exactly one agent_actions row
+5. Persisting the specific impact on the exception row
+6. Logging exactly one agent_actions row
 """
 
 import json
 import logging
 
 from backend.config import settings
-from backend.db.connection import fetch_all
+from backend.db.connection import execute, fetch_all
 from backend.services import exceptions as exc_svc
 from backend.services import llm_client
 from backend.services import messages as msg_svc
@@ -22,8 +23,8 @@ from backend.teams.base import BaseAgent
 logger = logging.getLogger(__name__)
 
 
-class FAAgent(BaseAgent):
-    """Financial Analyst agent — quantifies impact of open exceptions."""
+class FinancialImpactAgent(BaseAgent):
+    """Financial Impact Agent — quantifies impact of open exceptions."""
 
     def __init__(self):
         super().__init__("fa")
@@ -64,7 +65,8 @@ class FAAgent(BaseAgent):
         rows = fetch_all(
             """
             SELECT * FROM exceptions
-            WHERE run_id = %s AND status = 'open'
+            WHERE run_id = %s
+              AND status NOT IN ('resolved', 'escalated')
             ORDER BY exception_id ASC
             """,
             (run_id,),
@@ -87,10 +89,11 @@ class FAAgent(BaseAgent):
 
     def quantify_impact(self, exc: dict, trace_id: str) -> dict:
         """Generate and post a financial impact narrative for a single exception."""
+        exc_id = exc.get("exception_id", exc.get("id"))
         context = self._build_context(exc)
 
         try:
-            skill_text = load_skill("fa_impact_narrative")
+            skill_text = load_skill("financial_impact_agent")
         except (ValueError, FileNotFoundError):
             skill_text = ""
 
@@ -101,22 +104,31 @@ class FAAgent(BaseAgent):
         else:
             content = llm_client._template_fallback(user_prompt)
 
+        # Persist the specific narrative on the exception so the Data Issues
+        # table can prefer it over the rule's default impact phrase.
+        impact = (content or "").strip()
+        if impact:
+            execute(
+                "UPDATE exceptions SET impact = %s, updated_at = now() WHERE exception_id = %s",
+                (impact[:1000], exc_id),
+            )
+
         msg = msg_svc.post_message(
             "exception",
-            str(exc["exception_id"]),
+            str(exc_id),
             self.persona,
             content,
             trace_id=trace_id,
-            evidence={"exception_id": exc["exception_id"], "impact_narrative": True},
+            evidence={"exception_id": exc_id, "impact_narrative": True},
         )
 
         self.log_action(
             "impact_narrative",
             "exception",
-            str(exc["exception_id"]),
+            str(exc_id),
             trace_id,
             {
-                "exception_id": exc["exception_id"],
+                "exception_id": exc_id,
                 "exception_type": exc["type"],
                 "affected_amount": context.get("affected_amount"),
             },
@@ -126,6 +138,7 @@ class FAAgent(BaseAgent):
 
     def _build_context(self, exc: dict) -> dict:
         details = exc.get("details") or {}
+        exc_id = exc.get("exception_id", exc.get("id"))
 
         # Prefer data already persisted on the exception (one DB round trip
         # saved per agent message); fall back to a query only when missing.
@@ -161,7 +174,7 @@ class FAAgent(BaseAgent):
             affected_amount = count * 1000  # rough estimate
 
         return {
-            "exception_id": exc["exception_id"],
+            "exception_id": exc_id,
             "title": exc["title"],
             "exception_type": exc["type"],
             "severity": exc["severity"],
@@ -169,7 +182,7 @@ class FAAgent(BaseAgent):
             "affected_amount": affected_amount,
             "currency": currency,
             "anchor_type": "exception",
-            "anchor_id": str(exc["exception_id"]),
+            "anchor_id": str(exc_id),
             "sampled_failures": sampled_failures,
             "reconciliation_rows": recon_rows,
         }
@@ -195,3 +208,8 @@ class FAAgent(BaseAgent):
                 f"Sampled failures: {json.dumps(context['sampled_failures'][:3], default=str)}"
             )
         return "\n".join(lines)
+
+
+# Backwards-compatible alias for callers that still use the old class name.
+FAAgent = FinancialImpactAgent
+

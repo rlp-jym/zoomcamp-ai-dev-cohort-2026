@@ -6,10 +6,14 @@
   <dt>Type</dt><dd>{{ exception.type }}</dd>
   <dt>Severity</dt><dd>{{ exception.severity }}</dd>
   <dt>Period</dt><dd>{{ exception.period }}</dd>
-  <dt>Status</dt><dd>{{ exception.status }}</dd>
+  <dt>Count</dt><dd>{{ exception.count if exception.count is not none else "—" }}</dd>
+  <dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") }}</span></dd>
+  <dt>Impact</dt><dd>{{ exception.impact or "—" }}</dd>
   <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
   <dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name }})</dd>
   <dt>Title</dt><dd>{{ exception.title }}</dd>
+  <dt>Description</dt><dd>{{ exception.description }}</dd>
+  <dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd>
 </dl>
 
 {% if exception.status != "resolved" %}
@@ -21,6 +25,33 @@
     <span style="color:red;font-size:0.8rem;">Requires Manager</span>
   {% endif %}
 </form>
+<form method="post" action="/exceptions/{{ exception.id }}/reject" style="margin:1rem 0;max-width:34rem;">
+  <label for="reject-reason"><strong>Reject remediation</strong></label>
+  <p class="page-description" style="margin:0.25rem 0;">
+    A reason is required. The DE agent will read it and propose a new remediation.
+    After 3 rejections the issue is auto-escalated.
+  </p>
+  <div class="reject-presets" style="margin:0.35rem 0;">
+    <button type="button" class="btn btn-small" onclick="setRejectReason('Missed rows')">Missed rows</button>
+    <button type="button" class="btn btn-small" onclick="setRejectReason('Wrong reason code')">Wrong reason code</button>
+    <button type="button" class="btn btn-small" onclick="setRejectReason('Insufficient explanation')">Insufficient explanation</button>
+  </div>
+  <textarea id="reject-reason" name="reason" rows="3" required
+            style="width:100%;" placeholder="Explain why this remediation is not acceptable..."></textarea>
+  <button class="btn" type="submit" style="margin-top:0.35rem;"
+          {% if persona.id != "manager" %}disabled{% endif %}>Reject</button>
+  {% if persona.id == "manager" %}
+    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
+  {% else %}
+    <span style="color:red;font-size:0.8rem;">Requires Manager</span>
+  {% endif %}
+</form>
+<script>
+  function setRejectReason(value) {
+    const field = document.getElementById("reject-reason");
+    if (field) field.value = value;
+  }
+</script>
 <form method="post" action="/exceptions/{{ exception.id }}/quarantine" style="margin:1rem 0;">
   <button class="btn" type="submit" {% if persona.id != "de" %}disabled{% endif %}>Quarantine</button>
   {% if persona.id == "de" %}

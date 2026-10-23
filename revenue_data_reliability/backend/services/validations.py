@@ -210,7 +210,7 @@ def list_validations(run_id):
     rows = fetch_all(
         """
         SELECT v.rule_id, v.status, v.summary_count, v.sampled_failures,
-               v.created_at, r.severity, r.description
+               v.created_at, r.severity, r.description, r.impact
         FROM validations v
         JOIN rules r ON r.rule_id = v.rule_id
         WHERE v.run_id = %s
@@ -223,9 +223,11 @@ def list_validations(run_id):
         out.append(
             {
                 "rule_id": r["rule_id"],
+                "title": EXCEPTION_TITLES.get(r["rule_id"], r["description"]),
                 "status": r["status"],
                 "summary_count": r["summary_count"],
                 "severity": r["severity"],
+                "impact": r["impact"],
                 "description": r["description"],
             }
         )

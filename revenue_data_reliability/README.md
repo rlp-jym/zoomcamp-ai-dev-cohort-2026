@@ -9,8 +9,9 @@ of AI agents and human discussion threads.
 Production-shaped v1. All 11 validation rules execute against every run, the
 billings-vs-General-Ledger reconciliation runs at the `(period, account_id,
 item_category)` grain, and exceptions are raised for every failed rule (grouped
-by month) and every material reconciliation gap. The DQ/DE/FA/Controller agents
-post to run and exception threads (template fallback when no LLM key is set).
+by month) and every material reconciliation gap. The DQ/DE/Financial Impact
+Agent/Controller agents post to run and exception threads (template fallback
+when no LLM key is set).
 
 The UI is wired to real Postgres/DuckDB data on every route, with a published
 `baseline_run` fixture so the app is populated immediately after a cold start.
@@ -26,8 +27,8 @@ Implemented highlights:
   Only the latest data period stays `open`; earlier periods are inserted
   `resolved` so `/exceptions` stays a pending work queue.
 - Agent team: Orchestrator (pipeline), DQ (validation summary), DE
-  (remediation proposals), FA (financial impact), Controller (continuous
-  verification of published state, 6 checks, alerting).
+  (remediation proposals), Financial Impact Agent (financial impact),
+  Controller (continuous verification of published state, 6 checks, alerting).
 - Publication flow: Manager approves go-live; published pointer + quarantine
   overlay; Controller verifies published state on a schedule.
 - Observability: OpenTelemetry spans/logs/metrics exported to Postgres with
@@ -103,8 +104,8 @@ human reviewers.
 - Execute 11 DuckDB validation rules over the run's tables.
 - Reconcile billings to the General Ledger at `(period, account_id, item_category)`.
 - Raise exceptions for failed rules and material reconciliation gaps.
-- Run an agent team (Orchestrator, DQ, DE, FA, Controller) that posts to
-  discussion threads with template fallback when no LLM key is set.
+- Run an agent team (Orchestrator, DQ, DE, Financial Impact Agent, Controller)
+  that posts to discussion threads with template fallback when no LLM key is set.
 - Manager approves publication; published pointer + quarantine overlay.
 - Observability: OpenTelemetry spans/logs/metrics exported to Postgres with an
   in-app viewer.
@@ -112,6 +113,26 @@ human reviewers.
 ## Expected Behavior
 
 See the "Expected Behavior" section above.
+
+## Role Definitions
+
+| Role | Type | Responsibility |
+|---|---|---|
+| Analyst | Human | Generates datasets, initiates validation, authors sensitivity scenarios. |
+| Manager | Human | Governs the remediation loop: approves or rejects with a reason. |
+| DE (Data Engineer) | Agent | Proposes and executes data quarantines/remediation. |
+| Financial Impact Agent | Agent | Translates data issues into financial narratives and impact estimates. |
+| Controller | Agent | Continuous post-publication verification; opens alerts and escalates. |
+
+### Governance Loop (Human-in-the-loop)
+
+The AI proposes; the human decides; the AI iterates on rejection. The DE agent
+posts a remediation proposal, the Manager either approves (issue resolves) or
+rejects with a required reason. On rejection, the DE agent reads the reason and
+submits a new proposal. After three rejected proposals the issue auto-escalates
+to the Director instead of looping indefinitely. The Financial Impact Agent
+attaches a financial narrative to each issue so the human decision is grounded
+in monetary impact.
 
 ## Demo Flow
 

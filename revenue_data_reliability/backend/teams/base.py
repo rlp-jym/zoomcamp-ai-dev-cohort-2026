@@ -1,6 +1,6 @@
 """Base agent class with helper for logging agent actions to the DB.
 
-Every agent (Orchestrator, DQ, DE, FA, Controller) inherits from
+Every agent (Orchestrator, DQ, DE, Financial Impact Agent, Controller) inherits from
 ``BaseAgent`` so that each agent action produces exactly one row in the
 ``agent_actions`` table, correlated by ``trace_id``.
 """

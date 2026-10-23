@@ -9,7 +9,7 @@ PERSONAS = [
     ("orchestrator", "agent", "Pipeline Orchestrator", "Runs pipeline; posts start/finish; requests go-live"),
     ("de", "agent", "Data Engineer", "Proposes remediation (re-run, quarantine, reload)"),
     ("dq", "agent", "Data Quality", "Executes rules; posts validation results"),
-    ("fa", "agent", "Financial Analyst", "Translates every defect into financial impact; may open analysis threads"),
+    ("fa", "agent", "Financial Impact Agent", "Translates every defect into financial impact; may open analysis threads"),
     ("controller", "agent", "Controller", "Runtime first responder; verifies published state"),
 ]
 
@@ -236,6 +236,24 @@ RULES = [
 ]
 
 
+# Default financial impact phrase per rule. The Financial Impact Agent may
+# replace these with a specific, exception-level narrative at runtime.
+RULE_IMPACTS = {
+    "VAL_FK_ITEM_EXISTS": "breaks invoice-to-item traceability",
+    "VAL_DUPLICATE_INVOICE_LINE": "overstates revenue",
+    "VAL_FK_CUSTOMER_EXISTS": "breaks customer revenue attribution",
+    "VAL_FRESHNESS_GL": "understates or delays recognized revenue",
+    "VAL_RECON_BILLINGS_GL": "misstates billings vs. General Ledger",
+    "VAL_RESTATEMENT_DETECTED": "changes previously reported revenue",
+    "VAL_FX_RATE_EXISTS": "misstates foreign exchange",
+    "VAL_FK_BACKORDER_ORDER_LINE": "overstates open order backlog",
+    "VAL_FK_RETURN_SHIPMENT": "overstates returns and credits",
+    "VAL_AR_INVOICE_1TO1": "misstates accounts receivable",
+    "VAL_ORDER_LINE_UNIQUE": "overstates order volume",
+    "VAL_SEGMENT_DRIFT": "misallocates revenue by segment",
+}
+
+
 def seed() -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -244,7 +262,10 @@ def seed() -> None:
                     """
                     INSERT INTO personas (persona_id, type, title, role)
                     VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (persona_id) DO NOTHING
+                    ON CONFLICT (persona_id) DO UPDATE SET
+                        type = EXCLUDED.type,
+                        title = EXCLUDED.title,
+                        role = EXCLUDED.role
                     """,
                     (persona_id, ptype, title, role),
                 )
@@ -252,15 +273,17 @@ def seed() -> None:
                 # Rules are versioned in code; keep the DB definition in sync.
                 cur.execute(
                     """
-                    INSERT INTO rules (rule_id, description, severity, sql, expected_detection_rule)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO rules (rule_id, description, severity, sql,
+                                       expected_detection_rule, impact)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (rule_id) DO UPDATE SET
                         description = EXCLUDED.description,
                         severity = EXCLUDED.severity,
                         sql = EXCLUDED.sql,
-                        expected_detection_rule = EXCLUDED.expected_detection_rule
+                        expected_detection_rule = EXCLUDED.expected_detection_rule,
+                        impact = EXCLUDED.impact
                     """,
-                    (rule_id, desc, severity, sql, expected),
+                    (rule_id, desc, severity, sql, expected, RULE_IMPACTS.get(rule_id)),
                 )
         conn.commit()
 

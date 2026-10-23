@@ -69,7 +69,7 @@ no CI/CD or infra checks, no future-feature expectations.
 - [x] Data Issue lifecycle: only the latest data period stays `open`; earlier periods are inserted `resolved` so the list is a pending queue (≤ ~12 open).
 - [x] DQ posts a validation summary to the run thread.
 - [x] DE posts a remediation proposal per open exception.
-- [x] FA posts an impact narrative per open exception.
+- [x] Financial Impact Agent posts an impact narrative per open exception.
 - [x] Run ends completed with counts; Orchestrator posts a "run finished" message.
 - [ ] On exception, run is marked failed and a failure message is posted. (not exercised — needs a forced failure; code path exists in orchestrator.run_pipeline with status='failed' and try/except)
 

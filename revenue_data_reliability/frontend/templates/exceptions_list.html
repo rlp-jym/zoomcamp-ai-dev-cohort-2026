@@ -7,33 +7,40 @@
 {% endif %}
 <p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with resolution actions.</p>
 
-<div class="tab-row" style="margin-bottom:1rem;">
-  <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open{% if run_id %}&run_id={{ run_id }}{% endif %}">Open ({{ counts.open }})</a>
-  <a class="btn {% if status_filter == 'resolved' %}btn-active{% endif %}" href="/exceptions?status=resolved{% if run_id %}&run_id={{ run_id }}{% endif %}">Resolved ({{ counts.resolved }})</a>
-  <a class="btn {% if status_filter == 'all' %}btn-active{% endif %}" href="/exceptions?status=all{% if run_id %}&run_id={{ run_id }}{% endif %}">All ({{ counts.total }})</a>
-</div>
+<form method="get" action="/exceptions" class="status-filter" style="margin-bottom:1rem;">
+  {% if run_id %}<input type="hidden" name="run_id" value="{{ run_id }}">{% endif %}
+  <label for="status">Status:</label>
+  <select id="status" name="status" onchange="this.form.submit()">
+    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All ({{ counts.total }})</option>
+    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open ({{ counts.open }})</option>
+    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved ({{ counts.resolved }})</option>
+  </select>
+</form>
 {% if run_id %}
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
 {% endif %}
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Period</th><th>Title</th><th>Status</th><th>Trace</th></tr>
+    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th><th>Trace</th></tr>
   </thead>
   <tbody>
     {% for e in exceptions %}
-    <tr>
+    <tr class="{% if e.status == 'resolved' %}row-resolved{% endif %}">
       <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
       <td>From Run #{{ e.run_id }} ({{ e.scenario_name }})</td>
       <td>{{ e.type }}</td>
       <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
+      <td>{{ e.impact or "—" }}</td>
       <td>{{ e.period }}</td>
+      <td>{{ e.count if e.count is not none else "—" }}</td>
       <td>{{ e.title }}</td>
-      <td>{{ e.status }}</td>
+      <td>{{ e.description }}</td>
+      <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") }}</span></td>
       <td>{{ e.trace_id }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="8" class="empty">No exceptions in this view.</td></tr>
+    <tr><td colspan="11" class="empty">No exceptions in this view.</td></tr>
     {% endfor %}
   </tbody>
 </table>

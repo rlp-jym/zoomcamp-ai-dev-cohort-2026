@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from backend.config import settings
+from backend.db.connection import execute
 from backend.services import messages, stub_data
 from backend.templating import templates
 
@@ -22,6 +23,15 @@ async def post_message(request: Request, anchor_type: str, anchor_id: str):
     persona = _current_persona(request)
     if content:
         messages.post_message(anchor_type, anchor_id, persona, content)
+        if anchor_type == "exception":
+            try:
+                execute(
+                    "UPDATE exceptions SET status = 'in_discussion', updated_at = now() "
+                    "WHERE exception_id = %s AND status = 'open'",
+                    (anchor_id,),
+                )
+            except Exception:
+                pass
         try:
             from backend.services import dashboard as _dashboard_svc
 

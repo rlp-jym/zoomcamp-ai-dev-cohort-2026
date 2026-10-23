@@ -12,7 +12,7 @@ import json
 import logging
 
 from backend.config import settings
-from backend.db.connection import fetch_all
+from backend.db.connection import execute, fetch_all
 from backend.services import exceptions as exc_svc
 from backend.services import llm_client
 from backend.services import messages as msg_svc
@@ -93,9 +93,15 @@ class DEAgent(BaseAgent):
             })
         return out
 
-    def propose_remediation(self, exc: dict, trace_id: str) -> dict:
-        """Generate and post a remediation proposal for a single exception."""
+    def propose_remediation(self, exc: dict, trace_id: str, rejection_reason: str | None = None) -> dict:
+        """Generate and post a remediation proposal for a single exception.
+
+        ``rejection_reason`` is set by the Manager rejection loop; the DE
+        agent must address it explicitly in the next proposal.
+        """
         context = self._build_context(exc)
+        if rejection_reason:
+            context["rejection_reason"] = rejection_reason
 
         try:
             skill_text = load_skill("de_remediation_explanation")
@@ -109,21 +115,34 @@ class DEAgent(BaseAgent):
         else:
             content = llm_client._template_fallback(user_prompt)
 
+        exc_id = exc.get("exception_id", exc.get("id"))
+        attempts = int(exc.get("remediation_attempts") or 0) + 1
+        execute(
+            """
+            UPDATE exceptions
+            SET status = 'remediation_proposed',
+                remediation_attempts = %s,
+                updated_at = now()
+            WHERE exception_id = %s
+            """,
+            (attempts, exc_id),
+        )
+
         msg = msg_svc.post_message(
             "exception",
-            str(exc["exception_id"]),
+            str(exc_id),
             self.persona,
             content,
             trace_id=trace_id,
-            evidence={"exception_id": exc["exception_id"], "proposal": True},
+            evidence={"exception_id": exc_id, "proposal": True},
         )
 
         self.log_action(
             "remediation_proposal",
             "exception",
-            str(exc["exception_id"]),
+            str(exc_id),
             trace_id,
-            {"exception_id": exc["exception_id"], "exception_type": exc["type"]},
+            {"exception_id": exc_id, "exception_type": exc["type"]},
         )
 
         return msg
@@ -213,6 +232,7 @@ class DEAgent(BaseAgent):
 
     def _build_context(self, exc: dict) -> dict:
         details = exc.get("details") or {}
+        exc_id = exc.get("exception_id", exc.get("id"))
 
         # Prefer data already persisted on the exception (one DB round trip
         # saved per agent message); fall back to a query only when missing.
@@ -231,7 +251,7 @@ class DEAgent(BaseAgent):
             recon_rows = []
 
         return {
-            "exception_id": exc["exception_id"],
+            "exception_id": exc_id,
             "title": exc["title"],
             "exception_type": exc["type"],
             "severity": exc["severity"],
@@ -261,5 +281,8 @@ class DEAgent(BaseAgent):
             lines.append(
                 f"Reconciliation rows: {json.dumps(context['reconciliation_rows'][:3], default=str)}"
             )
+        if context.get("rejection_reason"):
+            lines.append(f"Manager rejection reason: {context['rejection_reason']}")
+            lines.append("Revise the remediation to address this rejection explicitly.")
         lines.append(f"Playbook steps: {', '.join(context['playbook_steps'])}")
         return "\n".join(lines)

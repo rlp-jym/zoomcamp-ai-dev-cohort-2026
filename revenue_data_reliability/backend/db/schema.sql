@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS rules (
     severity               TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
     sql                    TEXT NOT NULL,
     expected_detection_rule TEXT NOT NULL,
+    impact                 VARCHAR,
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -109,7 +110,9 @@ CREATE TABLE IF NOT EXISTS exceptions (
     severity      TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
     period        TEXT,
     title         TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'remediation_proposed', 'approved', 'resolved')),
+    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'remediation_proposed', 'remediation_rejected', 'approved', 'resolved', 'escalated')),
+    impact        VARCHAR,
+    remediation_attempts INTEGER NOT NULL DEFAULT 0,
     trace_id      TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -242,6 +245,16 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
 -- evidence for drill-down (reconciliation grain, samples, etc.).
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS rule_id TEXT;
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS details JSONB;
+
+-- Impact column: rule-level default plus exception-level specific narrative.
+ALTER TABLE rules ADD COLUMN IF NOT EXISTS impact VARCHAR;
+ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS impact VARCHAR;
+ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS remediation_attempts INTEGER NOT NULL DEFAULT 0;
+
+-- Rejection loop statuses (idempotent constraint refresh).
+ALTER TABLE exceptions DROP CONSTRAINT IF EXISTS exceptions_status_check;
+ALTER TABLE exceptions ADD CONSTRAINT exceptions_status_check
+    CHECK (status IN ('open', 'in_discussion', 'remediation_proposed', 'remediation_rejected', 'approved', 'resolved', 'escalated'));
 
 -- Batch 6 / Phase 3 (§19): precomputed dashboard payload.
 -- The / route never scans S3 Parquet inside a request; the scheduler job

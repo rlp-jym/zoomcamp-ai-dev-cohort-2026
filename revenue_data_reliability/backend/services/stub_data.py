@@ -8,7 +8,7 @@ PERSONAS = [
     {"id": "orchestrator", "type": "agent", "title": "Pipeline Orchestrator"},
     {"id": "de", "type": "agent", "title": "Data Engineer"},
     {"id": "dq", "type": "agent", "title": "Data Quality"},
-    {"id": "fa", "type": "agent", "title": "Financial Analyst"},
+    {"id": "fa", "type": "agent", "title": "Financial Impact Agent"},
     {"id": "controller", "type": "agent", "title": "Controller"},
 ]
 
@@ -305,7 +305,7 @@ for e in EXCEPTIONS:
         _msg("de", "Remediation proposal posted: re-run pipeline for affected month.", "2025-03-01 09:30"),
     ]
 
-# Exception 1 gets an extra FA message for richness
+# Exception 1 gets an extra Financial Impact Agent message for richness
 THREADS[("exception", "1")].append(
     _msg("fa", "Financial impact: ~$18k revenue at risk in period 2025-03.", "2025-03-01 09:32")
 )

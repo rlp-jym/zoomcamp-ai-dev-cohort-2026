@@ -33,11 +33,13 @@ def create_exception(
     status="open",
     rule_id=None,
     details=None,
+    impact=None,
 ):
     row = fetch_one(
         """
-        INSERT INTO exceptions (run_id, type, severity, period, title, status, trace_id, rule_id, details)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO exceptions (run_id, type, severity, period, title, status,
+                                trace_id, rule_id, details, impact)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING exception_id
         """,
         (
@@ -50,12 +52,14 @@ def create_exception(
             trace_id,
             rule_id,
             json.dumps(details, default=str) if details is not None else None,
+            impact,
         ),
     )
     return row["exception_id"]
 
 
 def _to_dict(r):
+    details = _as_json(r.get("details"))
     return {
         "id": r["exception_id"],
         "run_id": r["run_id"],
@@ -64,9 +68,14 @@ def _to_dict(r):
         "severity": r["severity"],
         "period": r["period"],
         "title": r["title"],
+        "description": r.get("description"),
+        "count": details.get("count") if isinstance(details, dict) else None,
         "status": r["status"],
         "trace_id": r["trace_id"],
         "rule_id": r.get("rule_id"),
+        "impact": r.get("impact"),
+        "rule_impact": r.get("rule_impact"),
+        "remediation_attempts": r.get("remediation_attempts") or 0,
         "details": _as_json(r.get("details")),
         "created_at": _fmt_dt(r["created_at"]),
     }
@@ -75,9 +84,14 @@ def _to_dict(r):
 def get_exception(exc_id):
     r = fetch_one(
         """
-        SELECT e.*, r.scenario_name AS scenario_name
+        SELECT e.*,
+               rn.scenario_name AS scenario_name,
+               ru.description AS description,
+               ru.impact AS rule_impact,
+               COALESCE(e.impact, ru.impact) AS impact
         FROM exceptions e
-        LEFT JOIN runs r ON r.run_id = e.run_id
+        LEFT JOIN runs rn ON rn.run_id = e.run_id
+        LEFT JOIN rules ru ON ru.rule_id = e.rule_id
         WHERE e.exception_id = %s
         """,
         (exc_id,),
@@ -123,14 +137,21 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
         params.append(run_id)
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     rows = fetch_all(
-        f"SELECT e.*, r.scenario_name AS scenario_name "
-        f"FROM exceptions e LEFT JOIN runs r ON r.run_id = e.run_id "
+        f"SELECT e.*, "
+        f"       rn.scenario_name AS scenario_name, "
+        f"       ru.description AS description, "
+        f"       ru.impact AS rule_impact, "
+        f"       COALESCE(e.impact, ru.impact) AS impact "
+        f"FROM exceptions e "
+        f"LEFT JOIN runs rn ON rn.run_id = e.run_id "
+        f"LEFT JOIN rules ru ON ru.rule_id = e.rule_id "
         f"{where} ORDER BY e.created_at DESC, e.exception_id DESC "
         f"LIMIT %s OFFSET %s",
         tuple(params + [limit, offset]),
     )
     out = []
     for r in rows:
+        details = _as_json(r.get("details"))
         out.append(
             {
                 "id": r["exception_id"],
@@ -140,8 +161,14 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
                 "severity": r["severity"],
                 "period": r["period"],
                 "title": r["title"],
+                "description": r.get("description"),
+                "count": details.get("count") if isinstance(details, dict) else None,
                 "status": r["status"],
                 "trace_id": r["trace_id"],
+                "rule_id": r.get("rule_id"),
+                "impact": r.get("impact"),
+                "rule_impact": r.get("rule_impact"),
+                "remediation_attempts": r.get("remediation_attempts") or 0,
             }
         )
     return out

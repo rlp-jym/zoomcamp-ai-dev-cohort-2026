@@ -20,7 +20,7 @@ def mock_duckdb(monkeypatch):
     monkeypatch.setattr("backend.services.orchestrator.ensure_local_scenario", lambda *a, **k: None)
     monkeypatch.setattr("backend.services.validations.ensure_local_scenario", lambda *a, **k: None)
     monkeypatch.setattr("backend.services.reconciliations.ensure_local_scenario", lambda *a, **k: None)
-    # Avoid DE/FA hitting the DB for exceptions; log one action each.
+    # Avoid DE/Financial Impact Agent hitting the DB for exceptions; log one action each.
     def _de(run_id, trace_id):
         orchestrator._log_action("de", "remediation_proposal", "run", str(run_id), trace_id, {})
 
@@ -28,7 +28,7 @@ def mock_duckdb(monkeypatch):
         orchestrator._log_action("fa", "financial_impact", "run", str(run_id), trace_id, {})
 
     monkeypatch.setattr("backend.teams.de.DEAgent.propose_remediation_for_run", lambda self, run_id, trace_id: _de(run_id, trace_id) or 0)
-    monkeypatch.setattr("backend.teams.fa.FAAgent.quantify_impact_for_run", lambda self, run_id, trace_id: _fa(run_id, trace_id) or 0)
+    monkeypatch.setattr("backend.teams.fa.FinancialImpactAgent.quantify_impact_for_run", lambda self, run_id, trace_id: _fa(run_id, trace_id) or 0)
     return fake_conn
 
 

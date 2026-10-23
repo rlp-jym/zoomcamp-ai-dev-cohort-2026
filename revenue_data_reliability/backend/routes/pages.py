@@ -125,16 +125,17 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
         run_id_int = None
     # Direct ?run_id= links win; otherwise scope to the active run.
     filter_run_id = run_id_int if run_id_int is not None else active_run_id
+    status_filter = status or "all"
     if filter_run_id is None and run_id_int is None and active_run_id is None:
         exceptions = []
     else:
-        exceptions = exc_svc.list_exceptions(status, limit=limit, offset=offset, run_id=filter_run_id)
+        exceptions = exc_svc.list_exceptions(status_filter, limit=limit, offset=offset, run_id=filter_run_id)
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
         _ctx(request, scenario=scenario,
              exceptions=exceptions,
-             status_filter=status or "open",
+             status_filter=status_filter,
              counts=exc_svc.exception_counts(),
              limit=limit,
              offset=offset,
@@ -235,6 +236,70 @@ async def approve_exception(request: Request, exc_id: int):
         trace_id=trace_id,
         evidence={"resolved": True, "approved_by": "manager"},
     )
+
+    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
+
+
+@router.post("/exceptions/{exc_id}/reject")
+async def reject_exception(request: Request, exc_id: int):
+    """Manager rejects a remediation with a required reason.
+
+    The DE agent reads the reason and posts a new proposal. After three
+    proposals the exception auto-escalates instead of looping forever.
+    """
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can reject remediations.")
+
+    form = await request.form()
+    reason = (form.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="A rejection reason is required.")
+
+    exc = exc_svc.get_exception(exc_id)
+    if not exc:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    if exc["status"] == "resolved":
+        raise HTTPException(status_code=400, detail="Exception is already resolved.")
+    if exc["status"] == "escalated":
+        raise HTTPException(status_code=400, detail="Exception is already escalated.")
+
+    trace_id = exc.get("trace_id")
+    attempts = int(exc.get("remediation_attempts") or 0)
+
+    execute(
+        "UPDATE exceptions SET status = 'remediation_rejected', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+    messages.post_message(
+        "exception",
+        str(exc_id),
+        persona,
+        f"Remediation rejected (attempt {attempts}/3): {reason}",
+        trace_id=trace_id,
+        evidence={"rejected": True, "reason": reason, "attempt": attempts},
+    )
+
+    if attempts >= 3:
+        execute(
+            "UPDATE exceptions SET status = 'escalated', updated_at = now() WHERE exception_id = %s",
+            (exc_id,),
+        )
+        messages.post_message(
+            "exception",
+            str(exc_id),
+            persona,
+            "Auto-escalated after 3 rejected remediation attempts. Director review required.",
+            trace_id=trace_id,
+            evidence={"escalated": True, "attempts": attempts},
+        )
+    else:
+        de_agent = DEAgent()
+        de_agent.propose_remediation(
+            {**exc, "status": "remediation_rejected"},
+            trace_id,
+            rejection_reason=reason,
+        )
 
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 

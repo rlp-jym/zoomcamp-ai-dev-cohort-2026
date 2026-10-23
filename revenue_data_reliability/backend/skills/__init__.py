@@ -10,7 +10,7 @@ from pathlib import Path
 _SKILLS_DIR = Path(__file__).resolve().parent
 
 _VALID_SKILLS = {
-    "fa_impact_narrative",
+    "financial_impact_agent",
     "de_remediation_explanation",
     "dq_validation_summary",
     "controller_triage_note",
@@ -21,7 +21,7 @@ def load_skill(name: str) -> str:
     """Load a skill's SKILL.md content by name.
 
     Args:
-        name: One of ``fa_impact_narrative``, ``de_remediation_explanation``,
+        name: One of ``financial_impact_agent``, ``de_remediation_explanation``,
             ``dq_validation_summary``, ``controller_triage_note``.
 
     Returns:

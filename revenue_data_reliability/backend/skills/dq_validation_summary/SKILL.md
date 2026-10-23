@@ -40,7 +40,7 @@ Structure your response as **one paragraph, 2–4 sentences**:
 
 - **Use only the provided values.** Do not invent rule IDs, counts, or
   severities.
-- **Do not recommend actions or next steps.** The FA and DE agents handle
+- **Do not recommend actions or next steps.** The Financial Impact Agent and DE agents handle
   impact and remediation.
 - **Do not reference specific table names or column names.** Speak in terms
   of the rule descriptions provided.
