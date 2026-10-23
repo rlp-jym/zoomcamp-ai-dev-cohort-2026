@@ -204,3 +204,4 @@ def test_attach_ignores_cache_from_a_different_source(monkeypatch):
     scale.attach_scale_info(scenarios, timeout=0.01)
 
     assert scenarios[0]["rows"] is None
+

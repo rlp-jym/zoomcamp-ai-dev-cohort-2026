@@ -31,7 +31,7 @@ def mock_duckdb(monkeypatch):
 def test_pipeline_happy_path():
     trace_id = uuid.uuid4().hex
     execute(
-        "INSERT INTO runs (scenario_name, status, trace_id) VALUES (%s, %s, %s)",
+        "INSERT INTO runs (dataset_name, status, trace_id) VALUES (%s, %s, %s)",
         ("baseline_run", "pending", trace_id),
     )
     row = fetch_one("SELECT run_id FROM runs WHERE trace_id = %s", (trace_id,))
@@ -68,7 +68,7 @@ def test_pipeline_uses_four_progress_stages(monkeypatch):
 
     trace_id = uuid.uuid4().hex
     execute(
-        "INSERT INTO runs (scenario_name, status, trace_id) VALUES (%s, %s, %s)",
+        "INSERT INTO runs (dataset_name, status, trace_id) VALUES (%s, %s, %s)",
         ("baseline_run", "pending", trace_id),
     )
     row = fetch_one("SELECT run_id FROM runs WHERE trace_id = %s", (trace_id,))
@@ -83,3 +83,4 @@ def test_pipeline_uses_four_progress_stages(monkeypatch):
         ]
     finally:
         runs_svc.delete_run(run_id)
+

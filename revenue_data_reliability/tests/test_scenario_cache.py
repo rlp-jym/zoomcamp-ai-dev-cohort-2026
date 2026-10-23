@@ -144,3 +144,4 @@ def test_years_form_bounds_are_rendered():
     assert 'name="years_to_backtrack"' in template
     assert 'min="1"' in template
     assert 'max="5"' in template
+

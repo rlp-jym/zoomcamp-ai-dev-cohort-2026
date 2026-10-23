@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Validation #{{ run.id }}</h1>
 <dl class="meta meta-grid">
-  <div class="meta-item"><dt>Scenario</dt><dd>{{ run.scenario | scenario_label }}</dd></div>
+  <div class="meta-item"><dt>Dataset</dt><dd>{{ (run.dataset or run.scenario) | scenario_label }}</dd></div>
   <div class="meta-item"><dt>Status</dt><dd>{{ run.status | capitalize }}</dd></div>
   {% if run.status == "running" %}
   <div class="meta-item"><dt>Progress</dt><dd>

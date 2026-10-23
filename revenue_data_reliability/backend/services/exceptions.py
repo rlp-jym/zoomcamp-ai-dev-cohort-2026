@@ -63,7 +63,8 @@ def _to_dict(r):
     return {
         "id": r["exception_id"],
         "run_id": r["run_id"],
-        "scenario_name": r.get("scenario_name"),
+        "dataset_name": r.get("dataset_name"),
+        "scenario_name": r.get("dataset_name"),
         "type": r["type"],
         "severity": r["severity"],
         "period": r["period"],
@@ -85,7 +86,7 @@ def get_exception(exc_id):
     r = fetch_one(
         """
         SELECT e.*,
-               rn.scenario_name AS scenario_name,
+               rn.dataset_name AS dataset_name,
                ru.description AS description,
                ru.impact AS rule_impact,
                COALESCE(e.impact, ru.impact) AS impact
@@ -140,7 +141,7 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     rows = fetch_all(
         f"SELECT e.*, "
-        f"       rn.scenario_name AS scenario_name, "
+        f"       rn.dataset_name AS dataset_name, "
         f"       ru.description AS description, "
         f"       ru.impact AS rule_impact, "
         f"       COALESCE(e.impact, ru.impact) AS impact "
@@ -164,7 +165,8 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
             {
                 "id": r["exception_id"],
                 "run_id": r["run_id"],
-                "scenario_name": r.get("scenario_name"),
+                "dataset_name": r.get("dataset_name"),
+                "scenario_name": r.get("dataset_name"),
                 "type": r["type"],
                 "severity": r["severity"],
                 "period": r["period"],
@@ -182,16 +184,23 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
     return out
 
 
-def exception_counts():
+def exception_counts(run_id=None):
+    params = ()
+    where = ""
+    if run_id is not None:
+        where = "WHERE run_id = %s"
+        params = (run_id,)
     r = fetch_one(
-        """
+        f"""
         SELECT COUNT(*) FILTER (
                    WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
                ) AS open_n,
                COUNT(*) FILTER (WHERE status = 'resolved') AS resolved_n,
                COUNT(*) AS total
         FROM exceptions
-        """
+        {where}
+        """,
+        params,
     )
     if not r:
         return {"open": 0, "resolved": 0, "total": 0}

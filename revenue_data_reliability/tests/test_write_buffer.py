@@ -52,3 +52,4 @@ def test_buffered_writes_defer_and_flush():
             "DELETE FROM discussions WHERE anchor_type = 'run' AND anchor_id = %s",
             (anchor_id,),
         )
+

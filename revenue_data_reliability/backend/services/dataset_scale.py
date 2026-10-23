@@ -15,7 +15,7 @@ remaining totals are adjusted by the intersecting month share so a y1 clone
 does not report the y5 row/byte count.
 
 Reads happen lazily when the datasets table is rendered and the result is
-cached in ``scenarios.manifest`` (JSONB) under the ``scale`` key, so each
+cached in ``datasets.manifest`` (JSONB) under the ``scale`` key, so each
 scenario is measured once. A render never waits longer than
 ``SCALE_TIMEOUT_SECONDS``: on timeout or error the cell renders as an em
 dash, and the background read keeps going for the next render.
@@ -215,9 +215,9 @@ def read_scenario_scale(conn, source: str, years: int | None = None) -> dict | N
 
 
 def _store(scenario: str, info: dict) -> None:
-    """Merge the scale payload into ``scenarios.manifest`` (JSONB)."""
+    """Merge the scale payload into ``datasets.manifest`` (JSONB)."""
     execute(
-        "UPDATE scenarios "
+        "UPDATE datasets "
         "SET manifest = COALESCE(manifest, '{}'::jsonb) || jsonb_build_object(%s::text, %s::jsonb) "
         "WHERE name = %s",
         (SCALE_KEY, json.dumps(info), scenario),
@@ -295,7 +295,11 @@ def attach_scale_info(scenarios: list[dict], timeout: float = SCALE_TIMEOUT_SECO
         scenario["rows"] = None
         scenario["months"] = None
         scenario["size"] = None
-        source = scenario.get("source_scenario") or scenario.get("name")
+        source = (
+            scenario.get("source_dataset")
+            or scenario.get("source_scenario")
+            or scenario.get("name")
+        )
         years = resolve_years(scenario)
         cached = cached_scale(scenario.get("manifest"))
         if cached and cached.get("scenario") in (None, source) and cached.get("years_to_backtrack") == years:

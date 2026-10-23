@@ -17,7 +17,7 @@ def _make_run(scenario=None):
     trace_id = uuid.uuid4().hex
     row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, triggered_by, trace_id,
+        INSERT INTO runs (dataset_name, status, triggered_by, trace_id,
                           started_at, finished_at, duration)
         VALUES (%s, 'completed', 'test', %s, now(), now(), '0s')
         RETURNING run_id
@@ -396,3 +396,4 @@ def test_dismissed_and_resolved_leave_open_queue():
         assert resolved_id not in open_ids
     finally:
         runs_svc.delete_run(run_id)
+

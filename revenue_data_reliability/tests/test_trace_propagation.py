@@ -10,7 +10,7 @@ def test_trace_id_stored_on_run():
     # Insert a minimal run row.
     execute(
         """
-        INSERT INTO runs (scenario_name, status, trace_id)
+        INSERT INTO runs (dataset_name, status, trace_id)
         VALUES (%s, %s, %s)
         """,
         ("baseline_run", "completed", trace_id),

@@ -1,6 +1,6 @@
 <tr id="run-row-{{ run.id }}">
   <td><a href="/runs/{{ run.id }}">{{ run.id }}</a></td>
-  <td>{{ run.scenario | scenario_label }}</td>
+  <td>{{ (run.dataset or run.scenario) | scenario_label }}</td>
   <td>{{ run.status | capitalize }}</td>
   <td>
     <div class="progress-bar"><div class="progress-fill" style="width:{{ run.progress_percent or 0 }}%"></div></div>

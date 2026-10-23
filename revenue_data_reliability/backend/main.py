@@ -64,12 +64,12 @@ async def lifespan(app: FastAPI):
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM scenarios")
+                cur.execute("SELECT COUNT(*) FROM datasets")
                 count = cur.fetchone()[0]
         if count == 0:
             trigger_backfill()
         from backend.services import scenarios as scen_svc
-        scen_svc.ensure_baseline_registered()
+        scen_svc.ensure_baseline_dataset()
         ensure_baseline_fixture()
         from backend.services import runs as runs_svc
         failed = runs_svc.sweep_stale_runs(0)
@@ -108,11 +108,14 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.middleware("http")
-    async def scenario_cookie_middleware(request, call_next):
+    async def dataset_cookie_middleware(request, call_next):
         response = await call_next(request)
-        scenario = request.query_params.get("scenario")
-        if scenario:
-            response.set_cookie("scenario", scenario, max_age=30 * 24 * 3600, path="/")
+        dataset = request.query_params.get("dataset") or request.query_params.get("scenario")
+        if dataset:
+            response.set_cookie("dataset", dataset, max_age=30 * 24 * 3600, path="/")
+        if getattr(request.state, "clear_dataset_cookie", False):
+            response.delete_cookie("dataset", path="/")
+            response.delete_cookie("scenario", path="/")
         return response
 
     app.include_router(personas.router)

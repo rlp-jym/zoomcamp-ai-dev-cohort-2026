@@ -28,6 +28,7 @@ jobs:
         working-directory: revenue_data_reliability
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rlp_test
       APP_ENV: test
       R2_ENDPOINT_URL: https://example.invalid
       R2_ACCESS_KEY_ID: dummy

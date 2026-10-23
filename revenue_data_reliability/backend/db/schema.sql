@@ -1,6 +1,43 @@
 -- Idempotent schema for Revenue Data Reliability Platform
 -- Applied on boot via backend/db/connection.py
 
+-- Rename the generated dataset table/columns. Analysis scenarios are separate.
+DO $$
+BEGIN
+    IF to_regclass('scenarios') IS NOT NULL AND to_regclass('datasets') IS NULL THEN
+        ALTER TABLE scenarios RENAME TO datasets;
+    END IF;
+    IF to_regclass('datasets') IS NOT NULL
+       AND EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'datasets' AND column_name = 'source_scenario'
+       )
+       AND NOT EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'datasets' AND column_name = 'source_dataset'
+       ) THEN
+        ALTER TABLE datasets RENAME COLUMN source_scenario TO source_dataset;
+    END IF;
+    IF to_regclass('runs') IS NOT NULL
+       AND EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'runs' AND column_name = 'scenario_name'
+       ) THEN
+        ALTER TABLE runs RENAME COLUMN scenario_name TO dataset_name;
+    END IF;
+    IF to_regclass('dashboard_cache') IS NOT NULL
+       AND EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'dashboard_cache' AND column_name = 'scenario_name'
+       ) THEN
+        ALTER TABLE dashboard_cache RENAME COLUMN scenario_name TO dataset_name;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS personas (
     persona_id   TEXT PRIMARY KEY,
     type         TEXT NOT NULL CHECK (type IN ('human', 'agent')),
@@ -19,7 +56,7 @@ CREATE TABLE IF NOT EXISTS rules (
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS scenarios (
+CREATE TABLE IF NOT EXISTS datasets (
     name          TEXT PRIMARY KEY,
     status        TEXT NOT NULL DEFAULT 'pending',
     seed          INTEGER,
@@ -29,12 +66,14 @@ CREATE TABLE IF NOT EXISTS scenarios (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
-ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS source_scenario TEXT;
-ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS years_to_backtrack INTEGER;
-UPDATE scenarios SET source_scenario = name WHERE source_scenario IS NULL;
-UPDATE scenarios SET source_scenario = 'baseline_run' WHERE name LIKE 'generated_%' AND source_scenario = name;
-UPDATE scenarios
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS source_dataset TEXT;
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS years_to_backtrack INTEGER;
+UPDATE datasets SET source_dataset = COALESCE(source_dataset, name)
+WHERE source_dataset IS NULL;
+UPDATE datasets SET source_dataset = 'baseline_run'
+WHERE name LIKE 'generated_%' AND source_dataset = name;
+UPDATE datasets
 SET years_to_backtrack = substring(name from '_y([0-9]+)$')::int
 WHERE years_to_backtrack IS NULL AND name ~ '_y[0-9]+$';
 
@@ -55,7 +94,7 @@ ALTER TABLE analysis_scenarios ADD COLUMN IF NOT EXISTS baseline_snapshot JSONB;
 
 CREATE TABLE IF NOT EXISTS runs (
     run_id               SERIAL PRIMARY KEY,
-    scenario_name        TEXT REFERENCES scenarios(name) ON DELETE SET NULL,
+    dataset_name         TEXT REFERENCES datasets(name) ON DELETE RESTRICT,
     status               TEXT NOT NULL DEFAULT 'pending',
     current_stage        TEXT,
     progress_percent     INTEGER DEFAULT 0,
@@ -78,6 +117,15 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS current_stage TEXT;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS error_message TEXT;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
+
+-- Reattach legacy orphaned runs to a real dataset so their exceptions remain
+-- reachable. Prefer the oldest dataset; create baseline_run only when empty.
+INSERT INTO datasets (name, status, seed, table_count)
+SELECT 'baseline_run', 'registered', 9, 16
+WHERE NOT EXISTS (SELECT 1 FROM datasets);
+UPDATE runs
+SET dataset_name = (SELECT name FROM datasets ORDER BY created_at, name LIMIT 1)
+WHERE dataset_name IS NULL;
 
 CREATE TABLE IF NOT EXISTS validations (
     validation_id    SERIAL PRIMARY KEY,
@@ -222,8 +270,10 @@ CREATE TABLE IF NOT EXISTS otel_metrics (
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_runs_scenario ON runs (scenario_name);
-CREATE INDEX IF NOT EXISTS idx_runs_scenario_status ON runs (scenario_name, status);
+CREATE INDEX IF NOT EXISTS idx_runs_dataset ON runs (dataset_name);
+CREATE INDEX IF NOT EXISTS idx_runs_dataset_status ON runs (dataset_name, status);
+DROP INDEX IF EXISTS idx_runs_scenario;
+DROP INDEX IF EXISTS idx_runs_scenario_status;
 CREATE INDEX IF NOT EXISTS idx_validations_run ON validations (run_id);
 CREATE INDEX IF NOT EXISTS idx_reconciliations_run ON reconciliations (run_id);
 CREATE INDEX IF NOT EXISTS idx_exceptions_run ON exceptions (run_id);
@@ -265,10 +315,28 @@ ALTER TABLE exceptions ADD CONSTRAINT exceptions_status_check
 -- (dashboard_refresh) recomputes the payload and upserts it here.
 CREATE TABLE IF NOT EXISTS dashboard_cache (
     cache_key      TEXT PRIMARY KEY,
-    scenario_name  TEXT,
+    dataset_name   TEXT,
     refreshed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     data           JSONB NOT NULL
 );
-ALTER TABLE dashboard_cache ADD COLUMN IF NOT EXISTS scenario_name TEXT;
-UPDATE dashboard_cache SET scenario_name = 'baseline_run' WHERE scenario_name IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_dashboard_cache_scenario ON dashboard_cache (scenario_name);
+ALTER TABLE dashboard_cache ADD COLUMN IF NOT EXISTS dataset_name TEXT;
+UPDATE dashboard_cache SET dataset_name = 'baseline_run' WHERE dataset_name IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dashboard_cache_dataset ON dashboard_cache (dataset_name);
+DROP INDEX IF EXISTS uq_dashboard_cache_scenario;
+
+-- Runs must always belong to a dataset. RESTRICT prevents accidental
+-- dataset deletion while runs still reference it.
+DO $$
+DECLARE con record;
+BEGIN
+    FOR con IN
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'runs'::regclass
+          AND contype = 'f'
+          AND confrelid = 'datasets'::regclass
+    LOOP
+        EXECUTE format('ALTER TABLE runs DROP CONSTRAINT %I', con.conname);
+    END LOOP;
+    ALTER TABLE runs ADD CONSTRAINT runs_dataset_name_fkey
+        FOREIGN KEY (dataset_name) REFERENCES datasets(name) ON DELETE RESTRICT;
+END $$;

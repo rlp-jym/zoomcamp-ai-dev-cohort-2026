@@ -122,7 +122,7 @@ class ControllerAgent(BaseAgent):
         pub = fetch_one(
             """
             SELECT p.publication_id, p.run_id, p.published_at,
-                   r.scenario_name
+                   r.dataset_name
             FROM publications p
             LEFT JOIN runs r ON r.run_id = p.run_id
             ORDER BY p.publication_id DESC
@@ -147,7 +147,7 @@ class ControllerAgent(BaseAgent):
         payload = {
             "publication_id": pub["publication_id"],
             "run_id": pub["run_id"],
-            "scenario": pub["scenario_name"],
+            "dataset": pub["dataset_name"],
             "published_at": published_at.isoformat(),
             "age_hours": round(age.total_seconds() / 3600, 2),
             "stale_threshold_hours": settings.controller_stale_hours,
@@ -157,14 +157,14 @@ class ControllerAgent(BaseAgent):
             logger.info(
                 "Controller: publication #%s for scenario %s is fresh "
                 "(age %.1fh < %.0fh threshold).",
-                pub["publication_id"], pub["scenario_name"],
+                pub["publication_id"], pub["dataset_name"],
                 age.total_seconds() / 3600, threshold.total_seconds() / 3600,
             )
             return None
 
         finding = (
             f"STALE_PUBLISHED: publication #{pub['publication_id']} for scenario "
-            f"{pub['scenario_name']} ran {age.total_seconds() / 3600:.1f}h ago "
+            f"{pub['dataset_name']} ran {age.total_seconds() / 3600:.1f}h ago "
             f"(threshold {threshold.total_seconds() / 3600:.0f}h)."
         )
         alert = self._raise("STALE_PUBLISHED", "run", str(pub["run_id"]),
@@ -173,7 +173,7 @@ class ControllerAgent(BaseAgent):
         if alert["created"]:
             # §18: no Manager approval required — the Controller re-runs the
             # pipeline for this month autonomously, exactly one agent row.
-            rerun = self.trigger_autonomous_rerun(pub["scenario_name"], trace_id)
+            rerun = self.trigger_autonomous_rerun(pub["dataset_name"], trace_id)
         logger.warning("Controller: %s", finding)
         return {"finding": finding, "alert": alert, "rerun": rerun, **payload}
 
@@ -196,7 +196,7 @@ class ControllerAgent(BaseAgent):
         run_id = runs_svc.create_run(scenario_name, "controller", trace_id)
         self.log_action(
             "autonomous_re_run", "run", str(run_id), trace_id,
-            {"triggered_by_alert": "STALE_PUBLISHED", "scenario": scenario_name},
+            {"triggered_by_alert": "STALE_PUBLISHED", "dataset": scenario_name},
         )
         logger.warning(
             "Controller: autonomously re-running %s as run %s (no Manager "
@@ -226,7 +226,7 @@ class ControllerAgent(BaseAgent):
         global _verified_manifest_key
         row = fetch_one(
             """
-            SELECT name, manifest FROM scenarios
+            SELECT name, manifest FROM datasets
             WHERE manifest IS NOT NULL
             ORDER BY updated_at DESC, name
             LIMIT 1
@@ -335,21 +335,21 @@ class ControllerAgent(BaseAgent):
         """
         pub = fetch_one(
             """
-            SELECT p.publication_id, p.run_id, r.scenario_name
+            SELECT p.publication_id, p.run_id, r.dataset_name
             FROM publications p
             LEFT JOIN runs r ON r.run_id = p.run_id
             ORDER BY p.publication_id DESC
             LIMIT 1
             """
         )
-        if not pub or not pub["scenario_name"]:
+        if not pub or not pub["dataset_name"]:
             return None
-        q = pub_svc.get_published_data_query(pub["scenario_name"])
+        q = pub_svc.get_published_data_query(pub["dataset_name"])
         if not q:
             return None
         from backend.storage.duckdb_client import query_rows
 
-        scenario = pub["scenario_name"]
+        scenario = pub["dataset_name"]
         base = f"s3://{settings.r2_bucket}/scenarios/{scenario}"
         sql = f"""
             SELECT

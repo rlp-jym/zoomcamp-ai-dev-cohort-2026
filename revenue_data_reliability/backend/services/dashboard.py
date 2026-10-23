@@ -98,6 +98,8 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
 
     q = pub_svc.get_published_data_query(scenario)
     data = {
+        "dataset": scenario,
+        "dataset_name": scenario,
         "scenario": scenario,
         "published_run": q["run_id"] if q else None,
         "available": bool(q),
@@ -331,9 +333,9 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
         return "empty"
     execute(
         """
-        INSERT INTO dashboard_cache (cache_key, scenario_name, data, refreshed_at)
+        INSERT INTO dashboard_cache (cache_key, dataset_name, data, refreshed_at)
         VALUES (%s, %s, %s, now())
-        ON CONFLICT (scenario_name) DO UPDATE
+        ON CONFLICT (dataset_name) DO UPDATE
             SET cache_key = EXCLUDED.cache_key,
                 data = EXCLUDED.data,
                 refreshed_at = now()
@@ -347,7 +349,7 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
 def get_from_cache(scenario: str = SCENARIO) -> tuple[dict | None, datetime | None]:
     """Read the cached payload for a scenario (returns None when never computed)."""
     row = fetch_one(
-        "SELECT data, refreshed_at FROM dashboard_cache WHERE scenario_name = %s",
+        "SELECT data, refreshed_at FROM dashboard_cache WHERE dataset_name = %s",
         (scenario,),
     )
     if not row:
@@ -393,6 +395,8 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
                     target=_background_refresh, args=(scenario,), daemon=True
                 ).start()
         result = {
+            "dataset": scenario,
+            "dataset_name": scenario,
             "scenario": scenario,
             "published_run": None,
             "available": False,

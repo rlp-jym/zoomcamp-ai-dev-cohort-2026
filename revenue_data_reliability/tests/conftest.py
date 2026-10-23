@@ -1,11 +1,19 @@
-"""Test setup: ensure the Postgres schema exists before tests run."""
+"""Test setup: ensure a dedicated Postgres test database is configured."""
 
+import os
 from io import BytesIO
 
 import pytest
 
-from backend.db import apply_schema, init_pool, seed
-from backend.db.fixture import ensure_baseline_fixture
+_test_database_url = os.getenv("TEST_DATABASE_URL")
+if not _test_database_url:
+    raise RuntimeError(
+        "Set TEST_DATABASE_URL to run tests. Tests must not use the live DATABASE_URL."
+    )
+os.environ["DATABASE_URL"] = _test_database_url
+
+from backend.db import apply_schema, init_pool, seed  # noqa: E402
+from backend.db.fixture import ensure_baseline_fixture  # noqa: E402
 
 
 def pytest_sessionstart(session):

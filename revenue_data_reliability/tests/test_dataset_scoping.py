@@ -12,10 +12,10 @@ client = TestClient(app)
 
 def _cleanup(scenarios):
     for name in scenarios:
-        execute("DELETE FROM dashboard_cache WHERE scenario_name = %s", (name,))
-        execute("DELETE FROM publications WHERE run_id IN (SELECT run_id FROM runs WHERE scenario_name = %s)", (name,))
-        execute("DELETE FROM runs WHERE scenario_name = %s", (name,))
-        execute("DELETE FROM scenarios WHERE name = %s", (name,))
+        execute("DELETE FROM dashboard_cache WHERE dataset_name = %s", (name,))
+        execute("DELETE FROM publications WHERE run_id IN (SELECT run_id FROM runs WHERE dataset_name = %s)", (name,))
+        execute("DELETE FROM runs WHERE dataset_name = %s", (name,))
+        execute("DELETE FROM datasets WHERE name = %s", (name,))
 
 
 def test_empty_state_for_unvalidated_dataset():
@@ -23,7 +23,7 @@ def test_empty_state_for_unvalidated_dataset():
     name = f"scope_empty_{uuid.uuid4().hex[:8]}"
     try:
         execute(
-            "INSERT INTO scenarios (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+            "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
             (name,),
         )
         c = TestClient(app)
@@ -40,7 +40,7 @@ def test_cookie_persistence_across_pages():
     name = f"scope_cookie_{uuid.uuid4().hex[:8]}"
     try:
         execute(
-            "INSERT INTO scenarios (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+            "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
             (name,),
         )
         c = TestClient(app)
@@ -60,12 +60,12 @@ def test_dashboard_differs_between_datasets():
     try:
         for name in (a, b):
             execute(
-                "INSERT INTO scenarios (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+                "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
                 (name,),
             )
             run_row = fetch_one(
                 """
-                INSERT INTO runs (scenario_name, status, triggered_by, trace_id,
+                INSERT INTO runs (dataset_name, status, triggered_by, trace_id,
                                   started_at, finished_at, duration,
                                   validations_total, validations_failed, exceptions_created,
                                   published, published_at)
@@ -81,9 +81,9 @@ def test_dashboard_differs_between_datasets():
             )
             execute(
                 """
-                INSERT INTO dashboard_cache (cache_key, scenario_name, data, refreshed_at)
+                INSERT INTO dashboard_cache (cache_key, dataset_name, data, refreshed_at)
                 VALUES (%s, %s, %s::jsonb, now())
-                ON CONFLICT (scenario_name) DO UPDATE SET data = EXCLUDED.data, refreshed_at = now()
+                ON CONFLICT (dataset_name) DO UPDATE SET data = EXCLUDED.data, refreshed_at = now()
                 """,
                 (
                     f"dashboard:{name}",
@@ -104,8 +104,8 @@ def test_dashboard_differs_between_datasets():
         ra = c.get(f"/?scenario={a}")
         rb = c.get(f"/?scenario={b}")
         assert ra.status_code == 200 and rb.status_code == 200
-        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE scenario_name = %s', (a,))['run_id']}" in ra.text
-        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE scenario_name = %s', (b,))['run_id']}" in rb.text
+        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE dataset_name = %s', (a,))['run_id']}" in ra.text
+        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE dataset_name = %s', (b,))['run_id']}" in rb.text
         assert ra.text != rb.text
     finally:
         _cleanup([a, b])

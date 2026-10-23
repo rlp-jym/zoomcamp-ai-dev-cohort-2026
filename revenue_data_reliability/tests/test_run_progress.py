@@ -16,7 +16,7 @@ def _insert_run(status="running", stage="Reconciliation", pct=40, duration=None)
     trace_id = uuid.uuid4().hex
     row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, current_stage, progress_percent,
+        INSERT INTO runs (dataset_name, status, current_stage, progress_percent,
                           started_at, triggered_by, trace_id, duration_seconds)
         VALUES ('baseline_run', %s, %s, %s, now(), 'test', %s, %s)
         RETURNING run_id
@@ -147,7 +147,7 @@ def test_delete_run_cascades_to_threads_and_results():
     trace_id = uuid.uuid4().hex
     run_row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, trace_id)
+        INSERT INTO runs (dataset_name, status, trace_id)
         VALUES ('baseline_run', 'completed', %s)
         RETURNING run_id
         """,
@@ -222,3 +222,4 @@ def test_delete_run_cascades_to_threads_and_results():
         ) is None
     finally:
         runs_svc.delete_run(run_id)
+

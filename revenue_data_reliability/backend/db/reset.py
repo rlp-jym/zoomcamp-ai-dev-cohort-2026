@@ -14,12 +14,12 @@ class ResetSummary:
     publications_deleted: int
     messages_deleted: int
     discussions_deleted: int
-    scenarios_deleted: int
+    datasets_deleted: int
 
 
 def reset_preserve_baseline() -> ResetSummary:
     """Reset non-baseline data while preserving personas, rules, and baseline fixture."""
-    row = fetch_one("SELECT run_id FROM runs WHERE scenario_name='baseline_run' ORDER BY run_id LIMIT 1")
+    row = fetch_one("SELECT run_id FROM runs WHERE dataset_name='baseline_run' ORDER BY run_id LIMIT 1")
     baseline_run_id = row["run_id"] if row else None
 
     execute(
@@ -31,7 +31,7 @@ def reset_preserve_baseline() -> ResetSummary:
     discussions_deleted = _delete_discussions_non_baseline()
     publications_deleted = _delete_publications_non_baseline()
     runs_deleted = _delete_runs_non_baseline()
-    scenarios_deleted = _delete_scenarios_non_baseline()
+    datasets_deleted = _delete_datasets_non_baseline()
 
     ensure_baseline_fixture()
 
@@ -41,7 +41,7 @@ def reset_preserve_baseline() -> ResetSummary:
         publications_deleted=publications_deleted,
         messages_deleted=messages_deleted,
         discussions_deleted=discussions_deleted,
-        scenarios_deleted=scenarios_deleted,
+        datasets_deleted=datasets_deleted,
     )
 
 
@@ -50,7 +50,7 @@ def _delete_messages_non_baseline() -> int:
         "DELETE FROM messages WHERE discussion_id NOT IN ("
         "  SELECT discussion_id FROM discussions d "
         "  JOIN runs r ON r.run_id::text = d.anchor_id "
-        "  WHERE d.anchor_type='run' AND r.scenario_name='baseline_run' AND r.published=TRUE"
+        "  WHERE d.anchor_type='run' AND r.dataset_name='baseline_run' AND r.published=TRUE"
         ") RETURNING discussion_id",
         fetch=True,
     )
@@ -64,7 +64,7 @@ def _delete_discussions_non_baseline() -> int:
     res = execute(
         "DELETE FROM discussions WHERE "
         "(anchor_type='run' AND anchor_id NOT IN ("
-        "  SELECT run_id::text FROM runs WHERE scenario_name='baseline_run' AND published=TRUE"
+        "  SELECT run_id::text FROM runs WHERE dataset_name='baseline_run' AND published=TRUE"
         ")) OR ("
         "anchor_type='exception' AND anchor_id NOT IN ("
         "  SELECT exception_id::text FROM exceptions"
@@ -81,7 +81,7 @@ def _delete_discussions_non_baseline() -> int:
 def _delete_publications_non_baseline() -> int:
     res = execute(
         "DELETE FROM publications WHERE run_id NOT IN ("
-        "  SELECT run_id FROM runs WHERE scenario_name='baseline_run' AND published=TRUE"
+        "  SELECT run_id FROM runs WHERE dataset_name='baseline_run' AND published=TRUE"
         ") RETURNING publication_id",
         fetch=True,
     )
@@ -93,7 +93,7 @@ def _delete_publications_non_baseline() -> int:
 
 def _delete_runs_non_baseline() -> int:
     res = execute(
-        "DELETE FROM runs WHERE scenario_name IS DISTINCT FROM 'baseline_run' "
+        "DELETE FROM runs WHERE dataset_name IS DISTINCT FROM 'baseline_run' "
         "OR published = FALSE RETURNING run_id",
         fetch=True,
     )
@@ -103,9 +103,9 @@ def _delete_runs_non_baseline() -> int:
     return 0
 
 
-def _delete_scenarios_non_baseline() -> int:
+def _delete_datasets_non_baseline() -> int:
     res = execute(
-        "DELETE FROM scenarios WHERE name <> 'baseline_run' RETURNING name",
+        "DELETE FROM datasets WHERE name <> 'baseline_run' RETURNING name",
         fetch=True,
     )
     if res:

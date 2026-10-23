@@ -14,12 +14,12 @@ BASELINE_TRACE = "fixture-baseline-trace"
 
 
 def _ensure_scenario():
-    row = fetch_one("SELECT name FROM scenarios WHERE name = %s", (BASELINE,))
+    row = fetch_one("SELECT name FROM datasets WHERE name = %s", (BASELINE,))
     if row:
         return
     execute(
         """
-        INSERT INTO scenarios (name, status, seed, table_count, updated_at)
+        INSERT INTO datasets (name, status, seed, table_count, updated_at)
         VALUES (%s, %s, %s, %s, now())
         ON CONFLICT (name) DO NOTHING
         """,
@@ -28,12 +28,12 @@ def _ensure_scenario():
 
 
 def _ensure_baseline_run():
-    row = fetch_one("SELECT run_id FROM runs WHERE scenario_name = %s", (BASELINE,))
+    row = fetch_one("SELECT run_id FROM runs WHERE dataset_name = %s", (BASELINE,))
     if row:
         return row["run_id"]
     run_id_row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, triggered_by, trace_id,
+        INSERT INTO runs (dataset_name, status, triggered_by, trace_id,
                           started_at, finished_at, duration,
                           validations_total, validations_failed, exceptions_created,
                           published, published_at)

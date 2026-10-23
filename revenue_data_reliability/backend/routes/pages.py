@@ -38,33 +38,38 @@ def _current_persona(request: Request):
     return stub_data.get_persona(pid)
 
 
-def _resolve_scenario(request, extra):
-    if "scenario" in extra and extra.get("scenario") is not None:
-        return extra.get("scenario")
-    qp = request.query_params.get("scenario")
+def _resolve_dataset(request, extra):
+    if "dataset" in extra and extra.get("dataset") is not None:
+        return extra.get("dataset")
+    qp = request.query_params.get("dataset") or request.query_params.get("scenario")
     if qp:
         return qp
-    cookie = request.cookies.get("scenario")
+    cookie = request.cookies.get("dataset") or request.cookies.get("scenario")
     if cookie:
-        return cookie
+        try:
+            if scen_svc.get_dataset(cookie):
+                return cookie
+            request.state.clear_dataset_cookie = True
+        except Exception:
+            pass
     try:
-        return runs_svc.default_scenario()
+        return runs_svc.default_dataset()
     except Exception:
         return "baseline_run"
 
 
 def _ctx(request, **extra):
-    scenario = _resolve_scenario(request, extra)
-    scenarios = extra.pop("scenarios", None)
-    if scenarios is None:
+    dataset = _resolve_dataset(request, extra)
+    datasets = extra.pop("datasets", None) or extra.pop("scenarios", None)
+    if datasets is None:
         try:
-            scenarios = scen_svc.list_scenarios()
+            datasets = scen_svc.list_datasets()
         except Exception:
-            scenarios = []
+            datasets = []
     active_run_id = extra.pop("active_run_id", None)
     if active_run_id is None:
         try:
-            active_run_id = runs_svc.resolve_active_run(scenario)
+            active_run_id = runs_svc.resolve_active_run(dataset)
         except Exception:
             active_run_id = None
     active_run = None
@@ -76,8 +81,11 @@ def _ctx(request, **extra):
     base = {
         "request": request,
         "persona": _current_persona(request),
-        "scenario": scenario,
-        "scenarios": scenarios,
+        "dataset": dataset,
+        "dataset_name": dataset,
+        "scenario": dataset,
+        "datasets": datasets,
+        "scenarios": datasets,
         "active_run_id": active_run_id,
         "active_run": active_run,
     }
@@ -94,9 +102,9 @@ async def dashboard(request: Request):
     """
     from backend.services import dashboard as dashboard_svc
 
-    scenario = _resolve_scenario(request, {})
-    active_run_id = runs_svc.resolve_active_run(scenario)
-    data = dashboard_svc.get_dashboard_data_cached(scenario)
+    dataset = _resolve_dataset(request, {})
+    active_run_id = runs_svc.resolve_active_run(dataset)
+    data = dashboard_svc.get_dashboard_data_cached(dataset)
     data["active_run_id"] = active_run_id
     resp = templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
     return resp
@@ -109,22 +117,22 @@ async def dashboard_refresh(request: Request):
 
     from backend.services import dashboard as dashboard_svc
 
-    scenario = _resolve_scenario(request, {})
+    dataset = _resolve_dataset(request, {})
 
     def _job():
         try:
-            dashboard_svc.refresh_dashboard_cache(scenario)
+            dashboard_svc.refresh_dashboard_cache(dataset)
         except Exception:  # logged inside refresh; keep the server safe
             pass
 
     threading.Thread(target=_job, daemon=True).start()
-    return RedirectResponse(url=f"/?scenario={scenario}", status_code=303)
+    return RedirectResponse(url=f"/?dataset={dataset}", status_code=303)
 
 
 @router.get("/exceptions")
 async def exceptions_list(request: Request, status: str | None = None, run_id: str | None = None, limit: int = 50, offset: int = 0):
-    scenario = _resolve_scenario(request, {})
-    active_run_id = runs_svc.resolve_active_run(scenario)
+    dataset = _resolve_dataset(request, {})
+    active_run_id = runs_svc.resolve_active_run(dataset)
     try:
         run_id_int = int(run_id) if run_id not in (None, "") else None
     except (TypeError, ValueError):
@@ -139,10 +147,10 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
-        _ctx(request, scenario=scenario,
+        _ctx(request, dataset=dataset,
              exceptions=exceptions,
              status_filter=status_filter,
-             counts=exc_svc.exception_counts(),
+             counts=exc_svc.exception_counts(filter_run_id),
              limit=limit,
              offset=offset,
              run_id=run_id_int,
@@ -403,20 +411,20 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     from backend.services import runs as runs_svc2
 
     runs_svc2.sweep_stale_runs(10)
-    scenario = _resolve_scenario(request, {})
-    for r in runs_svc2.list_runs(scenario):
+    dataset = _resolve_dataset(request, {})
+    for r in runs_svc2.list_runs(dataset):
         if r.get("status") == "failed":
             runs_svc2.reconcile_failed_run(r["id"])
     from backend.services import dataset_scale
     from backend.services import scenarios as scen_svc
 
-    scenarios = dataset_scale.attach_scale_info(scen_svc.list_scenarios())
+    datasets = dataset_scale.attach_scale_info(scen_svc.list_datasets())
     return templates.TemplateResponse(
         request,
         "runs_list.html",
-        _ctx(request, scenario=scenario,
-             runs=runs_svc.list_runs(scenario),
-             scenarios=scenarios,
+        _ctx(request, dataset=dataset,
+             runs=runs_svc.list_runs(dataset),
+             datasets=datasets,
              reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
@@ -470,7 +478,7 @@ async def reset_runs(request: Request):
             json.dumps(
                 {
                     "runs_deleted": summary.runs_deleted,
-                    "scenarios_deleted": summary.scenarios_deleted,
+                    "datasets_deleted": summary.datasets_deleted,
                     "publications_deleted": summary.publications_deleted,
                 }
             ),
@@ -498,20 +506,20 @@ async def run_detail(request: Request, run_id: int):
     runs_svc2.reconcile_failed_run(run_id)
     run = runs_svc.get_run(run_id)
     if not run:
-        run = {"id": run_id, "scenario": "", "status": "not_found", "started_at": None,
+        run = {"id": run_id, "dataset": "", "scenario": "", "status": "not_found", "started_at": None,
                "finished_at": None, "duration": None, "triggered_by": None, "trace_id": None,
                "validations_total": 0, "validations_failed": 0, "exceptions_created": 0,
                "published": False, "published_at": None, "approved_at": None}
-    scenario = run.get("scenario") if isinstance(run, dict) else None
-    if not scenario:
-        scenario = _resolve_scenario(request, {})
+    dataset = run.get("dataset") or run.get("scenario") if isinstance(run, dict) else None
+    if not dataset:
+        dataset = _resolve_dataset(request, {})
     msgs = messages.get_messages("run", str(run_id))
     validations = val_svc.list_validations(run_id)
     publication = pub_svc.get_publication_for_run(run_id)
     return templates.TemplateResponse(
         request,
         "run_detail.html",
-        _ctx(request, scenario=scenario, run=run, anchor_type="run", anchor_id=str(run_id),
+        _ctx(request, dataset=dataset, run=run, anchor_type="run", anchor_id=str(run_id),
              messages=msgs, validations=validations, publication=publication),
     )
 
@@ -810,8 +818,9 @@ def _bad_request(request: Request, message: str):
     return HTMLResponse(f'<div class="banner banner-error">{message}</div>', status_code=400)
 
 
+@router.post("/api/generate-dataset")
 @router.post("/api/generate-scenario")
-async def generate_scenario(request: Request):
+async def generate_dataset(request: Request):
     persona = _current_persona(request)
     if persona["id"] != "analyst":
         raise HTTPException(status_code=403, detail="Only the Analyst can generate datasets.")
@@ -824,8 +833,10 @@ async def generate_scenario(request: Request):
         return _bad_request(request, "Years to backtrack must be a whole number between 1 and 5.")
     if not 1 <= years <= 5:
         return _bad_request(request, "Years to backtrack must be between 1 and 5.")
-    scenario_name = (
-        payload.get("scenario_name")
+    dataset_name = (
+        payload.get("dataset_name")
+        or payload.get("dataset")
+        or payload.get("scenario_name")
         or payload.get("scenario")
         or payload.get("scenario_id")
         or f"generated_seed{seed}_y{years}"
@@ -834,7 +845,7 @@ async def generate_scenario(request: Request):
     from backend.db import execute, fetch_one
 
     try:
-        baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM scenarios WHERE name = 'baseline_run'")
+        baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM datasets WHERE name = 'baseline_run'")
         baseline_tables = (baseline or {}).get("table_count") or 16
         baseline_manifest = (baseline or {}).get("manifest")
         baseline_hashes = (baseline or {}).get("file_hashes")
@@ -845,23 +856,23 @@ async def generate_scenario(request: Request):
 
         execute(
             """
-            INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes,
-                                   source_scenario, years_to_backtrack, updated_at)
+            INSERT INTO datasets (name, status, seed, table_count, manifest, file_hashes,
+                                  source_dataset, years_to_backtrack, updated_at)
             VALUES (%s, 'generating', %s, %s, %s::jsonb, %s::jsonb, 'baseline_run', %s, now())
             ON CONFLICT (name) DO UPDATE SET
                 status = 'generating',
                 seed = EXCLUDED.seed,
                 table_count = EXCLUDED.table_count,
-                manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
-                file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
-                source_scenario = 'baseline_run',
+                manifest = COALESCE(EXCLUDED.manifest, datasets.manifest),
+                file_hashes = COALESCE(EXCLUDED.file_hashes, datasets.file_hashes),
+                source_dataset = 'baseline_run',
                 years_to_backtrack = EXCLUDED.years_to_backtrack,
                 updated_at = now()
             """,
-            (scenario_name, seed, baseline_tables, baseline_manifest, baseline_hashes, years),
+            (dataset_name, seed, baseline_tables, baseline_manifest, baseline_hashes, years),
         )
 
-        execute("UPDATE scenarios SET status = 'ready', updated_at = now() WHERE name = %s", (scenario_name,))
+        execute("UPDATE datasets SET status = 'ready', updated_at = now() WHERE name = %s", (dataset_name,))
 
         msg = _success_message()
         accept = request.headers.get("accept", "")
@@ -870,7 +881,7 @@ async def generate_scenario(request: Request):
         return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
     except Exception as exc:
         try:
-            execute("UPDATE scenarios SET status = 'failed', updated_at = now() WHERE name = %s", (scenario_name,))
+            execute("UPDATE datasets SET status = 'failed', updated_at = now() WHERE name = %s", (dataset_name,))
         except Exception:
             pass
         err_msg = f"Failed to generate dataset: {exc}"
@@ -880,7 +891,7 @@ async def generate_scenario(request: Request):
         return HTMLResponse(f'<div class="banner banner-error">{err_msg}</div>', status_code=500)
 
 
-def _trigger_validation(request: Request, scenario_name: str):
+def _trigger_validation(request: Request, dataset_name: str):
     import threading
     import uuid
     from datetime import datetime
@@ -897,7 +908,7 @@ def _trigger_validation(request: Request, scenario_name: str):
         return None, "A pipeline is already running. Wait for it to finish."
 
     trace_id = uuid.uuid4().hex
-    run_id = runs_svc.create_run(scenario_name, "analyst", trace_id)
+    run_id = runs_svc.create_run(dataset_name, "analyst", trace_id)
 
     import logging
 
@@ -929,18 +940,20 @@ def _trigger_validation(request: Request, scenario_name: str):
 @router.post("/api/trigger-validation")
 async def run_validation(request: Request):
     payload = await _read_payload(request)
-    scenario_name = (
-        payload.get("scenario")
+    dataset_name = (
+        payload.get("dataset")
+        or payload.get("dataset_name")
+        or payload.get("scenario")
         or payload.get("scenario_name")
         or payload.get("scenario_id")
         or payload.get("name")
     )
-    if not scenario_name:
-        scenario_name = _resolve_scenario(request, {})
-    if not scenario_name:
-        scenario_name = "baseline_run"
+    if not dataset_name:
+        dataset_name = _resolve_dataset(request, {})
+    if not dataset_name:
+        dataset_name = "baseline_run"
 
-    run_id, err = _trigger_validation(request, str(scenario_name))
+    run_id, err = _trigger_validation(request, str(dataset_name))
     accept = request.headers.get("accept", "")
     if err:
         if "application/json" in accept:
@@ -954,7 +967,8 @@ async def run_validation(request: Request):
 
     run = runs_svc.get_run(run_id) or {
         "id": run_id,
-        "scenario": str(scenario_name),
+        "dataset": str(dataset_name),
+        "scenario": str(dataset_name),
         "status": "running",
         "current_stage": "Queued",
         "progress_percent": 0,
@@ -966,7 +980,8 @@ async def run_validation(request: Request):
             {
                 "status": run.get("status"),
                 "run_id": run_id,
-                "scenario": scenario_name,
+                "dataset": dataset_name,
+                "scenario": dataset_name,
                 "poll_url": f"/runs/{run_id}/status",
             }
         )
@@ -983,6 +998,7 @@ async def run_status_partial(request: Request, run_id: int):
     if not run:
         run = {
             "id": run_id,
+            "dataset": "—",
             "scenario": "—",
             "status": "unknown",
             "current_stage": "Unknown",
@@ -1024,7 +1040,7 @@ async def datasets_partial(request: Request):
     from backend.services import dataset_scale
     from backend.services import scenarios as scen_svc
 
-    scens = dataset_scale.attach_scale_info(scen_svc.list_scenarios())
+    datasets = dataset_scale.attach_scale_info(scen_svc.list_datasets())
     return templates.TemplateResponse(
-        request, "partials/datasets_table.html", _ctx(request, scenarios=scens)
+        request, "partials/datasets_table.html", _ctx(request, datasets=datasets)
     )

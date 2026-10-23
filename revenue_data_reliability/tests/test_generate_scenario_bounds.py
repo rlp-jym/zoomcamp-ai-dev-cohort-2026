@@ -32,9 +32,10 @@ def test_generate_accepts_year_bounds_and_persists_window(years):
         assert response.status_code == 200
 
         row = fetch_one(
-            "SELECT years_to_backtrack FROM scenarios WHERE name = %s",
+            "SELECT years_to_backtrack FROM datasets WHERE name = %s",
             (scenario_name,),
         )
         assert row["years_to_backtrack"] == years
     finally:
-        execute("DELETE FROM scenarios WHERE name = %s", (scenario_name,))
+        execute("DELETE FROM datasets WHERE name = %s", (scenario_name,))
+

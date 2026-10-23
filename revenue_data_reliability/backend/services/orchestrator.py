@@ -103,7 +103,7 @@ def _scenario_years(scenario_name):
     """Resolve a scenario's requested history length for the demo window."""
     try:
         row = fetch_one(
-            "SELECT name, years_to_backtrack FROM scenarios WHERE name = %s",
+            "SELECT name, years_to_backtrack FROM datasets WHERE name = %s",
             (scenario_name,),
         )
     except Exception:
@@ -195,7 +195,7 @@ def _close_superseded_exceptions(run_id, scenario_name):
         SET status = 'resolved', updated_at = now()
         WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
           AND run_id IS DISTINCT FROM %s
-          AND run_id IN (SELECT run_id FROM runs WHERE scenario_name = %s)
+          AND run_id IN (SELECT run_id FROM runs WHERE dataset_name = %s)
         RETURNING exception_id
         """,
         (run_id, scenario_name),
@@ -217,7 +217,7 @@ def run_pipeline(run_id):
         psutil.Process().memory_info().rss / 1024 / 1024,
     )
     trace_id = run["trace_id"] or uuid.uuid4().hex
-    requested_scenario = run["scenario"]
+    requested_scenario = run.get("dataset") or run.get("scenario")
     years_to_backtrack = _scenario_years(requested_scenario)
     window = demo_window(years_to_backtrack)
     logger.info(
@@ -234,18 +234,18 @@ def run_pipeline(run_id):
         scenario_name = resolve_scenario_name(scenario_name)
     except Exception:
         try:
-            row = fetch_one("SELECT source_scenario FROM scenarios WHERE name = %s", (scenario_name,))
-            if row and row.get("source_scenario"):
-                scenario_name = row["source_scenario"]
+            row = fetch_one("SELECT source_dataset FROM datasets WHERE name = %s", (scenario_name,))
+            if row and row.get("source_dataset"):
+                scenario_name = row["source_dataset"]
         except Exception:
             pass
     _post_run_event(
         run_id,
         _persona("orchestrator"),
-        f"Run started for scenario {scenario_name} (trace {trace_id}).",
+        f"Run started for dataset {scenario_name} (trace {trace_id}).",
         trace_id,
         "run_started",
-        {"scenario": scenario_name},
+        {"dataset": scenario_name},
         clear_exceptions=True,
     )
 

@@ -49,3 +49,4 @@ def test_reconciliation_sql_has_window_placeholders():
 
     assert "inv.invoice_date >= DATE '2026-01-01'" in rendered
     assert "period >= '2026-01'" in rendered
+

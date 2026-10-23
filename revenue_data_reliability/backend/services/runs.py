@@ -13,15 +13,16 @@ def _fmt_dt(value):
     return str(value)
 
 
-def create_run(scenario_name, triggered_by, trace_id):
+def create_run(dataset_name, triggered_by, trace_id, scenario_name=None):
+    dataset_name = dataset_name if dataset_name is not None else scenario_name
     row = fetch_one(
         """
-        INSERT INTO runs (scenario_name, status, current_stage, progress_percent,
+        INSERT INTO runs (dataset_name, status, current_stage, progress_percent,
                           started_at, triggered_by, trace_id)
         VALUES (%s, 'running', 'Queued', 0, now(), %s, %s)
         RETURNING run_id
         """,
-        (scenario_name, triggered_by, trace_id),
+        (dataset_name, triggered_by, trace_id),
     )
     return row["run_id"]
 
@@ -32,7 +33,9 @@ def get_run(run_id):
         return None
     return {
         "id": r["run_id"],
-        "scenario": r["scenario_name"],
+        "dataset": r["dataset_name"],
+        "dataset_name": r["dataset_name"],
+        "scenario": r["dataset_name"],
         "status": r["status"],
         "current_stage": r.get("current_stage"),
         "progress_percent": r.get("progress_percent"),
@@ -52,11 +55,12 @@ def get_run(run_id):
     }
 
 
-def list_runs(scenario_name=None):
-    if scenario_name:
+def list_runs(dataset_name=None, scenario_name=None):
+    dataset_name = dataset_name if dataset_name is not None else scenario_name
+    if dataset_name:
         rows = fetch_all(
-            "SELECT * FROM runs WHERE scenario_name = %s ORDER BY created_at DESC, run_id DESC",
-            (scenario_name,),
+            "SELECT * FROM runs WHERE dataset_name = %s ORDER BY created_at DESC, run_id DESC",
+            (dataset_name,),
         )
     else:
         rows = fetch_all("SELECT * FROM runs ORDER BY created_at DESC, run_id DESC")
@@ -65,7 +69,9 @@ def list_runs(scenario_name=None):
         out.append(
             {
                 "id": r["run_id"],
-                "scenario": r["scenario_name"],
+                "dataset": r["dataset_name"],
+                "dataset_name": r["dataset_name"],
+                "scenario": r["dataset_name"],
                 "status": r["status"],
                 "current_stage": r.get("current_stage"),
                 "progress_percent": r.get("progress_percent"),
@@ -78,29 +84,34 @@ def list_runs(scenario_name=None):
     return out
 
 
-def resolve_active_run(scenario_name):
-    """Latest completed run for a dataset (scenario). Returns run_id or None."""
-    if not scenario_name:
+def resolve_active_run(dataset_name=None, scenario_name=None):
+    """Latest completed run for a dataset. Returns run_id or None."""
+    dataset_name = dataset_name if dataset_name is not None else scenario_name
+    if not dataset_name:
         return None
     r = fetch_one(
         "SELECT run_id FROM runs "
-        "WHERE scenario_name = %s AND status = 'completed' "
+        "WHERE dataset_name = %s AND status = 'completed' "
         "ORDER BY finished_at DESC NULLS LAST, run_id DESC LIMIT 1",
-        (scenario_name,),
+        (dataset_name,),
     )
     return r["run_id"] if r else None
 
 
-def default_scenario():
-    """Scenario of the most recently completed run, else first scenario."""
+def default_dataset():
+    """Dataset of the most recently completed run, else first dataset."""
     r = fetch_one(
-        "SELECT scenario_name FROM runs WHERE status = 'completed' "
+        "SELECT dataset_name FROM runs WHERE status = 'completed' "
         "ORDER BY finished_at DESC NULLS LAST, run_id DESC LIMIT 1"
     )
-    if r and r.get("scenario_name"):
-        return r["scenario_name"]
-    r = fetch_one("SELECT name FROM scenarios ORDER BY created_at DESC, name LIMIT 1")
+    if r and r.get("dataset_name"):
+        return r["dataset_name"]
+    r = fetch_one("SELECT name FROM datasets ORDER BY created_at DESC, name LIMIT 1")
     return r["name"] if r else "baseline_run"
+
+
+# Backwards-compatible alias.
+default_scenario = default_dataset
 
 
 def sweep_stale_runs(max_age_minutes: int = 30) -> int:

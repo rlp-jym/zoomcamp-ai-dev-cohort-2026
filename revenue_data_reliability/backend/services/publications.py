@@ -53,22 +53,23 @@ def get_publications():
     ]
 
 
-def get_published_run(scenario_name):
-    """The run currently holding the published pointer for a scenario."""
+def get_published_run(dataset_name):
+    """The run currently holding the published pointer for a dataset."""
     r = fetch_one(
         """
         SELECT * FROM runs
-        WHERE scenario_name = %s AND published = TRUE
+        WHERE dataset_name = %s AND published = TRUE
         ORDER BY published_at DESC, run_id DESC
         LIMIT 1
         """,
-        (scenario_name,),
+        (dataset_name,),
     )
     if not r:
         return None
     return {
         "id": r["run_id"],
-        "scenario": r["scenario_name"],
+        "dataset": r["dataset_name"],
+        "scenario": r["dataset_name"],
         "status": r["status"],
         "trace_id": r["trace_id"],
         "published_at": str(r["published_at"]),
@@ -94,21 +95,22 @@ def publish_run(run_id, persona_id, trace_id=None, comment=None):
     # Approval audit trail (same gate as remediation approvals).
     runs_svc.approve_run(run_id, persona_id, trace_id, comment)
 
-    # Move the published pointer: exactly one published run per scenario.
-    if run["scenario"]:
+    dataset_name = run.get("dataset") or run.get("scenario")
+    # Move the published pointer: exactly one published run per dataset.
+    if dataset_name:
         execute(
             """
             UPDATE runs
             SET published = FALSE, published_at = NULL
-            WHERE scenario_name = %s AND run_id <> %s
+            WHERE dataset_name = %s AND run_id <> %s
             """,
-            (run["scenario"], run_id),
+            (dataset_name, run_id),
         )
     execute(
         "UPDATE runs SET published = TRUE, published_at = now() WHERE run_id = %s",
         (run_id,),
     )
-    pointer = f"scenarios/{run['scenario']}" if run["scenario"] else f"runs/{run_id}"
+    pointer = f"scenarios/{dataset_name}" if dataset_name else f"runs/{run_id}"
     row = fetch_one(
         """
         INSERT INTO publications (run_id, published_by, pointer)
@@ -129,39 +131,41 @@ def publish_run(run_id, persona_id, trace_id=None, comment=None):
     }
 
 
-def _invoice_lines_uri(scenario_name):
+def _invoice_lines_uri(dataset_name):
     return (
-        f"s3://{settings.r2_bucket}/scenarios/{scenario_name}/invoice_lines.parquet"
+        f"s3://{settings.r2_bucket}/scenarios/{dataset_name}/invoice_lines.parquet"
     )
 
 
-def get_published_data_query(scenario_name):
-    """Build the published-data query for a scenario.
+def get_published_data_query(dataset_name):
+    """Build the published-data query for a dataset.
 
-    Reads the scenario's Parquet invoice lines from S3 (Filebase) and
+    Reads the dataset's Parquet invoice lines from S3 (Filebase) and
     excludes every record quarantined for the published run. Returns a
     dict with the DuckDB SQL, the published run id, and the excluded
     invoice line ids. Phase 3 (dashboard KPIs) executes this query.
     """
-    run = get_published_run(scenario_name)
+    run = get_published_run(dataset_name)
     if not run:
         return None
     excluded = quarantines_svc.quarantined_invoice_line_ids(run["id"])
-    sql = f"SELECT * FROM read_parquet('{_invoice_lines_uri(scenario_name)}') il"
+    sql = f"SELECT * FROM read_parquet('{_invoice_lines_uri(dataset_name)}') il"
     if excluded:
         id_list = ", ".join(str(int(i)) for i in excluded)
         sql += f" WHERE il.invoice_line_id NOT IN ({id_list})"
     return {
         "run_id": run["id"],
-        "scenario": scenario_name,
+        "dataset": dataset_name,
+        "dataset_name": dataset_name,
+        "scenario": dataset_name,
         "sql": sql,
         "quarantined_ids": excluded,
     }
 
 
-def get_published_invoice_lines(scenario_name):
+def get_published_invoice_lines(dataset_name):
     """Execute the published-data query; returns rows without quarantined records."""
-    query = get_published_data_query(scenario_name)
+    query = get_published_data_query(dataset_name)
     if not query:
         return []
     from backend.storage.duckdb_client import query_rows

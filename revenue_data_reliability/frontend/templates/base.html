@@ -22,9 +22,9 @@
     {% if not hide_dataset_selector %}
     <form class="dataset-form" method="get" action="" style="margin-left:1rem;">
       <label for="dataset">Dataset:</label>
-      <select id="dataset" name="scenario" onchange="this.form.submit()">
-        {% for s in scenarios %}
-          <option value="{{ s.name }}" {% if s.name == scenario %}selected{% endif %}>{{ s.name | scenario_label }}</option>
+      <select id="dataset" name="dataset" onchange="this.form.submit()">
+        {% for s in datasets %}
+          <option value="{{ s.name }}" {% if s.name == dataset %}selected{% endif %}>{{ s.name | scenario_label }}</option>
         {% endfor %}
       </select>
     </form>

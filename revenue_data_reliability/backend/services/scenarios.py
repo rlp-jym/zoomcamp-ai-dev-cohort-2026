@@ -1,4 +1,4 @@
-"""Scenario service (raw SQL over Postgres)."""
+"""Dataset + analysis-scenario service (raw SQL over Postgres)."""
 
 import json
 from datetime import datetime
@@ -15,11 +15,11 @@ def _fmt_dt(value):
     return str(value)
 
 
-def list_scenarios():
+def list_datasets():
     rows = fetch_all(
-        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, "
+        "SELECT name, status, seed, table_count, manifest, file_hashes, source_dataset, "
         "years_to_backtrack, created_at "
-        "FROM scenarios ORDER BY created_at DESC, name"
+        "FROM datasets ORDER BY created_at DESC, name"
     )
     out = []
     for r in rows:
@@ -32,7 +32,8 @@ def list_scenarios():
                 "created_at": _fmt_dt(r["created_at"]).split(" ")[0] if r["created_at"] else "",
                 "manifest": r["manifest"],
                 "file_hashes": r["file_hashes"],
-                "source_scenario": r.get("source_scenario") or r["name"],
+                "source_dataset": r.get("source_dataset") or r["name"],
+                "source_scenario": r.get("source_dataset") or r["name"],
                 "years_to_backtrack": r.get("years_to_backtrack"),
             }
         )
@@ -148,10 +149,10 @@ def get_analysis_scenario(scenario_id):
     }
 
 
-def get_scenario(name):
+def get_dataset(name):
     r = fetch_one(
-        "SELECT name, status, seed, table_count, manifest, file_hashes, source_scenario, "
-        "years_to_backtrack, created_at FROM scenarios WHERE name = %s",
+        "SELECT name, status, seed, table_count, manifest, file_hashes, source_dataset, "
+        "years_to_backtrack, created_at FROM datasets WHERE name = %s",
         (name,),
     )
     if not r:
@@ -164,20 +165,27 @@ def get_scenario(name):
         "created_at": _fmt_dt(r["created_at"]),
         "manifest": r["manifest"],
         "file_hashes": r["file_hashes"],
-        "source_scenario": r.get("source_scenario") or r["name"],
+        "source_dataset": r.get("source_dataset") or r["name"],
+        "source_scenario": r.get("source_dataset") or r["name"],
         "years_to_backtrack": r.get("years_to_backtrack"),
     }
 
 
-def delete_scenario(name):
-    execute("DELETE FROM scenarios WHERE name = %s", (name,))
+def delete_dataset(name):
+    execute("DELETE FROM datasets WHERE name = %s", (name,))
 
 
-def register_scenario(payload):
+def register_dataset(payload):
     payload = payload or {}
-    name = payload.get("name") or payload.get("scenario_name") or payload.get("scenario")
+    name = (
+        payload.get("name")
+        or payload.get("dataset_name")
+        or payload.get("dataset")
+        or payload.get("scenario_name")
+        or payload.get("scenario")
+    )
     if not name:
-        raise ValueError("scenario name is required")
+        raise ValueError("dataset name is required")
     seed = payload.get("seed")
     try:
         seed = int(seed) if seed is not None and seed != "" else None
@@ -209,23 +217,23 @@ def register_scenario(payload):
 
     fetch_one(
         """
-        INSERT INTO scenarios (name, status, seed, table_count, manifest, file_hashes,
-                               years_to_backtrack, updated_at)
+        INSERT INTO datasets (name, status, seed, table_count, manifest, file_hashes,
+                              years_to_backtrack, updated_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s, now())
         ON CONFLICT (name) DO UPDATE SET
             status = EXCLUDED.status,
-            seed = COALESCE(EXCLUDED.seed, scenarios.seed),
+            seed = COALESCE(EXCLUDED.seed, datasets.seed),
             table_count = EXCLUDED.table_count,
-            manifest = COALESCE(EXCLUDED.manifest, scenarios.manifest),
-            file_hashes = COALESCE(EXCLUDED.file_hashes, scenarios.file_hashes),
-            years_to_backtrack = COALESCE(EXCLUDED.years_to_backtrack, scenarios.years_to_backtrack),
+            manifest = COALESCE(EXCLUDED.manifest, datasets.manifest),
+            file_hashes = COALESCE(EXCLUDED.file_hashes, datasets.file_hashes),
+            years_to_backtrack = COALESCE(EXCLUDED.years_to_backtrack, datasets.years_to_backtrack),
             updated_at = now()
         RETURNING name
         """,
         (name, status, seed, table_count, json.dumps(manifest) if manifest is not None else None,
          json.dumps(file_hashes) if file_hashes is not None else None, years_to_backtrack),
     )
-    return get_scenario(name)
+    return get_dataset(name)
 
 
 def delete_analysis_scenario(scenario_id):
@@ -267,13 +275,13 @@ def import_thread_messages(target_scenario_id, source_anchor_type, source_anchor
     return count
 
 
-def ensure_baseline_registered():
-    if get_scenario("baseline_run"):
-        return get_scenario("baseline_run")
+def ensure_baseline_dataset():
+    if get_dataset("baseline_run"):
+        return get_dataset("baseline_run")
     keys = list_scenario_keys("baseline_run")
     if not keys:
         return None
-    return register_scenario(
+    return register_dataset(
         {
             "name": "baseline_run",
             "seed": 9,
@@ -281,3 +289,11 @@ def ensure_baseline_registered():
             "table_count": 16,
         }
     )
+
+
+# Backwards-compatible aliases while callers migrate to dataset naming.
+list_scenarios = list_datasets
+get_scenario = get_dataset
+delete_scenario = delete_dataset
+register_scenario = register_dataset
+ensure_baseline_registered = ensure_baseline_dataset

@@ -52,9 +52,9 @@ def resolve_scenario_name(scenario: str) -> str:
     try:
         from backend.db.connection import fetch_one
 
-        row = fetch_one("SELECT source_scenario FROM scenarios WHERE name = %s", (scenario,))
-        if row and row.get("source_scenario"):
-            return row["source_scenario"]
+        row = fetch_one("SELECT source_dataset FROM datasets WHERE name = %s", (scenario,))
+        if row and row.get("source_dataset"):
+            return row["source_dataset"]
     except Exception:
         pass
     if str(scenario).startswith("generated_"):

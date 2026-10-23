@@ -22,7 +22,7 @@
     No dashboard cache yet — first KPI refresh initializes right after
     server boot, then every 15 min.
   {% else %}
-    No published dataset for scenario <strong>{{ scenario | scenario_label }}</strong> yet.
+    No published data for dataset <strong>{{ (dataset or scenario) | scenario_label }}</strong> yet.
     Approve a run (Manager) to publish a dataset — KPIs and charts will light up.
   {% endif %}
   <form method="post" action="/dashboard/refresh" style="margin-top:8px">

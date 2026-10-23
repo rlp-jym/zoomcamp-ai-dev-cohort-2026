@@ -18,7 +18,7 @@
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generate New Dataset</h2>
   <p>Creates a dataset instantly. Data will appear when ready.</p>
-  <form hx-post="/api/generate-scenario" hx-target="#generate-result" hx-swap="innerHTML">
+  <form hx-post="/api/generate-dataset" hx-target="#generate-result" hx-swap="innerHTML">
     <label>Seed: <input type="number" name="seed" value="42" required></label>
     <label>Years to backtrack: <input type="number" name="years_to_backtrack" value="2" min="1" max="5" required></label>
     <button type="submit" class="btn-primary" {% if persona.id != "analyst" %}disabled{% endif %}>Generate New Dataset</button>
@@ -44,7 +44,7 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Scenario</th><th>Status</th><th>Progress</th><th>Started</th><th>Duration</th><th>Actions</th></tr>
+    <tr><th>ID</th><th>Dataset</th><th>Status</th><th>Progress</th><th>Started</th><th>Duration</th><th>Actions</th></tr>
   </thead>
   <tbody id="runs-tbody">
     {% for run in runs %}
@@ -58,7 +58,7 @@
 <section class="danger-zone">
   <h2>Danger zone</h2>
   <p>Reset demo data. Preserves personas, rules, and the baseline fixture.
-     Deletes all other runs, publications, and scenarios.</p>
+     Deletes all other runs, publications, and datasets.</p>
   <form method="post" action="/runs/reset"
         onsubmit="return confirm('Reset all demo data? This cannot be undone.');">
     <label for="confirm">Type RESET to confirm:</label>

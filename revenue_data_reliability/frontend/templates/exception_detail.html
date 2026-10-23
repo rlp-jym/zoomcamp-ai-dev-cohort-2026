@@ -16,7 +16,7 @@
   <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
   <div class="meta-item"><dt>Impact</dt><dd>{{ (exception.impact or "—") | capitalize }}</dd></div>
   <div class="meta-item"><dt>Trace</dt><dd>{{ exception.trace_id }}</dd></div>
-  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name | scenario_label }})</dd></div>
+  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ (exception.dataset_name or exception.scenario_name) | scenario_label }})</dd></div>
   <div class="meta-item"><dt>Title</dt><dd>{{ exception.title }}</dd></div>
   <div class="meta-item"><dt>Description</dt><dd>{{ exception.description }}</dd></div>
   <div class="meta-item"><dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd></div>

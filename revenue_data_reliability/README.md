@@ -159,9 +159,10 @@ non-goal).
 
 ## Tests
 
-Run all tests with a single command:
+Tests require a dedicated database and must never point at the live app DB:
 
 ```bash
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rlp_test
 uv run pytest -n auto
 ```
 
