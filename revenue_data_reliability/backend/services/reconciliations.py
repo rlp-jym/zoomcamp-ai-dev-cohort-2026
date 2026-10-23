@@ -12,7 +12,7 @@ reconciliation baseline.
 import json
 
 from backend.config import settings
-from backend.db.connection import execute, execute_many
+from backend.db.connection import execute, execute_many, fetch_one
 from backend.services.demo_window import demo_window
 from backend.storage.duckdb_client import query_dicts_on
 from backend.storage.scenario_cache import (
@@ -159,13 +159,25 @@ def persist_reconciliation(run_id, rows, trace_id=None, latest_period=None):
                 }
             )
 
+    # The exception row must share the validation rule's title and severity so
+    # /runs/{id} and /exceptions agree exactly. Dynamic reconciliation math is
+    # kept in details["summary"] for the exception detail page.
+    from backend.services.validations import EXCEPTION_TITLES
+
+    rule = fetch_one(
+        "SELECT severity, description FROM rules WHERE rule_id = %s",
+        ("VAL_RECON_BILLINGS_GL",),
+    )
+    rule_severity = rule["severity"] if rule else "high"
+    base_title = EXCEPTION_TITLES.get(
+        "VAL_RECON_BILLINGS_GL",
+        rule["description"] if rule else "Billings vs General Ledger variance",
+    )
+
     exc_params = []
     for period in sorted(by_period):
         bucket = by_period[period]
-        title = (
-            f"Billings vs General Ledger variance across {bucket['count']} grain(s) "
-            f"in {period} (worst {bucket['worst'] * 100:+.2f}%)"
-        )
+        title = base_title
         p_key = str(period)[:7] if period else None
         latest_key = str(latest_period)[:7] if latest_period else None
         is_current = (
@@ -182,6 +194,10 @@ def persist_reconciliation(run_id, rows, trace_id=None, latest_period=None):
             "worst_variance_pct": bucket["worst"],
             "tolerance": tolerance,
             "grains": bucket["grains"],
+            "summary": (
+                f"Worst variance {bucket['worst'] * 100:+.2f}% across "
+                f"{bucket['count']} grain(s) in {period}"
+            ),
         }
         if status == "resolved":
             details["auto_resolved"] = True
@@ -190,7 +206,7 @@ def persist_reconciliation(run_id, rows, trace_id=None, latest_period=None):
             (
                 run_id,
                 "reconciliation",
-                bucket["severity"],
+                rule_severity,
                 period,
                 title,
                 status,

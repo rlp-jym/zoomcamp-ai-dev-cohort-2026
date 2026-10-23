@@ -315,6 +315,10 @@ def run_pipeline(run_id):
             validation_exc_params = []
             validation_open = 0
             for result in results:
+                # Reconciliation exceptions are owned by persist_reconciliation;
+                # creating them again here was the duplicate-row root cause.
+                if result["rule_id"] == "VAL_RECON_BILLINGS_GL":
+                    continue
                 params, open_count = _rule_exception_params(
                     run_id, result, trace_id, latest_period
                 )

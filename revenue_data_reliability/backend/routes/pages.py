@@ -125,11 +125,20 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
         run_id_int = None
     # Direct ?run_id= links win; otherwise scope to the active run.
     filter_run_id = run_id_int if run_id_int is not None else active_run_id
-    status_filter = status or "all"
+    status_filter = status or "open"
     if filter_run_id is None and run_id_int is None and active_run_id is None:
         exceptions = []
     else:
         exceptions = exc_svc.list_exceptions(status_filter, limit=limit, offset=offset, run_id=filter_run_id)
+    auto_closed = 0
+    if filter_run_id is not None:
+        row = fetch_one(
+            "SELECT COUNT(*) AS n FROM exceptions "
+            "WHERE run_id = %s AND status = 'resolved' "
+            "AND COALESCE(details->>'auto_resolved', 'false') = 'true'",
+            (filter_run_id,),
+        )
+        auto_closed = row["n"] if row else 0
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
@@ -137,6 +146,7 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
              exceptions=exceptions,
              status_filter=status_filter,
              counts=exc_svc.exception_counts(),
+             auto_closed_count=auto_closed,
              limit=limit,
              offset=offset,
              run_id=run_id_int,
@@ -203,10 +213,10 @@ async def quarantine_exception(request: Request, exc_id: int):
 async def approve_exception(request: Request, exc_id: int):
     """Manager approves remediation for an exception.
 
-    - Updates exception status to 'resolved'.
-    - DE agent logs execution to agent_actions.
-    - Posts a system message to the exception thread.
-    - Redirects back to the exception detail page.
+    - Transitions the exception to 'approved'.
+    - DE agent executes the approved remediation and logs agent_actions.
+    - Transitions the exception to 'resolved' after execution.
+    - Posts a system message describing the approved -> resolved transition.
     """
     persona = _current_persona(request)
     if persona["id"] != "manager":
@@ -221,20 +231,33 @@ async def approve_exception(request: Request, exc_id: int):
     trace_id = exc.get("trace_id")
 
     execute(
-        "UPDATE exceptions SET status = 'resolved' WHERE exception_id = %s",
+        "UPDATE exceptions SET status = 'approved', updated_at = now() WHERE exception_id = %s",
         (exc_id,),
     )
 
     de_agent = DEAgent()
     de_agent.execute_remediation(exc, trace_id)
 
+    execute(
+        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+
     messages.post_message(
         "exception",
         str(exc_id),
         stub_data.get_persona("manager"),
-        f"Exception #{exc_id} resolved. Remediation approved by Manager and executed by DE.",
+        (
+            f"Exception #{exc_id} approved by Manager (status: approved) and "
+            "executed by DE (status: resolved)."
+        ),
         trace_id=trace_id,
-        evidence={"resolved": True, "approved_by": "manager"},
+        evidence={
+            "approved": True,
+            "resolved": True,
+            "approved_by": "manager",
+            "transition": "approved -> resolved",
+        },
     )
 
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)

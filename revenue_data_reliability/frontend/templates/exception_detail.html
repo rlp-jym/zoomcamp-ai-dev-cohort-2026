@@ -2,6 +2,12 @@
 {% block title %}Data Issue {{ exception.id }}{% endblock %}
 {% block content %}
 <h1>Data Issue #{{ exception.id }}</h1>
+{% if exception.status == 'remediation_proposed' %}
+<div class="banner banner-warn">
+  The DE Agent has proposed a remediation based on the rejection feedback (or initial run).
+  Please review and Approve or Reject.
+</div>
+{% endif %}
 <dl class="meta">
   <dt>Type</dt><dd>{{ exception.type }}</dd>
   <dt>Severity</dt><dd>{{ exception.severity }}</dd>
@@ -15,10 +21,13 @@
   <dt>Description</dt><dd>{{ exception.description }}</dd>
   <dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd>
 </dl>
+{% if exception.details and exception.details.summary %}
+<p class="page-description"><strong>Reconciliation detail:</strong> {{ exception.details.summary }}</p>
+{% endif %}
 
 {% if exception.status != "resolved" %}
 <form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
-  <button class="btn" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Approve</button>
+  <button class="btn btn-approve" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Approve</button>
   {% if persona.id == "manager" %}
     <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
   {% else %}
@@ -38,7 +47,7 @@
   </div>
   <textarea id="reject-reason" name="reason" rows="3" required
             style="width:100%;" placeholder="Explain why this remediation is not acceptable..."></textarea>
-  <button class="btn" type="submit" style="margin-top:0.35rem;"
+  <button class="btn btn-reject" type="submit" style="margin-top:0.35rem;"
           {% if persona.id != "manager" %}disabled{% endif %}>Reject</button>
   {% if persona.id == "manager" %}
     <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>

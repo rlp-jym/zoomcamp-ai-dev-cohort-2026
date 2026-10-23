@@ -20,6 +20,13 @@
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
 {% endif %}
 
+{% if status_filter == 'open' and auto_closed_count %}
+<div class="banner banner-info" style="margin-bottom:1rem;">
+  Showing Open issues. ({{ auto_closed_count }} historical issues were auto-closed for previous periods).
+  <a class="btn btn-small" href="/exceptions?status=all{% if run_id %}&run_id={{ run_id }}{% endif %}">Show All</a>
+</div>
+{% endif %}
+
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>

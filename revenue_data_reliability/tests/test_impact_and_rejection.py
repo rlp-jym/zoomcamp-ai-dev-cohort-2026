@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from backend.db.connection import execute, fetch_one, init_pool
 from backend.main import app
 from backend.services import exceptions as exc_svc
+from backend.services import reconciliations as recon_svc
 from backend.services import runs as runs_svc
 from backend.services import validations as val_svc
 
@@ -140,5 +141,86 @@ def test_manager_rejection_requires_reason_and_triggers_de(monkeypatch):
 
         thread = messages.get_messages("exception", str(exception_id))
         assert any("Missed rows" in m["content"] for m in thread)
+    finally:
+        runs_svc.delete_run(run_id)
+def test_reconciliation_exception_uses_rule_metadata():
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        rows = [
+            {
+                "period": "2026-01",
+                "account_id": "1",
+                "item_category": "Electronics",
+                "billings": 100.0,
+                "gl": 94.0,
+                "variance_pct": 0.06,
+            }
+        ]
+        recon_svc.persist_reconciliation(run_id, rows, trace_id, latest_period="2026-01")
+        exc = fetch_one(
+            "SELECT title, severity, details FROM exceptions "
+            "WHERE run_id = %s AND rule_id = 'VAL_RECON_BILLINGS_GL'",
+            (run_id,),
+        )
+        rule = val_svc.get_rule("VAL_RECON_BILLINGS_GL")
+        assert exc["title"] == "Billings vs General Ledger variance"
+        assert exc["severity"] == rule["severity"]
+        assert "Worst variance" in exc["details"]["summary"]
+    finally:
+        runs_svc.delete_run(run_id)
+
+
+def test_exceptions_default_to_open_with_autoclose_banner():
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        open_id = _make_exception(run_id, trace_id, status="open")
+        hist_id = _make_exception(run_id, trace_id, status="resolved")
+        execute(
+            "UPDATE exceptions SET details = details || '{\"auto_resolved\": true}'::jsonb "
+            "WHERE exception_id = %s",
+            (hist_id,),
+        )
+        c = TestClient(app)
+        r = c.get(f"/exceptions?run_id={run_id}")
+        assert r.status_code == 200
+        assert f'href="/exceptions/{open_id}"' in r.text
+        assert f'href="/exceptions/{hist_id}"' not in r.text
+        assert "Showing Open issues." in r.text
+        assert "1 historical issues were auto-closed" in r.text
+        assert "Show All" in r.text
+
+        r_all = c.get(f"/exceptions?run_id={run_id}&status=all")
+        assert f'href="/exceptions/{open_id}"' in r_all.text
+        assert f'href="/exceptions/{hist_id}"' in r_all.text
+    finally:
+        runs_svc.delete_run(run_id)
+
+
+def test_approve_transitions_through_approved(monkeypatch):
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id, status="remediation_proposed")
+        seen = []
+
+        from backend.teams import de as de_team
+
+        def fake_execute(self, exc, trace_id):
+            row = fetch_one(
+                "SELECT status FROM exceptions WHERE exception_id = %s",
+                (exception_id,),
+            )
+            seen.append(row["status"])
+
+        monkeypatch.setattr(de_team.DEAgent, "execute_remediation", fake_execute)
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"})
+        response = c.post(f"/exceptions/{exception_id}/approve")
+        assert response.status_code == 200
+        assert seen == ["approved"]
+        assert exc_svc.get_exception(exception_id)["status"] == "resolved"
     finally:
         runs_svc.delete_run(run_id)
