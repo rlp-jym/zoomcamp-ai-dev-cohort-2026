@@ -162,7 +162,7 @@ non-goal).
 Run all tests with a single command:
 
 ```bash
-pytest
+uv run pytest -n auto
 ```
 
 Unit and integration tests use a Postgres service container (CI) or the local

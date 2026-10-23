@@ -51,12 +51,11 @@
 {% if validations %}
 <table class="table">
   <thead>
-    <tr><th>Rule</th><th>Title</th><th>Status</th><th>Count</th><th>Severity</th><th>Impact</th><th>Description</th></tr>
+    <tr><th>Title</th><th>Status</th><th>Count</th><th>Severity</th><th>Impact</th><th>Description</th></tr>
   </thead>
   <tbody>
     {% for v in validations %}
     <tr>
-      <td>{{ v.rule_id }}</td>
       <td>{{ v.title }}</td>
       <td><span class="status status-{{ v.status }}">{{ v.status }}</span></td>
       <td>{{ v.summary_count }}</td>

@@ -26,6 +26,15 @@
 {% endif %}
 
 {% if exception.status != "resolved" %}
+<form method="post" action="/exceptions/{{ exception.id }}/request-fix" style="margin:1rem 0;">
+  <button class="btn btn-request" type="submit"
+          {% if persona.id not in ["manager", "de"] %}disabled{% endif %}>Request Remediation</button>
+  {% if persona.id in ["manager", "de"] %}
+    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager/DE</span>
+  {% else %}
+    <span style="color:red;font-size:0.8rem;">Requires Manager or DE</span>
+  {% endif %}
+</form>
 <form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
   <button class="btn btn-approve" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Approve</button>
   {% if persona.id == "manager" %}
@@ -37,13 +46,12 @@
 <form method="post" action="/exceptions/{{ exception.id }}/reject" style="margin:1rem 0;max-width:34rem;">
   <label for="reject-reason"><strong>Reject remediation</strong></label>
   <p class="page-description" style="margin:0.25rem 0;">
-    A reason is required. The DE agent will read it and propose a new remediation.
-    After 3 rejections the issue is auto-escalated.
+    Select an action or type instructions. The DE Agent will read this and generate a new proposal.
   </p>
   <div class="reject-presets" style="margin:0.35rem 0;">
-    <button type="button" class="btn btn-small" onclick="setRejectReason('Missed rows')">Missed rows</button>
-    <button type="button" class="btn btn-small" onclick="setRejectReason('Wrong reason code')">Wrong reason code</button>
-    <button type="button" class="btn btn-small" onclick="setRejectReason('Insufficient explanation')">Insufficient explanation</button>
+    {% for preset in reject_presets %}
+    <button type="button" class="btn btn-small" onclick="setRejectReason('{{ preset }}')">{{ preset }}</button>
+    {% endfor %}
   </div>
   <textarea id="reject-reason" name="reason" rows="3" required
             style="width:100%;" placeholder="Explain why this remediation is not acceptable..."></textarea>

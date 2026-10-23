@@ -26,6 +26,13 @@ router = APIRouter()
 
 _reset_lock = threading.Lock()
 
+REJECT_PRESETS = {
+    "VAL_FK_CUSTOMER_EXISTS": ["Fix source mapping", "Quarantine affected rows"],
+    "VAL_DUPLICATE_INVOICE_LINE": ["Quarantine affected rows", "Remove duplicates"],
+    "VAL_RECON_BILLINGS_GL": ["Dismiss as false positive", "Quarantine affected rows"],
+}
+DEFAULT_REJECT_PRESETS = ["Quarantine affected rows", "Dismiss as false positive"]
+
 
 def _current_persona(request: Request):
     pid = request.cookies.get(settings.persona_cookie, "analyst")
@@ -170,12 +177,14 @@ async def exception_detail(request: Request, exc_id: int):
         reconciliation_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
     else:
         sampled = exc_svc.get_sampled_failures_for_exception(exc)
+    reject_presets = REJECT_PRESETS.get(exc.get("rule_id"), DEFAULT_REJECT_PRESETS)
     return templates.TemplateResponse(
         request,
         "exception_detail.html",
         _ctx(request, exception=exc, anchor_type="exception", anchor_id=str(exc_id),
              messages=msgs, sampled_failures=sampled,
-             reconciliation_rows=reconciliation_rows, quarantines=quarantine_rows),
+             reconciliation_rows=reconciliation_rows, quarantines=quarantine_rows,
+             reject_presets=reject_presets),
     )
 
 
@@ -323,6 +332,32 @@ async def reject_exception(request: Request, exc_id: int):
             trace_id,
             rejection_reason=reason,
         )
+
+    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
+
+
+@router.post("/exceptions/{exc_id}/request-fix")
+async def request_exception_fix(request: Request, exc_id: int):
+    """Manager/DE asks the DE Agent to propose a remediation for one issue.
+
+    The pipeline no longer auto-proposes remediation; this is the explicit
+    human trigger. The DE Agent updates the exception to awaiting_approval.
+    """
+    persona = _current_persona(request)
+    if persona["id"] not in ("manager", "de"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the Manager or DE Agent can request remediation.",
+        )
+
+    exc = exc_svc.get_exception(exc_id)
+    if not exc:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    if exc["status"] in ("resolved", "escalated"):
+        raise HTTPException(status_code=400, detail="Exception is already closed.")
+
+    de_agent = DEAgent()
+    de_agent.propose_remediation(exc, exc.get("trace_id"))
 
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 

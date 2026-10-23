@@ -9,6 +9,10 @@ from backend.db.fixture import ensure_baseline_fixture
 
 
 def pytest_sessionstart(session):
+    # Under pytest-xdist the master performs the one-time schema/seed setup;
+    # workers share the same database and must not race each other.
+    if getattr(session.config, "workerinput", None) is not None:
+        return
     init_pool()
     apply_schema()
     seed()

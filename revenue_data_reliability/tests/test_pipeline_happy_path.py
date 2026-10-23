@@ -20,14 +20,10 @@ def mock_duckdb(monkeypatch):
     monkeypatch.setattr("backend.services.orchestrator.ensure_local_scenario", lambda *a, **k: None)
     monkeypatch.setattr("backend.services.validations.ensure_local_scenario", lambda *a, **k: None)
     monkeypatch.setattr("backend.services.reconciliations.ensure_local_scenario", lambda *a, **k: None)
-    # Avoid DE/Financial Impact Agent hitting the DB for exceptions; log one action each.
-    def _de(run_id, trace_id):
-        orchestrator._log_action("de", "remediation_proposal", "run", str(run_id), trace_id, {})
-
+    # Avoid the Financial Impact Agent hitting the DB; log one action.
     def _fa(run_id, trace_id):
         orchestrator._log_action("fa", "financial_impact", "run", str(run_id), trace_id, {})
 
-    monkeypatch.setattr("backend.teams.de.DEAgent.propose_remediation_for_run", lambda self, run_id, trace_id: _de(run_id, trace_id) or 0)
     monkeypatch.setattr("backend.teams.fa.FinancialImpactAgent.quantify_impact_for_run", lambda self, run_id, trace_id: _fa(run_id, trace_id) or 0)
     return fake_conn
 
@@ -50,7 +46,8 @@ def test_pipeline_happy_path():
 
     actions = fetch_all("SELECT agent_id FROM agent_actions WHERE trace_id = %s", (trace_id,))
     agent_ids = {a["agent_id"] for a in actions}
-    assert {"orchestrator", "dq", "de", "fa"}.issubset(agent_ids)
+    assert {"orchestrator", "dq", "fa"}.issubset(agent_ids)
+    assert "de" not in agent_ids
 
     # cleanup
     execute("DELETE FROM agent_actions WHERE trace_id = %s", (trace_id,))

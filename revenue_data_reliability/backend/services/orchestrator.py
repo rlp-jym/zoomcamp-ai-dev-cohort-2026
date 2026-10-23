@@ -24,7 +24,6 @@ from backend.storage.scenario_cache import (
     localize_sql,
     scenario_s3_prefix,
 )
-from backend.teams.de import DEAgent
 from backend.teams.fa import FinancialImpactAgent
 
 logger = logging.getLogger(__name__)
@@ -350,15 +349,8 @@ def run_pipeline(run_id):
 
             dq_svc.post_validation_summary(run_id, results, recon, trace_id)
 
-            # Both agents stay inside the single "Discussion" stage.
-            de_agent = DEAgent()
-            de_start = time.perf_counter()
-            de_agent.propose_remediation_for_run(run_id, trace_id)
-            logger.info(
-                "Pipeline timing [run %s] DE proposals: %.2fs",
-                run_id,
-                time.perf_counter() - de_start,
-            )
+            # Remediation is Manager/DE-triggered from the exception detail
+            # page; the pipeline no longer auto-proposes fixes.
             fa_agent = FinancialImpactAgent()
             fa_start = time.perf_counter()
             fa_agent.quantify_impact_for_run(run_id, trace_id)

@@ -280,3 +280,48 @@ def test_de_fallback_posts_structured_proposal(monkeypatch):
         assert "Agent task received" not in content
     finally:
         runs_svc.delete_run(run_id)
+
+def test_request_remediation_triggers_de_for_one_exception(monkeypatch):
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id, status="open")
+        called = []
+
+        from backend.teams import de as de_team
+
+        def fake_propose(self, exc, trace_id, rejection_reason=None):
+            called.append(exc.get("id", exc.get("exception_id")))
+            execute(
+                "UPDATE exceptions SET status = 'awaiting_approval' WHERE exception_id = %s",
+                (exception_id,),
+            )
+            return {}
+
+        monkeypatch.setattr(de_team.DEAgent, "propose_remediation", fake_propose)
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        response = c.post(
+            f"/exceptions/{exception_id}/request-fix",
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        assert called == [exception_id]
+        assert exc_svc.get_exception(exception_id)["status"] == "awaiting_approval"
+    finally:
+        runs_svc.delete_run(run_id)
+
+
+def test_reject_presets_are_rule_specific():
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id, rule_id="VAL_FK_CUSTOMER_EXISTS")
+        c = TestClient(app)
+        r = c.get(f"/exceptions/{exception_id}")
+        assert "Fix source mapping" in r.text
+        assert "Quarantine affected rows" in r.text
+        assert "Select an action or type instructions." in r.text
+    finally:
+        runs_svc.delete_run(run_id)
