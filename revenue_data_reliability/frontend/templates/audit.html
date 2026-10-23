@@ -21,8 +21,8 @@
     <tr>
       <td>{{ r.approval_id }}</td>
       <td>{{ r.target_type }}:{{ r.target_id }}</td>
-      <td>{{ r.persona_id }}</td>
-      <td>{{ r.decision }}</td>
+      <td>{{ r.persona_id | persona_label }}</td>
+      <td>{{ r.decision | capitalize }}</td>
       <td>{{ r.trace_id }}</td>
       <td>{{ r.created_at }}</td>
     </tr>
@@ -42,7 +42,7 @@
     <tr>
       <td>{{ r.publication_id }}</td>
       <td><a href="/runs/{{ r.run_id }}">run {{ r.run_id }}</a></td>
-      <td>{{ r.published_by }}</td>
+      <td>{{ r.published_by | persona_label }}</td>
       <td><code>{{ r.pointer }}</code></td>
       <td>{{ r.trace_id }}</td>
       <td>{{ r.published_at }}</td>
@@ -62,8 +62,8 @@
     {% for r in actions %}
     <tr>
       <td>{{ r.action_id }}</td>
-      <td>{{ r.agent_id }}</td>
-      <td>{{ r.action }}</td>
+      <td>{{ r.agent_id | persona_label }}</td>
+      <td>{{ r.action | replace("_", " ") | capitalize }}</td>
       <td>{{ r.anchor_type }}:{{ r.anchor_id }}</td>
       <td><a href="/observability?trace_id={{ r.trace_id }}">{{ r.trace_id }}</a></td>
       <td title="{{ r.payload }}">{{ r.payload | tojson | truncate(60) }}</td>

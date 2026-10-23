@@ -6,9 +6,9 @@
     <tbody>
       {% for s in scenarios %}
       <tr>
-        <td>{{ s.name }}</td>
+        <td>{{ s.name | scenario_label }}</td>
         <td>{{ s.created_at }}</td>
-        <td>{{ s.status }}</td>
+        <td>{{ s.status | capitalize }}</td>
         <td>{{ s.rows or "—" }}</td>
         <td>{{ s.months or "—" }}</td>
         <td>{{ s.size or "—" }}</td>
@@ -21,7 +21,7 @@
                   hx-delete="/api/scenarios/{{ s.name }}"
                   hx-target="closest tr"
                   hx-swap="outerHTML"
-                  hx-confirm="Delete dataset {{ s.name }}?">
+                  hx-confirm="Delete dataset {{ s.name | scenario_label }}?">
             Delete
           </button>
         </td>

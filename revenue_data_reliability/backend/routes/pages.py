@@ -29,9 +29,8 @@ _reset_lock = threading.Lock()
 REJECT_PRESETS = {
     "VAL_FK_CUSTOMER_EXISTS": ["Fix source mapping"],
     "VAL_DUPLICATE_INVOICE_LINE": ["Remove duplicates"],
-    "VAL_RECON_BILLINGS_GL": ["Dismiss as false positive"],
 }
-DEFAULT_REJECT_PRESETS = ["Dismiss as false positive"]
+DEFAULT_REJECT_PRESETS = []
 
 
 def _current_persona(request: Request):
@@ -213,8 +212,8 @@ async def approve_exception(request: Request, exc_id: int):
     """Manager approves remediation for an exception.
 
     - Transitions the exception to 'approved'.
-    - DE agent executes the approved remediation and logs agent_actions.
-    - Keeps the terminal 'approved' status visible (no auto-resolve).
+    - DE agent executes the quarantine for the approved remediation.
+    - Transitions the exception to terminal 'resolved'.
     """
     persona = _current_persona(request)
     if persona["id"] != "manager":
@@ -234,21 +233,27 @@ async def approve_exception(request: Request, exc_id: int):
     )
 
     de_agent = DEAgent()
-    de_agent.execute_remediation(exc, trace_id)
+    de_agent.execute_quarantine(exc, trace_id)
+
+    execute(
+        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
 
     messages.post_message(
         "exception",
         str(exc_id),
         stub_data.get_persona("manager"),
         (
-            f"Exception #{exc_id} approved by Manager and executed by DE. "
-            "Status: approved."
+            f"Exception #{exc_id} approved by Manager; DE executed the quarantine. "
+            "Status: resolved."
         ),
         trace_id=trace_id,
         evidence={
             "approved": True,
+            "resolved": True,
             "approved_by": "manager",
-            "status": "approved",
+            "status": "resolved",
         },
     )
 
@@ -296,16 +301,16 @@ async def reject_exception(request: Request, exc_id: int):
         return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
     execute(
-        "UPDATE exceptions SET status = 'remediation_rejected', updated_at = now() WHERE exception_id = %s",
+        "UPDATE exceptions SET status = 'in_discussion', updated_at = now() WHERE exception_id = %s",
         (exc_id,),
     )
     messages.post_message(
         "exception",
         str(exc_id),
         persona,
-        f"Remediation rejected (attempt {attempts}/3): {reason}",
+        f"Revision requested (attempt {attempts}/3): {reason}",
         trace_id=trace_id,
-        evidence={"rejected": True, "reason": reason, "attempt": attempts},
+        evidence={"revision_requested": True, "reason": reason, "attempt": attempts},
     )
 
     if attempts >= 3:
@@ -317,18 +322,49 @@ async def reject_exception(request: Request, exc_id: int):
             "exception",
             str(exc_id),
             persona,
-            "Auto-escalated after 3 rejected remediation attempts. Director review required.",
+            "Auto-escalated after 3 revision attempts. Director review required.",
             trace_id=trace_id,
             evidence={"escalated": True, "attempts": attempts},
         )
     else:
         de_agent = DEAgent()
         de_agent.propose_remediation(
-            {**exc, "status": "remediation_rejected"},
+            {**exc, "status": "in_discussion"},
             trace_id,
             rejection_reason=reason,
         )
 
+    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
+
+
+@router.post("/exceptions/{exc_id}/dismiss")
+async def dismiss_exception(request: Request, exc_id: int):
+    """Manager dismisses an awaiting-approval issue as a false positive."""
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can dismiss exceptions.")
+
+    exc = exc_svc.get_exception(exc_id)
+    if not exc:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    if exc["status"] != "awaiting_approval":
+        raise HTTPException(
+            status_code=400,
+            detail="Only awaiting-approval exceptions can be dismissed.",
+        )
+
+    execute(
+        "UPDATE exceptions SET status = 'dismissed', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+    messages.post_message(
+        "exception",
+        str(exc_id),
+        persona,
+        "Remediation dismissed as a false positive. Status: dismissed.",
+        trace_id=exc.get("trace_id"),
+        evidence={"dismissed": True, "dismissed_by": "manager"},
+    )
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
 
@@ -349,8 +385,11 @@ async def request_exception_fix(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] in ("resolved", "escalated", "approved", "dismissed", "rejected"):
-        raise HTTPException(status_code=400, detail="Exception is already closed.")
+    if exc["status"] not in ("open", "in_discussion"):
+        raise HTTPException(
+            status_code=400,
+            detail="Remediation can only be requested for open or in-discussion exceptions.",
+        )
 
     de_agent = DEAgent()
     de_agent.propose_remediation(exc, exc.get("trace_id"))

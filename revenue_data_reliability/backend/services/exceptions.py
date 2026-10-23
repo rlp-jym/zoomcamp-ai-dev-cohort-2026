@@ -129,7 +129,9 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
     conditions = []
     params = []
     if status in (None, "", "open"):
-        conditions.append("e.status <> 'resolved'")
+        conditions.append(
+            "e.status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')"
+        )
     elif status == "resolved":
         conditions.append("e.status = 'resolved'")
     if run_id is not None:
@@ -183,7 +185,9 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
 def exception_counts():
     r = fetch_one(
         """
-        SELECT COUNT(*) FILTER (WHERE status <> 'resolved') AS open_n,
+        SELECT COUNT(*) FILTER (
+                   WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
+               ) AS open_n,
                COUNT(*) FILTER (WHERE status = 'resolved') AS resolved_n,
                COUNT(*) AS total
         FROM exceptions

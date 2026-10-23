@@ -41,6 +41,11 @@ h1 { margin-top: 0; }
 .status-escalated { background: #e2d9f3; color: #432874; }
 .row-resolved { opacity: 0.65; }
 .btn-small { padding: 0.15rem 0.45rem; font-size: 0.75rem; }
+.decision-panel { background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+.decision-panel h2 { margin-top: 0; }
+.btn-dismiss { background: #6c757d; color: #fff; }
+.btn-dismiss:hover { background: #565e64; }
+.btn-dismiss:disabled { background: #e2e3e5; color: #6c757d; }
 .btn-request { background: #1f6feb; color: #fff; }
 .btn-request:hover { background: #1a5fcc; }
 .btn-request:disabled { background: #e2e3e5; color: #6c757d; }

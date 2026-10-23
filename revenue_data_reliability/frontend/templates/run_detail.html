@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Validation #{{ run.id }}</h1>
 <dl class="meta meta-grid">
-  <div class="meta-item"><dt>Scenario</dt><dd>{{ run.scenario }}</dd></div>
+  <div class="meta-item"><dt>Scenario</dt><dd>{{ run.scenario | scenario_label }}</dd></div>
   <div class="meta-item"><dt>Status</dt><dd>{{ run.status | capitalize }}</dd></div>
   {% if run.status == "running" %}
   <div class="meta-item"><dt>Progress</dt><dd>
@@ -16,7 +16,7 @@
   <div class="meta-item"><dt>Duration</dt><dd>{% if run.duration_seconds %}{{ run.duration_seconds }}s{% else %}{{ run.duration }}{% endif %}</dd></div>
   <div class="meta-item"><dt>Started</dt><dd>{{ run.started_at }}</dd></div>
   <div class="meta-item"><dt>Finished</dt><dd>{{ run.finished_at if run.finished_at is defined else run.get('finished_at','') }}</dd></div>
-  <div class="meta-item"><dt>Triggered by</dt><dd>{{ run.triggered_by if run.triggered_by is defined else run.get('triggered_by','') }}</dd></div>
+  <div class="meta-item"><dt>Triggered by</dt><dd>{{ (run.triggered_by if run.triggered_by is defined else run.get('triggered_by','')) | persona_label }}</dd></div>
   <div class="meta-item"><dt>Trace</dt><dd>{{ run.trace_id if run.trace_id is defined else run.get('trace_id','') }}</dd></div>
   <div class="meta-item"><dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd></div>
   <div class="meta-item"><dt>Data Issues</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd></div>

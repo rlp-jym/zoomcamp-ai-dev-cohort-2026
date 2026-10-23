@@ -16,7 +16,7 @@
   <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
   <div class="meta-item"><dt>Impact</dt><dd>{{ (exception.impact or "—") | capitalize }}</dd></div>
   <div class="meta-item"><dt>Trace</dt><dd>{{ exception.trace_id }}</dd></div>
-  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name }})</dd></div>
+  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name | scenario_label }})</dd></div>
   <div class="meta-item"><dt>Title</dt><dd>{{ exception.title }}</dd></div>
   <div class="meta-item"><dt>Description</dt><dd>{{ exception.description }}</dd></div>
   <div class="meta-item"><dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd></div>
@@ -25,7 +25,7 @@
 <p class="page-description"><strong>Reconciliation detail:</strong> {{ exception.details.summary }}</p>
 {% endif %}
 
-{% if exception.status not in ["resolved", "approved", "dismissed", "rejected", "escalated"] %}
+{% if exception.status in ["open", "in_discussion"] %}
 <form method="post" action="/exceptions/{{ exception.id }}/request-fix" style="margin:1rem 0;">
   <button class="btn btn-request" type="submit"
           {% if persona.id not in ["manager", "de"] %}disabled{% endif %}>Request Remediation</button>
@@ -35,48 +35,52 @@
     <span style="color:red;font-size:0.8rem;">Requires Manager or DE</span>
   {% endif %}
 </form>
-<form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
-  <button class="btn btn-approve" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Approve</button>
-  {% if persona.id == "manager" %}
-    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
-  {% else %}
-    <span style="color:red;font-size:0.8rem;">Requires Manager</span>
-  {% endif %}
-</form>
-<form method="post" action="/exceptions/{{ exception.id }}/reject" style="margin:1rem 0;max-width:34rem;">
-  <label for="reject-reason"><strong>Reject remediation</strong></label>
-  <p class="page-description" style="margin:0.25rem 0;">
-    Select an action or type instructions. The DE Agent will read this and generate a new proposal.
-  </p>
-  <div class="reject-presets" style="margin:0.35rem 0;">
-    {% for preset in reject_presets %}
-    <button type="button" class="btn btn-small" onclick="setRejectReason('{{ preset }}')">{{ preset }}</button>
-    {% endfor %}
-  </div>
-  <textarea id="reject-reason" name="reason" rows="3" required
-            style="width:100%;" placeholder="Explain why this remediation is not acceptable..."></textarea>
-  <button class="btn btn-reject" type="submit" style="margin-top:0.35rem;"
-          {% if persona.id != "manager" %}disabled{% endif %}>Reject</button>
-  {% if persona.id == "manager" %}
-    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
-  {% else %}
-    <span style="color:red;font-size:0.8rem;">Requires Manager</span>
-  {% endif %}
-</form>
+{% elif exception.status == "awaiting_approval" %}
+<section class="decision-panel">
+  <h2>Decision</h2>
+  <form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">
+    <button class="btn btn-approve" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Execute Fix (Approve)</button>
+    {% if persona.id == "manager" %}
+      <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
+    {% else %}
+      <span style="color:red;font-size:0.8rem;">Requires Manager</span>
+    {% endif %}
+  </form>
+  <form method="post" action="/exceptions/{{ exception.id }}/reject" style="margin:1rem 0;max-width:34rem;">
+    <label for="reject-reason"><strong>Request Revision</strong></label>
+    <p class="page-description" style="margin:0.25rem 0;">
+      Select an action or type instructions. The DE Agent will read this and generate a new proposal.
+    </p>
+    <div class="reject-presets" style="margin:0.35rem 0;">
+      {% for preset in reject_presets %}
+      <button type="button" class="btn btn-small" onclick="setRejectReason('{{ preset }}')">{{ preset }}</button>
+      {% endfor %}
+    </div>
+    <textarea id="reject-reason" name="reason" rows="3" required
+              style="width:100%;" placeholder="Explain what should change in the next proposal..."></textarea>
+    <button class="btn btn-reject" type="submit" style="margin-top:0.35rem;"
+            {% if persona.id != "manager" %}disabled{% endif %}>Request Revision</button>
+    {% if persona.id == "manager" %}
+      <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
+    {% else %}
+      <span style="color:red;font-size:0.8rem;">Requires Manager</span>
+    {% endif %}
+  </form>
+  <form method="post" action="/exceptions/{{ exception.id }}/dismiss" style="margin:1rem 0;">
+    <button class="btn btn-dismiss" type="submit" {% if persona.id != "manager" %}disabled{% endif %}>Dismiss (False Positive)</button>
+    {% if persona.id == "manager" %}
+      <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
+    {% else %}
+      <span style="color:red;font-size:0.8rem;">Requires Manager</span>
+    {% endif %}
+  </form>
+</section>
 <script>
   function setRejectReason(value) {
     const field = document.getElementById("reject-reason");
     if (field) field.value = value;
   }
 </script>
-<form method="post" action="/exceptions/{{ exception.id }}/quarantine" style="margin:1rem 0;">
-  <button class="btn" type="submit" {% if persona.id != "de" %}disabled{% endif %}>Quarantine</button>
-  {% if persona.id == "de" %}
-    <span style="color:green;font-size:0.8rem;">&#10003; Verified DE</span>
-  {% else %}
-    <span style="color:red;font-size:0.8rem;">Requires DE</span>
-  {% endif %}
-</form>
 {% endif %}
 
 <h2>Thread</h2>
@@ -101,7 +105,7 @@
       <td>{{ "%.2f"|format(r.billings) if r.billings is not none else "" }}</td>
       <td>{{ "%.2f"|format(r.gl) if r.gl is not none else "" }}</td>
       <td>{{ "%.2f"|format(r.variance_pct * 100) if r.variance_pct is not none else "" }}%</td>
-      <td><span class="status status-{{ r.status }}">{{ r.status }}</span></td>
+      <td><span class="status status-{{ r.status }}">{{ r.status | capitalize }}</span></td>
     </tr>
     {% endfor %}
   </tbody>

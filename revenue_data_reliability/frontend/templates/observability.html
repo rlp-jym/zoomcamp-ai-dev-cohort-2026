@@ -21,7 +21,7 @@
       <td>{{ t.name }}</td>
       <td>{{ t.started_at }}</td>
       <td>{{ t.duration }}</td>
-      <td><span class="span-status {{ t.status }}">{{ t.status }}</span></td>
+      <td><span class="span-status {{ t.status }}">{{ t.status | capitalize }}</span></td>
       <td>{{ t.spans }}</td>
     </tr>
     {% endfor %}
@@ -37,7 +37,7 @@
   <li style="margin-left: {{ s.depth * 20 }}px;">
     <span class="span-name">{{ s.name }}</span>
     <span class="span-dur">{{ s.duration }}</span>
-    <span class="span-status {{ s.status }}">{{ s.status }}</span>
+    <span class="span-status {{ s.status }}">{{ s.status | capitalize }}</span>
   </li>
   {% endfor %}
 </ul>

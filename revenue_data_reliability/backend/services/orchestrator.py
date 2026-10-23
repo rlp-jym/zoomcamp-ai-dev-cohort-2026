@@ -193,7 +193,7 @@ def _close_superseded_exceptions(run_id, scenario_name):
         """
         UPDATE exceptions
         SET status = 'resolved', updated_at = now()
-        WHERE status <> 'resolved'
+        WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
           AND run_id IS DISTINCT FROM %s
           AND run_id IN (SELECT run_id FROM runs WHERE scenario_name = %s)
         RETURNING exception_id

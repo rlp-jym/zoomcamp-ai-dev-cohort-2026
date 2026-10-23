@@ -114,7 +114,9 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     # the charts + their threads.
     exc_row = fetch_one(
         """
-        SELECT COUNT(*) FILTER (WHERE status <> 'resolved') AS open_n,
+        SELECT COUNT(*) FILTER (
+                   WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
+               ) AS open_n,
                COUNT(*) AS total
         FROM exceptions
         """
@@ -422,7 +424,9 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     }
     # Keep open_exceptions fresh from Postgres.
     exc_row = fetch_one(
-        "SELECT COUNT(*) FILTER (WHERE status <> 'resolved') AS open_n FROM exceptions"
+        "SELECT COUNT(*) FILTER ("
+        "  WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')"
+        ") AS open_n FROM exceptions"
     )
     data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
     data["kpi_cache"] = {

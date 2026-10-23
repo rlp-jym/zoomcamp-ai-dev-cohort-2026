@@ -13,7 +13,7 @@ from backend.services import validations as val_svc
 client = TestClient(app)
 
 
-def _make_run(scenario="baseline_run"):
+def _make_run(scenario=None):
     trace_id = uuid.uuid4().hex
     row = fetch_one(
         """
@@ -201,21 +201,22 @@ def test_approve_transitions_through_approved(monkeypatch):
 
         from backend.teams import de as de_team
 
-        def fake_execute(self, exc, trace_id):
+        def fake_quarantine(self, exc, trace_id):
             row = fetch_one(
                 "SELECT status FROM exceptions WHERE exception_id = %s",
                 (exception_id,),
             )
             seen.append(row["status"])
+            return (1, 0)
 
-        monkeypatch.setattr(de_team.DEAgent, "execute_remediation", fake_execute)
+        monkeypatch.setattr(de_team.DEAgent, "execute_quarantine", fake_quarantine)
 
         c = TestClient(app)
         c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
         response = c.post(f"/exceptions/{exception_id}/approve", follow_redirects=False)
         assert response.status_code == 303
         assert seen == ["approved"]
-        assert exc_svc.get_exception(exception_id)["status"] == "approved"
+        assert exc_svc.get_exception(exception_id)["status"] == "resolved"
     finally:
         runs_svc.delete_run(run_id)
 
@@ -310,7 +311,9 @@ def test_reject_presets_are_rule_specific():
     init_pool()
     run_id, trace_id = _make_run()
     try:
-        exception_id = _make_exception(run_id, trace_id, rule_id="VAL_FK_CUSTOMER_EXISTS")
+        exception_id = _make_exception(
+            run_id, trace_id, rule_id="VAL_FK_CUSTOMER_EXISTS", status="awaiting_approval"
+        )
         c = TestClient(app)
         r = c.get(f"/exceptions/{exception_id}")
         assert "Fix source mapping" in r.text
@@ -336,12 +339,60 @@ def test_dismiss_as_false_positive_sets_terminal_status(monkeypatch):
         c = TestClient(app)
         c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
         response = c.post(
-            f"/exceptions/{exception_id}/reject",
-            data={"reason": "Dismiss as false positive"},
+            f"/exceptions/{exception_id}/dismiss",
             follow_redirects=False,
         )
         assert response.status_code == 303
         assert exc_svc.get_exception(exception_id)["status"] == "dismissed"
         assert called == []
+    finally:
+        runs_svc.delete_run(run_id)
+
+def test_scenario_and_persona_labels():
+    from backend.templating import persona_label, scenario_label
+
+    assert scenario_label("generated_seed5_y5") == "Seed 5 (Year 5)"
+    assert scenario_label("baseline_run") == "Baseline Run"
+    assert persona_label("analyst") == "FP&A Analyst"
+    assert persona_label("de") == "Data Engineer"
+
+
+def test_decision_layout_is_state_driven():
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id, status="open")
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+
+        open_page = c.get(f"/exceptions/{exception_id}")
+        assert "Request Remediation" in open_page.text
+        assert "Execute Fix (Approve)" not in open_page.text
+        assert "Dismiss (False Positive)" not in open_page.text
+
+        execute(
+            "UPDATE exceptions SET status = 'awaiting_approval' WHERE exception_id = %s",
+            (exception_id,),
+        )
+        awaiting_page = c.get(f"/exceptions/{exception_id}")
+        assert "Execute Fix (Approve)" in awaiting_page.text
+        assert "Request Revision" in awaiting_page.text
+        assert "Dismiss (False Positive)" in awaiting_page.text
+        assert ">Approve</button>" not in awaiting_page.text
+    finally:
+        runs_svc.delete_run(run_id)
+
+
+def test_dismissed_and_resolved_leave_open_queue():
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        open_id = _make_exception(run_id, trace_id, status="open")
+        dismissed_id = _make_exception(run_id, trace_id, status="dismissed")
+        resolved_id = _make_exception(run_id, trace_id, status="resolved")
+        open_ids = {e["id"] for e in exc_svc.list_exceptions("open", run_id=run_id)}
+        assert open_id in open_ids
+        assert dismissed_id not in open_ids
+        assert resolved_id not in open_ids
     finally:
         runs_svc.delete_run(run_id)

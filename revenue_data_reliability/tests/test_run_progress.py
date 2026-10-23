@@ -138,7 +138,7 @@ def test_status_endpoint_unknown_run_still_returns_row():
     response = client.get("/runs/999999999/status")
     assert response.status_code == 200
     assert '<tr id="run-row-999999999">' in response.text
-    assert "unknown" in response.text
+    assert "Unknown" in response.text
 
 
 def test_delete_run_cascades_to_threads_and_results():
