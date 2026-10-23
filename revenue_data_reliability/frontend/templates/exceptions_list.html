@@ -20,25 +20,18 @@
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
 {% endif %}
 
-{% if status_filter == 'open' and auto_closed_count %}
-<div class="banner banner-info" style="margin-bottom:1rem;">
-  Showing Open issues. ({{ auto_closed_count }} historical issues were auto-closed for previous periods).
-  <a class="btn btn-small" href="/exceptions?status=all{% if run_id %}&run_id={{ run_id }}{% endif %}">Show All</a>
-</div>
-{% endif %}
-
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>
+    <tr><th>Period</th><th>ID</th><th>Type</th><th>Severity</th><th>Impact</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>
   </thead>
   <tbody>
     {% for e in exceptions %}
     <tr class="{% if e.status == 'resolved' %}row-resolved{% endif %}">
-      <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
-      <td>{{ e.type }}</td>
-      <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
-      <td>{{ e.impact or "—" }}</td>
       <td>{{ e.period }}</td>
+      <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
+      <td>{{ e.type | capitalize }}</td>
+      <td><span class="sev sev-{{ e.severity }}">{{ e.severity | capitalize }}</span></td>
+      <td>{{ (e.impact or "—") | capitalize }}</td>
       <td>{{ e.count if e.count is not none else "—" }}</td>
       <td>{{ e.title }}</td>
       <td>{{ e.description }}</td>

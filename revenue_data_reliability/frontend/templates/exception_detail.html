@@ -8,24 +8,24 @@
   Please review and Approve or Reject.
 </div>
 {% endif %}
-<dl class="meta">
-  <dt>Type</dt><dd>{{ exception.type }}</dd>
-  <dt>Severity</dt><dd>{{ exception.severity }}</dd>
-  <dt>Period</dt><dd>{{ exception.period }}</dd>
-  <dt>Count</dt><dd>{{ exception.count if exception.count is not none else "—" }}</dd>
-  <dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd>
-  <dt>Impact</dt><dd>{{ exception.impact or "—" }}</dd>
-  <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
-  <dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name }})</dd>
-  <dt>Title</dt><dd>{{ exception.title }}</dd>
-  <dt>Description</dt><dd>{{ exception.description }}</dd>
-  <dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd>
+<dl class="meta meta-grid">
+  <div class="meta-item"><dt>Type</dt><dd>{{ exception.type | capitalize }}</dd></div>
+  <div class="meta-item"><dt>Severity</dt><dd>{{ exception.severity | capitalize }}</dd></div>
+  <div class="meta-item"><dt>Period</dt><dd>{{ exception.period }}</dd></div>
+  <div class="meta-item"><dt>Count</dt><dd>{{ exception.count if exception.count is not none else "—" }}</dd></div>
+  <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
+  <div class="meta-item"><dt>Impact</dt><dd>{{ (exception.impact or "—") | capitalize }}</dd></div>
+  <div class="meta-item"><dt>Trace</dt><dd>{{ exception.trace_id }}</dd></div>
+  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name }})</dd></div>
+  <div class="meta-item"><dt>Title</dt><dd>{{ exception.title }}</dd></div>
+  <div class="meta-item"><dt>Description</dt><dd>{{ exception.description }}</dd></div>
+  <div class="meta-item"><dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd></div>
 </dl>
 {% if exception.details and exception.details.summary %}
 <p class="page-description"><strong>Reconciliation detail:</strong> {{ exception.details.summary }}</p>
 {% endif %}
 
-{% if exception.status != "resolved" %}
+{% if exception.status not in ["resolved", "approved", "dismissed", "rejected", "escalated"] %}
 <form method="post" action="/exceptions/{{ exception.id }}/request-fix" style="margin:1rem 0;">
   <button class="btn btn-request" type="submit"
           {% if persona.id not in ["manager", "de"] %}disabled{% endif %}>Request Remediation</button>

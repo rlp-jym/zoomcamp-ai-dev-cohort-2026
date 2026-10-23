@@ -2,37 +2,36 @@
 {% block title %}Validation {{ run.id }}{% endblock %}
 {% block content %}
 <h1>Validation #{{ run.id }}</h1>
-<dl class="meta">
-  <dt>Scenario</dt><dd>{{ run.scenario }}</dd>
-  <dt>Status</dt><dd>{{ run.status }}</dd>
+<dl class="meta meta-grid">
+  <div class="meta-item"><dt>Scenario</dt><dd>{{ run.scenario }}</dd></div>
+  <div class="meta-item"><dt>Status</dt><dd>{{ run.status | capitalize }}</dd></div>
   {% if run.status == "running" %}
-  <dt>Progress</dt><dd>
+  <div class="meta-item"><dt>Progress</dt><dd>
     <div style="background:#eee;border-radius:4px;height:8px;width:200px;">
       <div style="background:#3b4a7a;height:8px;border-radius:4px;width:{{ run.progress_percent or 0 }}%;"></div>
     </div>
     <small>{{ run.current_stage }} ({{ run.progress_percent or 0 }}%)</small>
-  </dd>
+  </dd></div>
   {% endif %}
-  <dt>Duration</dt><dd>{% if run.duration_seconds %}{{ run.duration_seconds }}s{% else %}{{ run.duration }}{% endif %}</dd>
-  <dt>Started</dt><dd>{{ run.started_at }}</dd>
-  <dt>Finished</dt><dd>{{ run.finished_at if run.finished_at is defined else run.get('finished_at','') }}</dd>
-  <dt>Duration</dt><dd>{{ run.duration }}</dd>
-  <dt>Triggered by</dt><dd>{{ run.triggered_by if run.triggered_by is defined else run.get('triggered_by','') }}</dd>
-  <dt>Trace</dt><dd>{{ run.trace_id if run.trace_id is defined else run.get('trace_id','') }}</dd>
-  <dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd>
-  <dt>Data Issues</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd>
-  <dt>Published</dt><dd>
+  <div class="meta-item"><dt>Duration</dt><dd>{% if run.duration_seconds %}{{ run.duration_seconds }}s{% else %}{{ run.duration }}{% endif %}</dd></div>
+  <div class="meta-item"><dt>Started</dt><dd>{{ run.started_at }}</dd></div>
+  <div class="meta-item"><dt>Finished</dt><dd>{{ run.finished_at if run.finished_at is defined else run.get('finished_at','') }}</dd></div>
+  <div class="meta-item"><dt>Triggered by</dt><dd>{{ run.triggered_by if run.triggered_by is defined else run.get('triggered_by','') }}</dd></div>
+  <div class="meta-item"><dt>Trace</dt><dd>{{ run.trace_id if run.trace_id is defined else run.get('trace_id','') }}</dd></div>
+  <div class="meta-item"><dt>Validations</dt><dd>{{ run.validations_total if run.validations_total is defined else '' }} total / {{ run.validations_failed if run.validations_failed is defined else '' }} failed</dd></div>
+  <div class="meta-item"><dt>Data Issues</dt><dd>{{ run.exceptions_created if run.exceptions_created is defined else '' }}</dd></div>
+  <div class="meta-item"><dt>Published</dt><dd>
     {% if publication %}
       yes — publication #{{ publication.publication_id }}, {{ publication.published_at }}
     {% else %}
       {{ "yes" if run.published else "no" }}
     {% endif %}
-  </dd>
+  </dd></div>
   {% if publication %}
-  <dt>Pointer</dt><dd><code>{{ publication.pointer }}</code></dd>
-  <dt>Published by</dt><dd>{{ publication.published_by }}</dd>
+  <div class="meta-item"><dt>Pointer</dt><dd><code>{{ publication.pointer }}</code></dd></div>
+  <div class="meta-item"><dt>Published by</dt><dd>{{ publication.published_by }}</dd></div>
   {% endif %}
-  <dt>Approved at</dt><dd>{{ run.approved_at if run.approved_at is defined else run.get('approved_at','') }}</dd>
+  <div class="meta-item"><dt>Approved at</dt><dd>{{ run.approved_at if run.approved_at is defined else run.get('approved_at','') }}</dd></div>
 </dl>
 <div style="margin:1rem 0;">
   <a class="btn" href="/exceptions?run_id={{ run.id }}">View Data Issues for this Run</a>
@@ -57,10 +56,10 @@
     {% for v in validations %}
     <tr>
       <td>{{ v.title }}</td>
-      <td><span class="status status-{{ v.status }}">{{ v.status }}</span></td>
+      <td><span class="status status-{{ v.status }}">{{ v.status | capitalize }}</span></td>
       <td>{{ v.summary_count }}</td>
-      <td><span class="sev sev-{{ v.severity }}">{{ v.severity }}</span></td>
-      <td>{{ v.impact or "—" }}</td>
+      <td><span class="sev sev-{{ v.severity }}">{{ v.severity | capitalize }}</span></td>
+      <td>{{ (v.impact or "—") | capitalize }}</td>
       <td>{{ v.description }}</td>
     </tr>
     {% endfor %}

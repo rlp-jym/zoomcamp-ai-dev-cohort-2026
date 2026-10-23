@@ -27,11 +27,11 @@ router = APIRouter()
 _reset_lock = threading.Lock()
 
 REJECT_PRESETS = {
-    "VAL_FK_CUSTOMER_EXISTS": ["Fix source mapping", "Quarantine affected rows"],
-    "VAL_DUPLICATE_INVOICE_LINE": ["Quarantine affected rows", "Remove duplicates"],
-    "VAL_RECON_BILLINGS_GL": ["Dismiss as false positive", "Quarantine affected rows"],
+    "VAL_FK_CUSTOMER_EXISTS": ["Fix source mapping"],
+    "VAL_DUPLICATE_INVOICE_LINE": ["Remove duplicates"],
+    "VAL_RECON_BILLINGS_GL": ["Dismiss as false positive"],
 }
-DEFAULT_REJECT_PRESETS = ["Quarantine affected rows", "Dismiss as false positive"]
+DEFAULT_REJECT_PRESETS = ["Dismiss as false positive"]
 
 
 def _current_persona(request: Request):
@@ -137,15 +137,6 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
         exceptions = []
     else:
         exceptions = exc_svc.list_exceptions(status_filter, limit=limit, offset=offset, run_id=filter_run_id)
-    auto_closed = 0
-    if filter_run_id is not None:
-        row = fetch_one(
-            "SELECT COUNT(*) AS n FROM exceptions "
-            "WHERE run_id = %s AND status = 'resolved' "
-            "AND COALESCE(details->>'auto_resolved', 'false') = 'true'",
-            (filter_run_id,),
-        )
-        auto_closed = row["n"] if row else 0
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
@@ -153,7 +144,6 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
              exceptions=exceptions,
              status_filter=status_filter,
              counts=exc_svc.exception_counts(),
-             auto_closed_count=auto_closed,
              limit=limit,
              offset=offset,
              run_id=run_id_int,
@@ -203,8 +193,8 @@ async def quarantine_exception(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] == "resolved":
-        raise HTTPException(status_code=400, detail="Exception is already resolved.")
+    if exc["status"] in ("resolved", "approved", "dismissed", "rejected"):
+        raise HTTPException(status_code=400, detail="Exception is already closed.")
 
     trace_id = exc.get("trace_id")
     de_agent = DEAgent()
@@ -224,8 +214,7 @@ async def approve_exception(request: Request, exc_id: int):
 
     - Transitions the exception to 'approved'.
     - DE agent executes the approved remediation and logs agent_actions.
-    - Transitions the exception to 'resolved' after execution.
-    - Posts a system message describing the approved -> resolved transition.
+    - Keeps the terminal 'approved' status visible (no auto-resolve).
     """
     persona = _current_persona(request)
     if persona["id"] != "manager":
@@ -234,8 +223,8 @@ async def approve_exception(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] == "resolved":
-        raise HTTPException(status_code=400, detail="Exception is already resolved.")
+    if exc["status"] in ("resolved", "approved", "dismissed", "rejected"):
+        raise HTTPException(status_code=400, detail="Exception is already closed.")
 
     trace_id = exc.get("trace_id")
 
@@ -247,25 +236,19 @@ async def approve_exception(request: Request, exc_id: int):
     de_agent = DEAgent()
     de_agent.execute_remediation(exc, trace_id)
 
-    execute(
-        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
-        (exc_id,),
-    )
-
     messages.post_message(
         "exception",
         str(exc_id),
         stub_data.get_persona("manager"),
         (
-            f"Exception #{exc_id} approved by Manager (status: approved) and "
-            "executed by DE (status: resolved)."
+            f"Exception #{exc_id} approved by Manager and executed by DE. "
+            "Status: approved."
         ),
         trace_id=trace_id,
         evidence={
             "approved": True,
-            "resolved": True,
             "approved_by": "manager",
-            "transition": "approved -> resolved",
+            "status": "approved",
         },
     )
 
@@ -291,13 +274,26 @@ async def reject_exception(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] == "resolved":
-        raise HTTPException(status_code=400, detail="Exception is already resolved.")
-    if exc["status"] == "escalated":
-        raise HTTPException(status_code=400, detail="Exception is already escalated.")
+    if exc["status"] in ("resolved", "escalated", "approved", "dismissed", "rejected"):
+        raise HTTPException(status_code=400, detail="Exception is already closed.")
 
     trace_id = exc.get("trace_id")
     attempts = int(exc.get("remediation_attempts") or 0)
+
+    if reason.lower() == "dismiss as false positive":
+        execute(
+            "UPDATE exceptions SET status = 'dismissed', updated_at = now() WHERE exception_id = %s",
+            (exc_id,),
+        )
+        messages.post_message(
+            "exception",
+            str(exc_id),
+            persona,
+            "Remediation dismissed as a false positive. Status: dismissed.",
+            trace_id=trace_id,
+            evidence={"dismissed": True, "reason": reason},
+        )
+        return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
     execute(
         "UPDATE exceptions SET status = 'remediation_rejected', updated_at = now() WHERE exception_id = %s",
@@ -353,7 +349,7 @@ async def request_exception_fix(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] in ("resolved", "escalated"):
+    if exc["status"] in ("resolved", "escalated", "approved", "dismissed", "rejected"):
         raise HTTPException(status_code=400, detail="Exception is already closed.")
 
     de_agent = DEAgent()

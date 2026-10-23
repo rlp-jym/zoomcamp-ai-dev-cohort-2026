@@ -172,25 +172,18 @@ def test_reconciliation_exception_uses_rule_metadata():
         runs_svc.delete_run(run_id)
 
 
-def test_exceptions_default_to_open_with_autoclose_banner():
+def test_exceptions_default_to_open_without_banner():
     init_pool()
     run_id, trace_id = _make_run()
     try:
         open_id = _make_exception(run_id, trace_id, status="open")
         hist_id = _make_exception(run_id, trace_id, status="resolved")
-        execute(
-            "UPDATE exceptions SET details = details || '{\"auto_resolved\": true}'::jsonb "
-            "WHERE exception_id = %s",
-            (hist_id,),
-        )
         c = TestClient(app)
         r = c.get(f"/exceptions?run_id={run_id}")
         assert r.status_code == 200
         assert f'href="/exceptions/{open_id}"' in r.text
         assert f'href="/exceptions/{hist_id}"' not in r.text
-        assert "Showing Open issues." in r.text
-        assert "1 historical issues were auto-closed" in r.text
-        assert "Show All" in r.text
+        assert "Showing Open issues." not in r.text
 
         r_all = c.get(f"/exceptions?run_id={run_id}&status=all")
         assert f'href="/exceptions/{open_id}"' in r_all.text
@@ -222,7 +215,7 @@ def test_approve_transitions_through_approved(monkeypatch):
         response = c.post(f"/exceptions/{exception_id}/approve", follow_redirects=False)
         assert response.status_code == 303
         assert seen == ["approved"]
-        assert exc_svc.get_exception(exception_id)["status"] == "resolved"
+        assert exc_svc.get_exception(exception_id)["status"] == "approved"
     finally:
         runs_svc.delete_run(run_id)
 
@@ -321,7 +314,34 @@ def test_reject_presets_are_rule_specific():
         c = TestClient(app)
         r = c.get(f"/exceptions/{exception_id}")
         assert "Fix source mapping" in r.text
-        assert "Quarantine affected rows" in r.text
+        assert "Quarantine affected rows" not in r.text
         assert "Select an action or type instructions." in r.text
+    finally:
+        runs_svc.delete_run(run_id)
+
+def test_dismiss_as_false_positive_sets_terminal_status(monkeypatch):
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id, status="awaiting_approval")
+        from backend.teams import de as de_team
+
+        called = []
+        monkeypatch.setattr(
+            de_team.DEAgent,
+            "propose_remediation",
+            lambda self, *a, **k: called.append(True) or {},
+        )
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        response = c.post(
+            f"/exceptions/{exception_id}/reject",
+            data={"reason": "Dismiss as false positive"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        assert exc_svc.get_exception(exception_id)["status"] == "dismissed"
+        assert called == []
     finally:
         runs_svc.delete_run(run_id)

@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS exceptions (
     severity      TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
     period        TEXT,
     title         TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated')),
+    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated', 'dismissed', 'rejected')),
     impact        VARCHAR,
     remediation_attempts INTEGER NOT NULL DEFAULT 0,
     trace_id      TEXT,
@@ -258,7 +258,7 @@ UPDATE exceptions SET impact = NULL WHERE impact LIKE '[LLM unavailable%';
 ALTER TABLE exceptions DROP CONSTRAINT IF EXISTS exceptions_status_check;
 UPDATE exceptions SET status = 'awaiting_approval' WHERE status = 'remediation_proposed';
 ALTER TABLE exceptions ADD CONSTRAINT exceptions_status_check
-    CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated'));
+    CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated', 'dismissed', 'rejected'));
 
 -- Batch 6 / Phase 3 (§19): precomputed dashboard payload.
 -- The / route never scans S3 Parquet inside a request; the scheduler job

@@ -34,6 +34,8 @@ h1 { margin-top: 0; }
 .status-pass { background: #d1e7dd; color: #0f5132; }
 .status-fail { background: #f8d7da; color: #842029; }
 .status-remediation_rejected { background: #f8d7da; color: #842029; }
+.status-rejected { background: #f8d7da; color: #842029; }
+.status-dismissed { background: #e2e3e5; color: #41464b; }
 .status-approved { background: #d1e7dd; color: #0f5132; }
 .status-resolved { background: #d1e7dd; color: #0f5132; }
 .status-escalated { background: #e2d9f3; color: #432874; }
@@ -63,6 +65,13 @@ h1 { margin-top: 0; }
 .meta { background: #fff; border: 1px solid #e3e3e8; border-radius: 6px; padding: 0.75rem; }
 .meta dt { font-weight: 600; }
 .meta dd { margin: 0 0 0.4rem 0; }
+.meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.35rem 1.25rem; }
+.meta-grid .meta-item { min-width: 0; }
+.meta-grid .meta-item dt { margin: 0; }
+.meta-grid .meta-item dd { margin: 0 0 0.35rem 0; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .meta-grid { grid-template-columns: 1fr; }
+}
 .span-tree li { list-style: none; font-family: monospace; font-size: 0.85rem; padding: 0.15rem 0; }
 .span-name { font-weight: 600; }
 .span-dur { color: #555; margin-left: 0.5rem; }
