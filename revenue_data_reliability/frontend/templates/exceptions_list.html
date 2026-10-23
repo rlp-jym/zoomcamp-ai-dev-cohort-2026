@@ -5,6 +5,9 @@
 {% block title %}Data Issues{% endblock %}
 {% block content %}
 <h1>Data Issues</h1>
+{% if not active_run_id and not run_id %}
+<p class="empty">This dataset has not been validated yet. Run validation to populate.</p>
+{% endif %}
 <p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with trend analysis and resolution actions.</p>
 
 <div class="tab-row" style="margin-bottom:1rem;">

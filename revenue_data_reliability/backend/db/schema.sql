@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS otel_metrics (
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_runs_scenario ON runs (scenario_name);
+CREATE INDEX IF NOT EXISTS idx_runs_scenario_status ON runs (scenario_name, status);
 CREATE INDEX IF NOT EXISTS idx_validations_run ON validations (run_id);
 CREATE INDEX IF NOT EXISTS idx_reconciliations_run ON reconciliations (run_id);
 CREATE INDEX IF NOT EXISTS idx_exceptions_run ON exceptions (run_id);
@@ -246,7 +247,11 @@ ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS details JSONB;
 -- The / route never scans S3 Parquet inside a request; the scheduler job
 -- (dashboard_refresh) recomputes the payload and upserts it here.
 CREATE TABLE IF NOT EXISTS dashboard_cache (
-    cache_key    TEXT PRIMARY KEY,
-    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    data         JSONB NOT NULL
+    cache_key      TEXT PRIMARY KEY,
+    scenario_name  TEXT,
+    refreshed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    data           JSONB NOT NULL
 );
+ALTER TABLE dashboard_cache ADD COLUMN IF NOT EXISTS scenario_name TEXT;
+UPDATE dashboard_cache SET scenario_name = 'baseline_run' WHERE scenario_name IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dashboard_cache_scenario ON dashboard_cache (scenario_name);

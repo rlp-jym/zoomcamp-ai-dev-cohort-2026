@@ -12,6 +12,7 @@ table, so page loads stay fast and stay out of long-running request paths.
 
 import json
 import logging
+import threading
 import time
 from datetime import datetime
 
@@ -34,14 +35,30 @@ SEGMENT_COLORS = {
     "anomaly": "#cf222e",
 }
 
-# Short-lived in-memory cache for the request-path dashboard payload.
-_DASHBOARD_CACHE: dict = {"payload": None, "ts": 0.0}
+# Short-lived in-memory cache for the request-path dashboard payload, keyed by
+# scenario (dataset) so switching datasets never reuses another dataset's data.
+_DASHBOARD_CACHE: dict = {}
 _DASHBOARD_CACHE_TTL = 5.0
+_DASHBOARD_REFRESHING: set = set()
+_DASHBOARD_REFRESH_LOCK = threading.Lock()
 
 
-def invalidate_dashboard_cache() -> None:
-    _DASHBOARD_CACHE["payload"] = None
-    _DASHBOARD_CACHE["ts"] = 0.0
+def invalidate_dashboard_cache(scenario=None) -> None:
+    if scenario is None:
+        _DASHBOARD_CACHE.clear()
+    else:
+        _DASHBOARD_CACHE.pop(scenario, None)
+
+
+def invalidate_all_dashboard_cache() -> None:
+    """Drop every cached row (DB + memory). Used by scheduler/reset."""
+    _DASHBOARD_CACHE.clear()
+    try:
+        from backend.db.connection import execute
+
+        execute("DELETE FROM dashboard_cache")
+    except Exception:
+        pass
 
 
 def _uri(scenario: str, table: str) -> str:
@@ -312,23 +329,30 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
         return "empty"
     execute(
         """
-        INSERT INTO dashboard_cache (cache_key, data, refreshed_at)
-        VALUES (%s, %s, now())
-        ON CONFLICT (cache_key) DO UPDATE
-            SET data = EXCLUDED.data, refreshed_at = now()
+        INSERT INTO dashboard_cache (cache_key, scenario_name, data, refreshed_at)
+        VALUES (%s, %s, %s, now())
+        ON CONFLICT (scenario_name) DO UPDATE
+            SET cache_key = EXCLUDED.cache_key,
+                data = EXCLUDED.data,
+                refreshed_at = now()
         """,
-        ("dashboard", json.dumps(data, default=str)),
+        (f"dashboard:{scenario}", scenario, json.dumps(data, default=str)),
     )
-    invalidate_dashboard_cache()
+    invalidate_dashboard_cache(scenario)
     return "updated"
 
 
-def get_from_cache(cache_key: str = "dashboard") -> tuple[dict | None, datetime | None]:
-    """Read the cached payload (returns None when never computed)."""
+def get_from_cache(scenario: str = SCENARIO) -> tuple[dict | None, datetime | None]:
+    """Read the cached payload for a scenario (returns None when never computed)."""
     row = fetch_one(
-        "SELECT data, refreshed_at FROM dashboard_cache WHERE cache_key = %s",
-        (cache_key,),
+        "SELECT data, refreshed_at FROM dashboard_cache WHERE scenario_name = %s",
+        (scenario,),
     )
+    if not row:
+        row = fetch_one(
+            "SELECT data, refreshed_at FROM dashboard_cache WHERE cache_key = %s",
+            (scenario,),
+        )
     if not row:
         return None, None
     payload = row["data"]
@@ -337,15 +361,35 @@ def get_from_cache(cache_key: str = "dashboard") -> tuple[dict | None, datetime 
     return payload, row["refreshed_at"]
 
 
-def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
-    """Request-path wrapper: reads the cache only, never scans S3."""
-    now = time.time()
-    cached = _DASHBOARD_CACHE["payload"]
-    if cached is not None and now - _DASHBOARD_CACHE["ts"] < _DASHBOARD_CACHE_TTL:
-        return cached
+def _background_refresh(scenario: str) -> None:
+    try:
+        refresh_dashboard_cache(scenario)
+    except Exception:
+        logger.exception("Background dashboard refresh failed for %s", scenario)
+    finally:
+        with _DASHBOARD_REFRESH_LOCK:
+            _DASHBOARD_REFRESHING.discard(scenario)
 
-    data, refreshed_at = get_from_cache()
+
+def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
+    """Request-path wrapper: reads the cache only, never scans S3.
+
+    On a cache miss a background refresh is triggered (lazy) so the request
+    thread never pays the S3/DuckDB cost.
+    """
+    now = time.time()
+    cached = _DASHBOARD_CACHE.get(scenario)
+    if cached is not None and now - cached["ts"] < _DASHBOARD_CACHE_TTL:
+        return cached["payload"]
+
+    data, refreshed_at = get_from_cache(scenario)
     if data is None:
+        with _DASHBOARD_REFRESH_LOCK:
+            if scenario not in _DASHBOARD_REFRESHING:
+                _DASHBOARD_REFRESHING.add(scenario)
+                threading.Thread(
+                    target=_background_refresh, args=(scenario,), daemon=True
+                ).start()
         result = {
             "scenario": scenario,
             "published_run": None,
@@ -359,8 +403,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "cache_fresh_at": None,
             "cache_empty": True,
         }
-        _DASHBOARD_CACHE["payload"] = result
-        _DASHBOARD_CACHE["ts"] = time.time()
+        _DASHBOARD_CACHE[scenario] = {"payload": result, "ts": now}
         return result
     data["cache_empty"] = False
     # Cheap Postgres values are re-read live on every request so the badge
@@ -385,6 +428,5 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %I:%M:%S %p") if refreshed_at else "",
     }
-    _DASHBOARD_CACHE["payload"] = data
-    _DASHBOARD_CACHE["ts"] = time.time()
+    _DASHBOARD_CACHE[scenario] = {"payload": data, "ts": now}
     return data

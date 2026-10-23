@@ -2,6 +2,9 @@
 {% block title %}Validation{% endblock %}
 {% block content %}
 <h1>Validation</h1>
+{% if not runs %}
+<p class="empty">This dataset has not been validated yet. Run validation to populate.</p>
+{% endif %}
 <p class="page-description">Catalog of validation runs — status, timing, and publication state. Click a run ID for validation results and details.</p>
 {% if reset_status == "ok" %}
 <div class="banner banner-ok">Demo data reset. Baseline fixture preserved.</div>

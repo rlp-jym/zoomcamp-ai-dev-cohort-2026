@@ -10,6 +10,12 @@
 </h1>
 <p class="page-description">Historical actuals and FP&A assessment — revenue, reconciliation, and the customer mix for the published run.</p>
 
+{% if not active_run_id %}
+<div class="empty">
+  This dataset has not been validated yet. Run validation to populate.
+</div>
+{% endif %}
+
 {% if not available %}
 <div class="empty">
   {% if cache_empty %}

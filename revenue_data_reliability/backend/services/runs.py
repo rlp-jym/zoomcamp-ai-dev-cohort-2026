@@ -52,8 +52,14 @@ def get_run(run_id):
     }
 
 
-def list_runs():
-    rows = fetch_all("SELECT * FROM runs ORDER BY created_at DESC, run_id DESC")
+def list_runs(scenario_name=None):
+    if scenario_name:
+        rows = fetch_all(
+            "SELECT * FROM runs WHERE scenario_name = %s ORDER BY created_at DESC, run_id DESC",
+            (scenario_name,),
+        )
+    else:
+        rows = fetch_all("SELECT * FROM runs ORDER BY created_at DESC, run_id DESC")
     out = []
     for r in rows:
         out.append(
@@ -70,6 +76,31 @@ def list_runs():
             }
         )
     return out
+
+
+def resolve_active_run(scenario_name):
+    """Latest completed run for a dataset (scenario). Returns run_id or None."""
+    if not scenario_name:
+        return None
+    r = fetch_one(
+        "SELECT run_id FROM runs "
+        "WHERE scenario_name = %s AND status = 'completed' "
+        "ORDER BY finished_at DESC NULLS LAST, run_id DESC LIMIT 1",
+        (scenario_name,),
+    )
+    return r["run_id"] if r else None
+
+
+def default_scenario():
+    """Scenario of the most recently completed run, else first scenario."""
+    r = fetch_one(
+        "SELECT scenario_name FROM runs WHERE status = 'completed' "
+        "ORDER BY finished_at DESC NULLS LAST, run_id DESC LIMIT 1"
+    )
+    if r and r.get("scenario_name"):
+        return r["scenario_name"]
+    r = fetch_one("SELECT name FROM scenarios ORDER BY created_at DESC, name LIMIT 1")
+    return r["name"] if r else "baseline_run"
 
 
 def sweep_stale_runs(max_age_minutes: int = 30) -> int:

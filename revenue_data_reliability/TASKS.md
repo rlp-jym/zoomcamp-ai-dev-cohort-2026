@@ -360,5 +360,15 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] Re-enable all GitHub Actions workflows (rename .yml.disabled back to .yml) before final submission.
 - [ ] Re-enable GitHub Rulesets for branch protection (currently disabled for direct pushes).
 
+## 30. Dataset Scoping (Project File Model)
+
+One dataset = one `scenarios` row. The app is scoped to a single active dataset at a time via a selector in the header (cookie `scenario`, query param `?scenario=`). The active run is derived as the latest completed run for that dataset; datasets with no successful validation render an empty state instead of borrowing another dataset's data. This keeps a reviewer's "project file" (dataset + its validation issues, threads, dashboard) coherent across pages.
+
+- [x] Selector plumbing: dropdown in base layout, cookie persistence, query-param override, default to most recently completed run's scenario.
+- [x] Active run resolution: `resolve_active_run(scenario_name)` derived query (no `scenarios.active_run_id`).
+- [x] Scoped pages: Dashboard reads cache for active run; Data Issues filters by active run (preserving `?run_id=`); Validation shows runs for selected scenario; threads inherit scope; Audit/Observability stay global.
+- [x] Cache safety: `dashboard_cache` keyed per scenario, migration backfilled, scheduler invalidates instead of scanning all scenarios.
+- [x] Edge cases: deleted/invalid dataset falls back to default; active run id + last-validated timestamp shown next to selector.
+
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.

@@ -48,12 +48,13 @@ def start_scheduler() -> BackgroundScheduler:
         max_instances=1,
     )
 
-    # Dashboard cache refresh (§19): heavy S3 scans live in the scheduler,
-    # not in request handlers.
-    from backend.services.dashboard import refresh_dashboard_cache
+    # Dashboard cache (§19): never scan S3/Parquet in the scheduler (OOM risk
+    # on the 512MB tier). Invalidate cached rows instead and let the request
+    # path rebuild lazily in a background thread.
+    from backend.services.dashboard import invalidate_all_dashboard_cache
 
     _scheduler.add_job(
-        refresh_dashboard_cache,
+        invalidate_all_dashboard_cache,
         "interval",
         minutes=15,
         id="dashboard_refresh",
@@ -63,6 +64,8 @@ def start_scheduler() -> BackgroundScheduler:
     _scheduler.start()
     # Publication check and first cache fill run once at boot.
     from threading import Thread
+
+    from backend.services.dashboard import refresh_dashboard_cache
 
     Thread(
         target=refresh_dashboard_cache, name="dashboard_cache_first", daemon=True

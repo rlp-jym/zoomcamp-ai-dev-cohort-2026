@@ -32,8 +32,50 @@ def _current_persona(request: Request):
     return stub_data.get_persona(pid)
 
 
+def _resolve_scenario(request, extra):
+    if "scenario" in extra and extra.get("scenario") is not None:
+        return extra.get("scenario")
+    qp = request.query_params.get("scenario")
+    if qp:
+        return qp
+    cookie = request.cookies.get("scenario")
+    if cookie:
+        return cookie
+    try:
+        return runs_svc.default_scenario()
+    except Exception:
+        return "baseline_run"
+
+
 def _ctx(request, **extra):
-    return {"request": request, "persona": _current_persona(request), **extra}
+    scenario = _resolve_scenario(request, extra)
+    scenarios = extra.pop("scenarios", None)
+    if scenarios is None:
+        try:
+            scenarios = scen_svc.list_scenarios()
+        except Exception:
+            scenarios = []
+    active_run_id = extra.pop("active_run_id", None)
+    if active_run_id is None:
+        try:
+            active_run_id = runs_svc.resolve_active_run(scenario)
+        except Exception:
+            active_run_id = None
+    active_run = None
+    if active_run_id is not None:
+        try:
+            active_run = runs_svc.get_run(active_run_id)
+        except Exception:
+            active_run = None
+    base = {
+        "request": request,
+        "persona": _current_persona(request),
+        "scenario": scenario,
+        "scenarios": scenarios,
+        "active_run_id": active_run_id,
+        "active_run": active_run,
+    }
+    return {**base, **extra}
 
 
 @router.get("/")
@@ -46,8 +88,12 @@ async def dashboard(request: Request):
     """
     from backend.services import dashboard as dashboard_svc
 
-    data = dashboard_svc.get_dashboard_data_cached()
-    return templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
+    scenario = _resolve_scenario(request, {})
+    active_run_id = runs_svc.resolve_active_run(scenario)
+    data = dashboard_svc.get_dashboard_data_cached(scenario)
+    data["active_run_id"] = active_run_id
+    resp = templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
+    return resp
 
 
 @router.post("/dashboard/refresh")
@@ -57,33 +103,50 @@ async def dashboard_refresh(request: Request):
 
     from backend.services import dashboard as dashboard_svc
 
+    scenario = _resolve_scenario(request, {})
+
     def _job():
         try:
-            dashboard_svc.refresh_dashboard_cache()
+            dashboard_svc.refresh_dashboard_cache(scenario)
         except Exception:  # logged inside refresh; keep the server safe
             pass
 
     threading.Thread(target=_job, daemon=True).start()
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url=f"/?scenario={scenario}", status_code=303)
 
 
 @router.get("/exceptions")
 async def exceptions_list(request: Request, status: str | None = None, run_id: str | None = None, limit: int = 50, offset: int = 0):
+    scenario = _resolve_scenario(request, {})
+    active_run_id = runs_svc.resolve_active_run(scenario)
     try:
         run_id_int = int(run_id) if run_id not in (None, "") else None
     except (TypeError, ValueError):
         run_id_int = None
+    # Direct ?run_id= links win; otherwise scope to the active run.
+    filter_run_id = run_id_int if run_id_int is not None else active_run_id
+    if filter_run_id is None and run_id_int is None and active_run_id is None:
+        exceptions = []
+    else:
+        exceptions = exc_svc.list_exceptions(status, limit=limit, offset=offset, run_id=filter_run_id)
+    trend_run_id = filter_run_id if filter_run_id is not None else None
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
-        _ctx(request,
-             exceptions=exc_svc.list_exceptions(status, limit=limit, offset=offset, run_id=run_id_int),
+        _ctx(request, scenario=scenario,
+             exceptions=exceptions,
              status_filter=status or "open",
              counts=exc_svc.exception_counts(),
-             trend=exc_svc.exception_trend(run_id_int) if run_id_int is not None else exc_svc.exception_trend(),
+             trend=(
+                 exc_svc.exception_trend(trend_run_id)
+                 if trend_run_id is not None
+                 else {"labels": [], "detected": [], "resolved": [], "open": [], "cumulative": [], "run_id": None}
+             ),
              limit=limit,
              offset=offset,
-             run_id=run_id_int),
+             run_id=run_id_int,
+             active_run_id=active_run_id,
+             filtered_run_id=filter_run_id),
     )
 
 
@@ -188,7 +251,8 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     from backend.services import runs as runs_svc2
 
     runs_svc2.sweep_stale_runs(10)
-    for r in runs_svc2.list_runs():
+    scenario = _resolve_scenario(request, {})
+    for r in runs_svc2.list_runs(scenario):
         if r.get("status") == "failed":
             runs_svc2.reconcile_failed_run(r["id"])
     from backend.services import dataset_scale
@@ -198,7 +262,9 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     return templates.TemplateResponse(
         request,
         "runs_list.html",
-        _ctx(request, runs=runs_svc.list_runs(), scenarios=scenarios,
+        _ctx(request, scenario=scenario,
+             runs=runs_svc.list_runs(scenario),
+             scenarios=scenarios,
              reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
@@ -284,13 +350,16 @@ async def run_detail(request: Request, run_id: int):
                "finished_at": None, "duration": None, "triggered_by": None, "trace_id": None,
                "validations_total": 0, "validations_failed": 0, "exceptions_created": 0,
                "published": False, "published_at": None, "approved_at": None}
+    scenario = run.get("scenario") if isinstance(run, dict) else None
+    if not scenario:
+        scenario = _resolve_scenario(request, {})
     msgs = messages.get_messages("run", str(run_id))
     validations = val_svc.list_validations(run_id)
     publication = pub_svc.get_publication_for_run(run_id)
     return templates.TemplateResponse(
         request,
         "run_detail.html",
-        _ctx(request, run=run, anchor_type="run", anchor_id=str(run_id),
+        _ctx(request, scenario=scenario, run=run, anchor_type="run", anchor_id=str(run_id),
              messages=msgs, validations=validations, publication=publication),
     )
 
@@ -715,14 +784,7 @@ async def run_validation(request: Request):
         or payload.get("name")
     )
     if not scenario_name:
-        try:
-            from backend.services import scenarios as scen_svc
-
-            scens = scen_svc.list_scenarios()
-            if scens:
-                scenario_name = scens[0].get("name")
-        except Exception:
-            scenario_name = None
+        scenario_name = _resolve_scenario(request, {})
     if not scenario_name:
         scenario_name = "baseline_run"
 

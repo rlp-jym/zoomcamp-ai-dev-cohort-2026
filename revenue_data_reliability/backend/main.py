@@ -107,6 +107,14 @@ def create_app() -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    @app.middleware("http")
+    async def scenario_cookie_middleware(request, call_next):
+        response = await call_next(request)
+        scenario = request.query_params.get("scenario")
+        if scenario:
+            response.set_cookie("scenario", scenario, max_age=30 * 24 * 3600, path="/")
+        return response
+
     app.include_router(personas.router)
     app.include_router(threads.router)
     app.include_router(pages.router)
