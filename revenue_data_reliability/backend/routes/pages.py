@@ -129,7 +129,6 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
         exceptions = []
     else:
         exceptions = exc_svc.list_exceptions(status, limit=limit, offset=offset, run_id=filter_run_id)
-    trend_run_id = filter_run_id if filter_run_id is not None else None
     return templates.TemplateResponse(
         request,
         "exceptions_list.html",
@@ -137,11 +136,6 @@ async def exceptions_list(request: Request, status: str | None = None, run_id: s
              exceptions=exceptions,
              status_filter=status or "open",
              counts=exc_svc.exception_counts(),
-             trend=(
-                 exc_svc.exception_trend(trend_run_id)
-                 if trend_run_id is not None
-                 else {"labels": [], "detected": [], "resolved": [], "open": [], "cumulative": [], "run_id": None}
-             ),
              limit=limit,
              offset=offset,
              run_id=run_id_int,
@@ -370,8 +364,8 @@ async def scenarios(request: Request):
     src_id = request.query_params.get("src_id")
     return templates.TemplateResponse(
         request, "scenarios.html",
-        _ctx(request, scenarios=scen_svc.list_analysis_scenarios(),
-             src_type=src_type, src_id=src_id),
+        _ctx(request, analysis_scenarios=scen_svc.list_analysis_scenarios(),
+             hide_dataset_selector=True, src_type=src_type, src_id=src_id),
     )
 
 

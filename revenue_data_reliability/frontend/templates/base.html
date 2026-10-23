@@ -19,6 +19,7 @@
       <a href="/audit">Audit</a>
       <a href="/observability">Observability</a>
     </nav>
+    {% if not hide_dataset_selector %}
     <form class="dataset-form" method="get" action="" style="margin-left:1rem;">
       <label for="dataset">Dataset:</label>
       <select id="dataset" name="scenario" onchange="this.form.submit()">
@@ -26,14 +27,8 @@
           <option value="{{ s.name }}" {% if s.name == scenario %}selected{% endif %}>{{ s.name }}</option>
         {% endfor %}
       </select>
-      <span class="active-run-badge">
-        {% if active_run_id %}
-          Active run #{{ active_run_id }} ({{ active_run.finished_at or active_run.started_at or 'n/a' }})
-        {% else %}
-          Not yet validated
-        {% endif %}
-      </span>
     </form>
+    {% endif %}
     <form class="persona-form" method="post" action="/persona">
       <label for="persona">Persona:</label>
       <select id="persona" name="persona_id" onchange="this.form.submit()">

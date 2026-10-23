@@ -1,14 +1,11 @@
 {% extends "base.html" %}
-{% block extra_head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-{% endblock %}
 {% block title %}Data Issues{% endblock %}
 {% block content %}
 <h1>Data Issues</h1>
 {% if not active_run_id and not run_id %}
 <p class="empty">This dataset has not been validated yet. Run validation to populate.</p>
 {% endif %}
-<p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with trend analysis and resolution actions.</p>
+<p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with resolution actions.</p>
 
 <div class="tab-row" style="margin-bottom:1rem;">
   <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open{% if run_id %}&run_id={{ run_id }}{% endif %}">Open ({{ counts.open }})</a>
@@ -17,41 +14,6 @@
 </div>
 {% if run_id %}
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
-{% endif %}
-
-{% if trend.labels %}
-<div class="chart-card" style="margin-bottom:1.5rem;">
-  <h2>Data Issues Trend (latest run #{{ trend.run_id }})</h2>
-  <canvas id="exceptionTrendChart" height="160"></canvas>
-</div>
-<script>
-  (function () {
-    const t = {{ trend | tojson }};
-    if (!t || !t.labels || !t.labels.length) return;
-
-    // Trim leading/trailing edge bars that imply non-existent data (empty or
-    // single-record edge months) so the chart starts/ends at real volume.
-    let labels = t.labels.slice();
-    let detected = t.detected.slice();
-    while (labels.length && (detected[0] == null || detected[0] <= 1)) { labels.shift(); detected.shift(); }
-    while (labels.length && (detected[detected.length - 1] == null || detected[detected.length - 1] <= 1)) { labels.pop(); detected.pop(); }
-    if (!labels.length) return;
-
-    new Chart(document.getElementById("exceptionTrendChart"), {
-      type: "bar",
-      data: {
-        labels: labels,
-        datasets: [
-          { label: "Exceptions detected", data: detected, backgroundColor: "rgba(31,42,68,0.7)", borderColor: "#1f2a44", borderWidth: 1 }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
-        scales: {
-          y: { type: "linear", position: "left", title: { display: true, text: "Count" }, beginAtZero: true }
-        } }
-    });
-  })();
-</script>
 {% endif %}
 
 <table class="table">

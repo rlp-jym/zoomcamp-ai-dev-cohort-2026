@@ -32,7 +32,7 @@
     <tr><th>Created</th><th>Title</th><th>Data Issues</th><th>Source Discussion</th><th>Desired Outcome</th><th>Assessment</th><th></th></tr>
   </thead>
   <tbody>
-    {% for s in scenarios %}
+    {% for s in analysis_scenarios %}
     <tr>
       <td>{{ s.created_at.split(' ')[0] if s.created_at else '' }}</td>
       <td>{{ s.title }}</td>

@@ -58,7 +58,7 @@ def test_dashboard_differs_between_datasets():
     a = f"scope_a_{uuid.uuid4().hex[:8]}"
     b = f"scope_b_{uuid.uuid4().hex[:8]}"
     try:
-        for name, run_no in ((a, 1001), (b, 1002)):
+        for name in (a, b):
             execute(
                 "INSERT INTO scenarios (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
                 (name,),
@@ -85,7 +85,19 @@ def test_dashboard_differs_between_datasets():
                 VALUES (%s, %s, %s::jsonb, now())
                 ON CONFLICT (scenario_name) DO UPDATE SET data = EXCLUDED.data, refreshed_at = now()
                 """,
-                (f"dashboard:{name}", name, json.dumps({"available": True, "scenario": name, "published_run": run_id, "charts": {"segment_mix": []}, "open_exceptions": 0})),
+                (
+                    f"dashboard:{name}",
+                    name,
+                    json.dumps(
+                        {
+                            "available": True,
+                            "scenario": name,
+                            "published_run": run_id,
+                            "charts": {"segment_mix": []},
+                            "open_exceptions": 0,
+                        }
+                    ),
+                ),
             )
 
         c = TestClient(app)

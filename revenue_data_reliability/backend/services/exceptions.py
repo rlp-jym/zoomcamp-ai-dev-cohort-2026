@@ -161,45 +161,6 @@ def exception_counts():
     return {"open": r["open_n"], "resolved": r["resolved_n"], "total": r["total"]}
 
 
-def exception_trend(run_id=None):
-    """Per-period detected/resolved/open counts for a run (latest if None)."""
-    if run_id is None:
-        r = fetch_one("SELECT run_id FROM runs WHERE status = 'completed' ORDER BY run_id DESC LIMIT 1")
-        if not r:
-            return {"labels": [], "detected": [], "resolved": [], "open": [], "cumulative": []}
-        run_id = r["run_id"]
-    rows = fetch_all(
-        """
-        SELECT COALESCE(period, 'undated') AS period,
-               COUNT(*) AS detected,
-               COUNT(*) FILTER (WHERE status = 'resolved') AS resolved,
-               COUNT(*) FILTER (WHERE status <> 'resolved') AS open
-        FROM exceptions
-        WHERE run_id = %s
-        GROUP BY 1
-        """,
-        (run_id,),
-    )
-    rows.sort(key=lambda x: (x["period"] == "undated", x["period"]))
-    labels = [r["period"] for r in rows]
-    detected = [int(r["detected"]) for r in rows]
-    resolved = [int(r["resolved"]) for r in rows]
-    open_n = [int(r["open"]) for r in rows]
-    cumulative = []
-    acc = 0
-    for d in detected:
-        acc += d
-        cumulative.append(acc)
-    return {
-        "run_id": run_id,
-        "labels": labels,
-        "detected": detected,
-        "resolved": resolved,
-        "open": open_n,
-        "cumulative": cumulative,
-    }
-
-
 def get_sampled_failures_for_exception(exc):
     """Return sampled failures for the rule that raised a validation exception."""
     if not exc or not exc.get("run_id"):

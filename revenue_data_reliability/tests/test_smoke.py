@@ -76,9 +76,5 @@ def test_exceptions_status_filter_and_trend():
     assert all(e["status"] != "resolved" for e in default_open)
     assert len(default_open) <= 50
 
-    trend = exc_svc.exception_trend(run_id)
-    assert set(trend.keys()) >= {"labels", "detected", "resolved", "open", "cumulative"}
-    assert len(trend["labels"]) == len(trend["detected"]) == len(trend["resolved"]) == len(trend["open"])
-
     # Cleanup.
     execute("DELETE FROM exceptions WHERE trace_id = 'test-lifecycle'")
