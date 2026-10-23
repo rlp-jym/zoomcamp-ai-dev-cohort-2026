@@ -13,7 +13,7 @@
   <dt>Severity</dt><dd>{{ exception.severity }}</dd>
   <dt>Period</dt><dd>{{ exception.period }}</dd>
   <dt>Count</dt><dd>{{ exception.count if exception.count is not none else "—" }}</dd>
-  <dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") }}</span></dd>
+  <dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd>
   <dt>Impact</dt><dd>{{ exception.impact or "—" }}</dd>
   <dt>Trace</dt><dd>{{ exception.trace_id }}</dd>
   <dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ exception.scenario_name }})</dd>

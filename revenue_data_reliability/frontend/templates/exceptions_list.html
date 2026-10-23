@@ -42,7 +42,7 @@
       <td>{{ e.count if e.count is not none else "—" }}</td>
       <td>{{ e.title }}</td>
       <td>{{ e.description }}</td>
-      <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") }}</span></td>
+      <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") | title }}</span></td>
     </tr>
     {% else %}
     <tr><td colspan="9" class="empty">No exceptions in this view.</td></tr>
