@@ -107,7 +107,7 @@ def test_manager_rejection_requires_reason_and_triggers_de(monkeypatch):
     init_pool()
     run_id, trace_id = _make_run()
     try:
-        exception_id = _make_exception(run_id, trace_id, status="remediation_proposed")
+        exception_id = _make_exception(run_id, trace_id, status="awaiting_approval")
         execute(
             "UPDATE exceptions SET remediation_attempts = 1 WHERE exception_id = %s",
             (exception_id,),
@@ -122,7 +122,7 @@ def test_manager_rejection_requires_reason_and_triggers_de(monkeypatch):
         )
 
         c = TestClient(app)
-        c.post("/persona", data={"persona_id": "manager"})
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
 
         missing = c.post(f"/exceptions/{exception_id}/reject", data={"reason": ""})
         assert missing.status_code == 400
@@ -130,11 +130,12 @@ def test_manager_rejection_requires_reason_and_triggers_de(monkeypatch):
         response = c.post(
             f"/exceptions/{exception_id}/reject",
             data={"reason": "Missed rows"},
+            follow_redirects=False,
         )
-        assert response.status_code == 200
+        assert response.status_code == 303
 
         updated = exc_svc.get_exception(exception_id)
-        assert updated["status"] == "remediation_proposed"
+        assert updated["status"] == "awaiting_approval"
         assert updated["remediation_attempts"] == 2
 
         from backend.services import messages
@@ -202,7 +203,7 @@ def test_approve_transitions_through_approved(monkeypatch):
     init_pool()
     run_id, trace_id = _make_run()
     try:
-        exception_id = _make_exception(run_id, trace_id, status="remediation_proposed")
+        exception_id = _make_exception(run_id, trace_id, status="awaiting_approval")
         seen = []
 
         from backend.teams import de as de_team
@@ -217,10 +218,65 @@ def test_approve_transitions_through_approved(monkeypatch):
         monkeypatch.setattr(de_team.DEAgent, "execute_remediation", fake_execute)
 
         c = TestClient(app)
-        c.post("/persona", data={"persona_id": "manager"})
-        response = c.post(f"/exceptions/{exception_id}/approve")
-        assert response.status_code == 200
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        response = c.post(f"/exceptions/{exception_id}/approve", follow_redirects=False)
+        assert response.status_code == 303
         assert seen == ["approved"]
         assert exc_svc.get_exception(exception_id)["status"] == "resolved"
+    finally:
+        runs_svc.delete_run(run_id)
+
+def test_financial_impact_fallback_uses_rule_impact(monkeypatch):
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id)
+        exc = exc_svc.get_exception(exception_id)
+
+        from backend.teams import fa
+
+        monkeypatch.setattr(
+            fa.llm_client,
+            "call_llm",
+            lambda *a, **k: fa.llm_client._template_fallback("prompt"),
+        )
+        fa.FinancialImpactAgent().quantify_impact(exc, trace_id)
+
+        updated = exc_svc.get_exception(exception_id)
+        assert updated["impact"] == "overstates revenue"
+        from backend.services import messages
+
+        thread = messages.get_messages("exception", str(exception_id))
+        assert any("Financial impact: overstates revenue." in m["content"] for m in thread)
+        assert all("Agent task received" not in m["content"] for m in thread)
+    finally:
+        runs_svc.delete_run(run_id)
+
+
+def test_de_fallback_posts_structured_proposal(monkeypatch):
+    init_pool()
+    run_id, trace_id = _make_run()
+    try:
+        exception_id = _make_exception(run_id, trace_id)
+        exc = exc_svc.get_exception(exception_id)
+
+        from backend.teams import de as de_team
+
+        monkeypatch.setattr(
+            de_team.llm_client,
+            "call_llm",
+            lambda *a, **k: de_team.llm_client._template_fallback("prompt"),
+        )
+        de_team.DEAgent().propose_remediation(exc, trace_id)
+
+        updated = exc_svc.get_exception(exception_id)
+        assert updated["status"] == "awaiting_approval"
+        from backend.services import messages
+
+        thread = messages.get_messages("exception", str(exception_id))
+        content = thread[-1]["content"]
+        assert "Proposed Action:" in content
+        assert "Quarantine 2 record(s)" in content
+        assert "Agent task received" not in content
     finally:
         runs_svc.delete_run(run_id)

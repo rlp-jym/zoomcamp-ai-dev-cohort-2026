@@ -29,13 +29,12 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>
+    <tr><th>ID</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>
   </thead>
   <tbody>
     {% for e in exceptions %}
     <tr class="{% if e.status == 'resolved' %}row-resolved{% endif %}">
       <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
-      <td>From Run #{{ e.run_id }} ({{ e.scenario_name }})</td>
       <td>{{ e.type }}</td>
       <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
       <td>{{ e.impact or "—" }}</td>
@@ -46,7 +45,7 @@
       <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") }}</span></td>
     </tr>
     {% else %}
-    <tr><td colspan="10" class="empty">No exceptions in this view.</td></tr>
+    <tr><td colspan="9" class="empty">No exceptions in this view.</td></tr>
     {% endfor %}
   </tbody>
 </table>

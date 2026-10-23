@@ -104,7 +104,7 @@ EXCEPTIONS = [
         "severity": "medium",
         "period": "2025-02",
         "title": "Duplicate invoice line detected",
-        "status": "remediation_proposed",
+        "status": "awaiting_approval",
         "trace_id": "tr-1003",
     },
     {

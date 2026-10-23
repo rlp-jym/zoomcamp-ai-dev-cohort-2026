@@ -2,7 +2,7 @@
 {% block title %}Data Issue {{ exception.id }}{% endblock %}
 {% block content %}
 <h1>Data Issue #{{ exception.id }}</h1>
-{% if exception.status == 'remediation_proposed' %}
+{% if exception.status == 'awaiting_approval' %}
 <div class="banner banner-warn">
   The DE Agent has proposed a remediation based on the rejection feedback (or initial run).
   Please review and Approve or Reject.
@@ -103,7 +103,25 @@
 {% endif %}
 {% elif sampled_failures %}
 <h2>Sampled Failures</h2>
-<pre class="evidence">{{ sampled_failures | tojson(indent=2) }}</pre>
+{% set columns = sampled_failures[0].keys() | list %}
+<table class="table">
+  <thead>
+    <tr>
+      {% for c in columns %}
+      <th>{{ c | replace("_", " ") | title }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in sampled_failures %}
+    <tr>
+      {% for c in columns %}
+      <td>{{ row.get(c) }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endif %}
 
 <h2>Quarantine Records</h2>

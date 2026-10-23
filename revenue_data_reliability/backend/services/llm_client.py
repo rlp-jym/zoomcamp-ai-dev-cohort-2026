@@ -22,14 +22,17 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "llama-3.3-70b-versatile"
 _DISABLE_SECONDS = 300.0
 _disabled_until = 0.0
+FALLBACK_PREFIX = "[LLM unavailable - template fallback]"
 
 
 def _template_fallback(prompt: str) -> str:
     """Return a deterministic template string when LLM is unavailable."""
-    return (
-        "[LLM unavailable - template fallback] "
-        f"Agent task received: {prompt[:200]}"
-    )
+    return f"{FALLBACK_PREFIX} Agent task received: {prompt[:200]}"
+
+
+def is_fallback(content: str | None) -> bool:
+    """True when the LLM call returned the deterministic fallback text."""
+    return not content or content.startswith(FALLBACK_PREFIX)
 
 
 def call_llm(

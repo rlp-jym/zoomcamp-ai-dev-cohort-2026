@@ -21,7 +21,7 @@ def test_routes_render():
 
 def test_persona_persists():
     c = TestClient(app)
-    c.post("/persona", data={"persona_id": "manager"})
+    c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
     r = c.get("/")
     assert "FP&amp;A Manager" in r.text or "Manager" in r.text
 

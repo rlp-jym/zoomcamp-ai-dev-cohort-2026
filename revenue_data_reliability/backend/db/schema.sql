@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS exceptions (
     severity      TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
     period        TEXT,
     title         TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'remediation_proposed', 'remediation_rejected', 'approved', 'resolved', 'escalated')),
+    status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated')),
     impact        VARCHAR,
     remediation_attempts INTEGER NOT NULL DEFAULT 0,
     trace_id      TEXT,
@@ -250,11 +250,15 @@ ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS details JSONB;
 ALTER TABLE rules ADD COLUMN IF NOT EXISTS impact VARCHAR;
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS impact VARCHAR;
 ALTER TABLE exceptions ADD COLUMN IF NOT EXISTS remediation_attempts INTEGER NOT NULL DEFAULT 0;
+-- Clear legacy raw-prompt fallback text so the list falls back to rule impact.
+UPDATE exceptions SET impact = NULL WHERE impact LIKE '[LLM unavailable%';
 
--- Rejection loop statuses (idempotent constraint refresh).
+-- Rejection loop statuses (idempotent constraint refresh). The old
+-- remediation_proposed value is migrated to awaiting_approval.
 ALTER TABLE exceptions DROP CONSTRAINT IF EXISTS exceptions_status_check;
+UPDATE exceptions SET status = 'awaiting_approval' WHERE status = 'remediation_proposed';
 ALTER TABLE exceptions ADD CONSTRAINT exceptions_status_check
-    CHECK (status IN ('open', 'in_discussion', 'remediation_proposed', 'remediation_rejected', 'approved', 'resolved', 'escalated'));
+    CHECK (status IN ('open', 'in_discussion', 'awaiting_approval', 'remediation_rejected', 'approved', 'resolved', 'escalated'));
 
 -- Batch 6 / Phase 3 (§19): precomputed dashboard payload.
 -- The / route never scans S3 Parquet inside a request; the scheduler job

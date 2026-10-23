@@ -115,12 +115,15 @@ class DEAgent(BaseAgent):
         else:
             content = llm_client._template_fallback(user_prompt)
 
+        if llm_client.is_fallback(content):
+            content = self._fallback_proposal(context)
+
         exc_id = exc.get("exception_id", exc.get("id"))
         attempts = int(exc.get("remediation_attempts") or 0) + 1
         execute(
             """
             UPDATE exceptions
-            SET status = 'remediation_proposed',
+            SET status = 'awaiting_approval',
                 remediation_attempts = %s,
                 updated_at = now()
             WHERE exception_id = %s
@@ -229,6 +232,25 @@ class DEAgent(BaseAgent):
         )
 
         return quarantine_id, count
+
+    def _fallback_proposal(self, context: dict) -> str:
+        details = context.get("details") or {}
+        count = details.get("count") or details.get("grain_count") or 0
+        period = context.get("period") or details.get("period") or "the affected period"
+        rule_id = context.get("rule_id") or "the failed rule"
+        if count:
+            action = f"Quarantine {count} record(s) for {period}"
+        else:
+            action = f"Re-run the pipeline for {period}"
+        lines = [
+            "Remediation Proposal",
+            f"Proposed Action: {action}",
+            f"Rule: {rule_id}",
+        ]
+        if context.get("rejection_reason"):
+            lines.append(f"Addressed rejection feedback: {context['rejection_reason']}")
+        lines.append("Manager: Approve or Reject with a reason to continue.")
+        return "\n".join(lines)
 
     def _build_context(self, exc: dict) -> dict:
         details = exc.get("details") or {}

@@ -13,7 +13,7 @@ import json
 import logging
 
 from backend.config import settings
-from backend.db.connection import execute, fetch_all
+from backend.db.connection import execute, fetch_all, fetch_one
 from backend.services import exceptions as exc_svc
 from backend.services import llm_client
 from backend.services import messages as msg_svc
@@ -104,9 +104,23 @@ class FinancialImpactAgent(BaseAgent):
         else:
             content = llm_client._template_fallback(user_prompt)
 
+        if llm_client.is_fallback(content):
+            # Never persist the raw prompt fallback into the UI. Use the
+            # rule's curated default impact instead.
+            impact = exc.get("rule_impact")
+            if not impact and exc.get("rule_id"):
+                row = fetch_one(
+                    "SELECT impact FROM rules WHERE rule_id = %s",
+                    (exc["rule_id"],),
+                )
+                impact = row["impact"] if row else None
+            impact = impact or "Impact calculation pending"
+            content = f"Financial impact: {impact}."
+        else:
+            impact = (content or "").strip()
+
         # Persist the specific narrative on the exception so the Data Issues
         # table can prefer it over the rule's default impact phrase.
-        impact = (content or "").strip()
         if impact:
             execute(
                 "UPDATE exceptions SET impact = %s, updated_at = now() WHERE exception_id = %s",

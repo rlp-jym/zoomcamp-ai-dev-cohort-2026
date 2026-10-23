@@ -30,7 +30,9 @@ h1 { margin-top: 0; }
 .status-badge { padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
 .status-open { background: #f8d7da; color: #842029; }
 .status-in_discussion { background: #fff3cd; color: #664d03; }
-.status-remediation_proposed { background: #ffe8a1; color: #6b4a1f; }
+.status-awaiting_approval { background: #ffe8a1; color: #6b4a1f; }
+.status-pass { background: #d1e7dd; color: #0f5132; }
+.status-fail { background: #f8d7da; color: #842029; }
 .status-remediation_rejected { background: #f8d7da; color: #842029; }
 .status-approved { background: #d1e7dd; color: #0f5132; }
 .status-resolved { background: #d1e7dd; color: #0f5132; }
