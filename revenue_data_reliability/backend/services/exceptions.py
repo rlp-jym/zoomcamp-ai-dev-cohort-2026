@@ -59,6 +59,7 @@ def _to_dict(r):
     return {
         "id": r["exception_id"],
         "run_id": r["run_id"],
+        "scenario_name": r.get("scenario_name"),
         "type": r["type"],
         "severity": r["severity"],
         "period": r["period"],
@@ -72,18 +73,27 @@ def _to_dict(r):
 
 
 def get_exception(exc_id):
-    r = fetch_one("SELECT * FROM exceptions WHERE exception_id = %s", (exc_id,))
+    r = fetch_one(
+        """
+        SELECT e.*, r.scenario_name AS scenario_name
+        FROM exceptions e
+        LEFT JOIN runs r ON r.run_id = e.run_id
+        WHERE e.exception_id = %s
+        """,
+        (exc_id,),
+    )
     if not r:
         return None
     return _to_dict(r)
 
 
-def list_exceptions(status=None, limit=50, offset=0):
-    """List exceptions, optionally filtered by status bucket.
+def list_exceptions(status=None, limit=50, offset=0, run_id=None):
+    """List exceptions, optionally filtered by status bucket and/or run.
 
     Default (None/'open') returns only non-resolved rows so the page stays
     a pending work queue; 'resolved' returns closed rows and 'all' returns
-    everything. Results are bounded by ``limit`` (default 50) with ``offset``
+    everything. Pass ``run_id`` to restrict results to a single validation
+    run. Results are bounded by ``limit`` (default 50) with ``offset``
     for pagination to avoid rendering unbounded result sets.
     """
     try:
@@ -98,16 +108,26 @@ def list_exceptions(status=None, limit=50, offset=0):
         limit = 50
     if offset < 0:
         offset = 0
+    try:
+        run_id = int(run_id) if run_id not in (None, "") else None
+    except (TypeError, ValueError):
+        run_id = None
+    conditions = []
+    params = []
     if status in (None, "", "open"):
-        where = "WHERE status <> 'resolved'"
+        conditions.append("e.status <> 'resolved'")
     elif status == "resolved":
-        where = "WHERE status = 'resolved'"
-    else:
-        where = ""
+        conditions.append("e.status = 'resolved'")
+    if run_id is not None:
+        conditions.append("e.run_id = %s")
+        params.append(run_id)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     rows = fetch_all(
-        f"SELECT * FROM exceptions {where} ORDER BY created_at DESC, exception_id DESC "
+        f"SELECT e.*, r.scenario_name AS scenario_name "
+        f"FROM exceptions e LEFT JOIN runs r ON r.run_id = e.run_id "
+        f"{where} ORDER BY e.created_at DESC, e.exception_id DESC "
         f"LIMIT %s OFFSET %s",
-        (limit, offset),
+        tuple(params + [limit, offset]),
     )
     out = []
     for r in rows:
@@ -115,6 +135,7 @@ def list_exceptions(status=None, limit=50, offset=0):
             {
                 "id": r["exception_id"],
                 "run_id": r["run_id"],
+                "scenario_name": r.get("scenario_name"),
                 "type": r["type"],
                 "severity": r["severity"],
                 "period": r["period"],

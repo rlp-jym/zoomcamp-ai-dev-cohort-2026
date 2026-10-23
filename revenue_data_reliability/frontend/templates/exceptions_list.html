@@ -8,10 +8,13 @@
 <p class="page-description">Work queue of validation failures and reconciliation variances detected by the pipeline, with trend analysis and resolution actions.</p>
 
 <div class="tab-row" style="margin-bottom:1rem;">
-  <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open">Open ({{ counts.open }})</a>
-  <a class="btn {% if status_filter == 'resolved' %}btn-active{% endif %}" href="/exceptions?status=resolved">Resolved ({{ counts.resolved }})</a>
-  <a class="btn {% if status_filter == 'all' %}btn-active{% endif %}" href="/exceptions?status=all">All ({{ counts.total }})</a>
+  <a class="btn {% if status_filter == 'open' %}btn-active{% endif %}" href="/exceptions?status=open{% if run_id %}&run_id={{ run_id }}{% endif %}">Open ({{ counts.open }})</a>
+  <a class="btn {% if status_filter == 'resolved' %}btn-active{% endif %}" href="/exceptions?status=resolved{% if run_id %}&run_id={{ run_id }}{% endif %}">Resolved ({{ counts.resolved }})</a>
+  <a class="btn {% if status_filter == 'all' %}btn-active{% endif %}" href="/exceptions?status=all{% if run_id %}&run_id={{ run_id }}{% endif %}">All ({{ counts.total }})</a>
 </div>
+{% if run_id %}
+<p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
+{% endif %}
 
 {% if trend.labels %}
 <div class="chart-card" style="margin-bottom:1.5rem;">
@@ -50,12 +53,13 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Type</th><th>Severity</th><th>Period</th><th>Title</th><th>Status</th><th>Trace</th></tr>
+    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Period</th><th>Title</th><th>Status</th><th>Trace</th></tr>
   </thead>
   <tbody>
     {% for e in exceptions %}
     <tr>
       <td><a href="/exceptions/{{ e.id }}">{{ e.id }}</a></td>
+      <td>From Run #{{ e.run_id }} ({{ e.scenario_name }})</td>
       <td>{{ e.type }}</td>
       <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
       <td>{{ e.period }}</td>
@@ -64,14 +68,14 @@
       <td>{{ e.trace_id }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="7" class="empty">No exceptions in this view.</td></tr>
+    <tr><td colspan="8" class="empty">No exceptions in this view.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 <div class="pagination" style="margin-top:1rem;">
   {% if offset > 0 %}
-  <a class="btn" href="/exceptions?status={{ status_filter }}&limit={{ limit }}&offset={{ offset - limit }}">Prev</a>
+  <a class="btn" href="/exceptions?status={{ status_filter }}{% if run_id %}&run_id={{ run_id }}{% endif %}&limit={{ limit }}&offset={{ offset - limit }}">Prev</a>
   {% endif %}
-  <a class="btn" href="/exceptions?status={{ status_filter }}&limit={{ limit }}&offset={{ offset + limit }}">Next</a>
+  <a class="btn" href="/exceptions?status={{ status_filter }}{% if run_id %}&run_id={{ run_id }}{% endif %}&limit={{ limit }}&offset={{ offset + limit }}">Next</a>
 </div>
 {% endblock %}
