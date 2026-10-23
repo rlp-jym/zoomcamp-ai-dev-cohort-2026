@@ -22,7 +22,7 @@
 
 <table class="table">
   <thead>
-    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th><th>Trace</th></tr>
+    <tr><th>ID</th><th>Source Run</th><th>Type</th><th>Severity</th><th>Impact</th><th>Period</th><th>Count</th><th>Title</th><th>Description</th><th>Status</th></tr>
   </thead>
   <tbody>
     {% for e in exceptions %}
@@ -37,10 +37,9 @@
       <td>{{ e.title }}</td>
       <td>{{ e.description }}</td>
       <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") }}</span></td>
-      <td>{{ e.trace_id }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="11" class="empty">No exceptions in this view.</td></tr>
+    <tr><td colspan="10" class="empty">No exceptions in this view.</td></tr>
     {% endfor %}
   </tbody>
 </table>

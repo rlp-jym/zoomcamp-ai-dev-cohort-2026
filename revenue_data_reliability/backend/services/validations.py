@@ -214,7 +214,10 @@ def list_validations(run_id):
         FROM validations v
         JOIN rules r ON r.rule_id = v.rule_id
         WHERE v.run_id = %s
-        ORDER BY v.rule_id
+        ORDER BY CASE r.severity
+            WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+            WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END ASC,
+            v.created_at DESC, v.rule_id
         """,
         (run_id,),
     )

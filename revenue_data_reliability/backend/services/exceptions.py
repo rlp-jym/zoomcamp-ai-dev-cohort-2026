@@ -145,7 +145,11 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
         f"FROM exceptions e "
         f"LEFT JOIN runs rn ON rn.run_id = e.run_id "
         f"LEFT JOIN rules ru ON ru.rule_id = e.rule_id "
-        f"{where} ORDER BY e.created_at DESC, e.exception_id DESC "
+        f"{where} "
+        f"ORDER BY CASE e.severity "
+        f"    WHEN 'critical' THEN 1 WHEN 'high' THEN 2 "
+        f"    WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END ASC, "
+        f"    e.created_at DESC, e.exception_id DESC "
         f"LIMIT %s OFFSET %s",
         tuple(params + [limit, offset]),
     )
