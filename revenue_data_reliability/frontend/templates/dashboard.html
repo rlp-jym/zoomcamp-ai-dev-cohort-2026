@@ -36,19 +36,28 @@
 </div>
 {% endif %}
 
-{% if attainment and attainment.pct is not none %}
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Target Attainment ({{ attainment.latest }})</h2>
+    <h2>Target Attainment{% if attainment and attainment.latest %} ({{ attainment.latest }}){% endif %}</h2>
+    {% if attainment and attainment.pct is not none %}
     <p><strong>{{ attainment.pct }}%</strong> of target over the trailing {{ attainment.months }} months</p>
     <div class="progress" title="{{ attainment.pct }}% of target">
       <div class="progress-fill" style="width: {{ [attainment.pct, 100]|min }}%"></div>
       <div class="progress-target" title="100% of target"></div>
     </div>
+    {% else %}
+    <p class="empty">Publish a validation run to populate target attainment.</p>
+    {% endif %}
     <p class="chart-desc">General Ledger revenue as a percentage of the targeted plan for the same window. The marker on the right is 100% of target.</p>
+    <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-attainment">Start a scenario analysis from this discussion</a></p>
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-attainment" %}
+      {% set messages = (chart_messages or {}).get("chart-attainment", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
 </div>
-{% endif %}
 
 <div class="charts-grid">
   <div class="chart-card span-2">

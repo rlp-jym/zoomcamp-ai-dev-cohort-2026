@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 
 SCENARIO = "baseline_run"
 
+# Analysis threads rendered under the dashboard chart cards. Threads are
+# deliberately pre-seeded with historical FP&A discussion so the scenario
+# date filters can be exercised.
+CHART_THREAD_IDS = (
+    "chart-revenue-plan",
+    "chart-variance-category",
+    "chart-growth",
+    "chart-segment",
+    "chart-attainment",
+)
+
 # Segments the source system recognises. A segment outside this set is a
 # mapping drift (a value that no longer exists upstream) and is surfaced as
 # an anomaly instead of being blended into the normal business mix.
@@ -384,6 +395,14 @@ def _background_refresh(scenario: str) -> None:
             _DASHBOARD_REFRESHING.discard(scenario)
 
 
+def _chart_messages() -> dict:
+    """Live analysis-thread messages for every dashboard chart card."""
+    msgs_by_thread = msg_svc.get_messages_for_threads(
+        "analysis", list(CHART_THREAD_IDS)
+    )
+    return {aid: msgs_by_thread.get(aid, []) for aid in CHART_THREAD_IDS}
+
+
 def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     """Request-path wrapper: reads the cache only, never scans S3.
 
@@ -413,7 +432,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "alert_count": alerts_svc.open_alert_count(),
             "kpis": [],
             "charts": {},
-            "chart_messages": {},
+            "chart_messages": _chart_messages(),
             "cache_fresh_at": None,
             "cache_empty": True,
         }
@@ -426,14 +445,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     data["alerts"] = alerts
     data["alert_count"] = alert_count
     # Chart discussion threads (one per chart card).
-    chart_thread_ids = [
-        "chart-revenue-plan", "chart-variance-category",
-        "chart-growth", "chart-segment",
-    ]
-    msgs_by_thread = msg_svc.get_messages_for_threads("analysis", chart_thread_ids)
-    data["chart_messages"] = {
-        aid: msgs_by_thread.get(aid, []) for aid in chart_thread_ids
-    }
+    data["chart_messages"] = _chart_messages()
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %I:%M:%S %p") if refreshed_at else "",
     }
