@@ -56,6 +56,7 @@ _DASHBOARD_CACHE_TTL = 5.0
 _DASHBOARD_REFRESHING: set = set()
 _DASHBOARD_BUILDING: set = set()
 _DASHBOARD_REFRESH_LOCK = threading.Lock()
+_DASHBOARD_BUILD_LOCK = threading.Lock()
 
 
 def invalidate_dashboard_cache(scenario=None) -> None:
@@ -599,21 +600,44 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     return data
 
 
-def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
-    """Recompute the payload (S3 scans) and upsert it into dashboard_cache.
+def _minimal_cache(scenario: str, error: str | None = None) -> dict:
+    data = {
+        "dataset": scenario,
+        "dataset_name": scenario,
+        "scenario": scenario,
+        "published_run": None,
+        "available": False,
+        "alerts": [],
+        "alert_count": 0,
+        "kpis": [],
+        "charts": {},
+        "chart_messages": _chart_messages(),
+        "attainment": None,
+        "cache_empty": True,
+        "target_total": 0.0,
+        "actual_total": 0.0,
+        "target_by_category": {},
+        "actual_by_category": {},
+        "target_by_segment": {},
+        "actual_by_segment": {},
+        "top_products": [],
+        "top_clients": [],
+        "revenue_by_category_monthly": {},
+        "revenue_by_segment_monthly": {},
+        "billings_by_segment_monthly": {},
+        "data_quality_impact": {
+            "raw_billings": 0.0,
+            "cleaned_billings": 0.0,
+            "delta": 0.0,
+            "quarantined_records": 0,
+        },
+    }
+    if error:
+        data["cache_error"] = error
+    return data
 
-    Called by the scheduler job — never in the request path.
-    Returns 'updated' | 'empty' | 'error: ...'.
-    """
-    try:
-        data = get_dashboard_data(scenario)
-    except Exception as exc:
-        logger.exception("Dashboard cache refresh failed.")
-        return f"error: {exc}"
-    if not data.get("available"):
-        logger.info("Dashboard: no published dataset — cache left empty.")
-        return "empty"
-    data["data_quality_impact"] = get_raw_vs_cleaned_delta(scenario)
+
+def _store_cache(scenario: str, data: dict) -> None:
     execute(
         """
         INSERT INTO dashboard_cache (cache_key, dataset_name, data, refreshed_at)
@@ -626,7 +650,40 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
         (f"dashboard:{scenario}", scenario, json.dumps(data, default=str)),
     )
     invalidate_dashboard_cache(scenario)
-    return "updated"
+
+
+def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
+    """Recompute the payload (S3 scans) and upsert it into dashboard_cache.
+
+    The query layer aggregates in DuckDB; only small result sets reach Python.
+    Concurrent refreshes are rejected so two 430MB scans cannot overlap.
+    On failure a minimal empty payload is cached so the dashboard still loads.
+    """
+    if not _DASHBOARD_BUILD_LOCK.acquire(blocking=False):
+        return "busy"
+    try:
+        try:
+            data = get_dashboard_data(scenario)
+        except Exception as exc:
+            logger.exception("Dashboard cache refresh failed for %s", scenario)
+            _store_cache(scenario, _minimal_cache(scenario, str(exc)))
+            return f"fallback: {exc}"
+        if not data.get("available"):
+            logger.info("Dashboard: no published dataset — cache left empty.")
+            _store_cache(scenario, _minimal_cache(scenario))
+            return "empty"
+        data["data_quality_impact"] = get_raw_vs_cleaned_delta(scenario)
+        _store_cache(scenario, data)
+        return "updated"
+    except Exception as exc:
+        logger.exception("Dashboard cache fallback failed for %s", scenario)
+        try:
+            _store_cache(scenario, _minimal_cache(scenario, str(exc)))
+        except Exception:
+            logger.exception("Dashboard minimal cache write failed for %s", scenario)
+        return f"error: {exc}"
+    finally:
+        _DASHBOARD_BUILD_LOCK.release()
 
 
 def get_from_cache(scenario: str = SCENARIO) -> tuple[dict | None, datetime | None]:

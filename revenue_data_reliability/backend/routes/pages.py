@@ -273,6 +273,24 @@ async def approve_exception(request: Request, exc_id: int):
         "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
         (exc_id,),
     )
+    execute(
+        "INSERT INTO agent_actions "
+        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+        "VALUES (%s, %s, 'exception', %s, %s, %s)",
+        (
+            "manager",
+            "Exception Approved",
+            str(exc_id),
+            trace_id,
+            json.dumps(
+                {
+                    "exception_id": exc_id,
+                    "status": "resolved",
+                    "rule_id": exc.get("rule_id"),
+                }
+            ),
+        ),
+    )
 
     messages.post_message(
         "exception",
@@ -313,6 +331,24 @@ async def dismiss_exception(request: Request, exc_id: int):
     execute(
         "UPDATE exceptions SET status = 'dismissed', updated_at = now() WHERE exception_id = %s",
         (exc_id,),
+    )
+    execute(
+        "INSERT INTO agent_actions "
+        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+        "VALUES (%s, %s, 'exception', %s, %s, %s)",
+        (
+            "manager",
+            "Exception Dismissed",
+            str(exc_id),
+            exc.get("trace_id"),
+            json.dumps(
+                {
+                    "exception_id": exc_id,
+                    "status": "dismissed",
+                    "rule_id": exc.get("rule_id"),
+                }
+            ),
+        ),
     )
     messages.post_message(
         "exception",
@@ -843,6 +879,28 @@ async def generate_dataset(request: Request):
     # already live under the dataset's s3_prefix. Never generate in-process.
     try:
         dataset = scen_svc.register_dataset(pre_generated)
+        try:
+            trace_id = runs_svc.resolve_active_run(dataset["name"])
+        except Exception:
+            trace_id = None
+        execute(
+            "INSERT INTO agent_actions "
+            "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+            "VALUES (%s, %s, 'dataset', %s, %s, %s)",
+            (
+                "analyst",
+                "Dataset Loaded",
+                dataset["name"],
+                trace_id,
+                json.dumps(
+                    {
+                        "seed": seed,
+                        "dataset": dataset["name"],
+                        "s3_prefix": dataset["s3_prefix"],
+                    }
+                ),
+            ),
+        )
         msg = (
             f"Dataset {dataset['name']} is ready "
             f"({dataset['s3_prefix']})."

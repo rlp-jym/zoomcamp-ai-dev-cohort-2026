@@ -61,6 +61,8 @@ def target_label(target_type, target_id) -> str:
         return f"Run #{target_id}"
     if target_type == "exception":
         return f"Issue #{target_id}"
+    if target_type == "dataset":
+        return f"Dataset {target_id}"
     return f"{str(target_type).replace('_', ' ').title()} #{target_id}"
 
 
