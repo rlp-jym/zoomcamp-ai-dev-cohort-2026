@@ -347,11 +347,13 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
     from backend.services import scenarios as scen_svc
 
     datasets = dataset_scale.attach_scale_info(scen_svc.list_datasets())
+    runs = runs_svc.list_runs(dataset)
     return templates.TemplateResponse(
         request,
         "runs_list.html",
         _ctx(request, dataset=dataset,
-             runs=runs_svc.list_runs(dataset),
+             runs=runs,
+             latest_run_id=runs_svc2.resolve_active_run(dataset),
              datasets=datasets,
              reset_status=reset, busy=busy,
              allow_reset=(

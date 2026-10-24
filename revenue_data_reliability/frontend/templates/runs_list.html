@@ -62,7 +62,13 @@
     {% endfor %}
   </tbody>
 </table>
-<div id="run-details" style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #ccc;"></div>
+<div id="run-details"
+     {% if latest_run_id %}
+     hx-get="/runs/{{ latest_run_id }}"
+     hx-trigger="load"
+     hx-swap="innerHTML"
+     {% endif %}
+     style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #ccc;"></div>
 {% if allow_reset %}
 <section class="danger-zone">
   <h2>Danger zone</h2>
