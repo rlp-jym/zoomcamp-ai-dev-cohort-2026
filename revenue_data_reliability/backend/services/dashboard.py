@@ -34,7 +34,6 @@ CHART_THREAD_IDS = (
     "chart-variance-category",
     "chart-growth",
     "chart-segment",
-    "chart-attainment",
 )
 
 # Segments the source system recognises. A segment outside this set is a
