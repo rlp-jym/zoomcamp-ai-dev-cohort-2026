@@ -74,11 +74,17 @@ files**.
 Set `SEED_BASELINE_FIXTURE=1` only when you explicitly want the legacy fixture
 seeded (tests force it in their isolated database).
 
-## Pre-generated Datasets
+## Demo Setup
 
-Fast Generate never runs the data generator inside FastAPI (Render's 512 MB
-container cannot hold a generation run). Datasets are generated offline with
-`data/generate.py` and uploaded once:
+### Why pre-ingested datasets?
+
+In a production environment, this platform ingests live ERP/CRM data. To assist the reviewer and avoid overloading the 512MB Render container with a 31-million-row generation job, we have pre-generated three distinct datasets (Seeds 101, 102, 103) and uploaded them to Filebase S3. The "Load Dataset" feature allows the reviewer to instantly load these datasets into the environment to test the validation pipeline, remediation loop, and dashboard.
+
+### Pre-generated Datasets
+
+The Load Dataset action never runs the data generator inside FastAPI (Render's
+512 MB container cannot hold a generation run). Datasets are generated offline
+with `data/generate.py` and uploaded once:
 
 | Seed | Dataset | S3 prefix |
 |---|---|---|
