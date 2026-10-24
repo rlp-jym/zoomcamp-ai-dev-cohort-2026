@@ -113,32 +113,80 @@ def _iter_key_entries(record_keys):
             yield entry
 
 
-def extract_record_id(entry):
-    """Best-effort extraction of an invoice line id from a record entry."""
-    if isinstance(entry, dict):
-        for key in ("invoice_line_id", "line_id", "record_key"):
-            value = entry.get(key)
-            if value is not None:
-                entry = value
-                break
-        else:
-            return None
+RECORD_ID_KEYS = (
+    "invoice_line_id",
+    "line_id",
+    "invoice_id",
+    "customer_id",
+    "item_id",
+    "record_key",
+)
+
+
+def _coerce_id(value):
     try:
-        return int(entry)
+        return int(value)
     except (TypeError, ValueError):
         return None
 
 
-def quarantined_invoice_line_ids(run_id):
-    """Flatten all quarantined record keys for a run into invoice line ids."""
+def extract_record_id(entry, key=None):
+    """Extract a record identifier from a quarantine record entry.
+
+    Recognises ``invoice_line_id``, ``line_id``, ``invoice_id``,
+    ``customer_id``, ``item_id``, and ``record_key``. ``key`` can restrict
+    the lookup to one identifier when building typed filter sets.
+    """
+    if isinstance(entry, dict):
+        candidates = (key,) if key else RECORD_ID_KEYS
+        for candidate in candidates:
+            value = entry.get(candidate)
+            if value is not None:
+                return _coerce_id(value)
+        return None
+    return _coerce_id(entry)
+
+
+def quarantined_keys(run_id):
+    """Typed quarantine identifiers for a run.
+
+    Returns ``invoice_line_ids``, ``invoice_ids``, ``customer_ids``, and
+    ``item_ids``. Legacy bare/``record_key`` entries are treated as invoice
+    line ids so existing quarantine rows keep working.
+    """
     rows = fetch_all(
         "SELECT record_keys FROM quarantines WHERE run_id = %s",
         (run_id,),
     )
-    ids = []
+    keys = {
+        "invoice_line_ids": [],
+        "invoice_ids": [],
+        "customer_ids": [],
+        "item_ids": [],
+    }
     for r in rows:
         for entry in _iter_key_entries(r["record_keys"]):
-            rid = extract_record_id(entry)
-            if rid is not None and rid not in ids:
-                ids.append(rid)
-    return ids
+            if not isinstance(entry, dict):
+                rid = extract_record_id(entry)
+                if rid is not None and rid not in keys["invoice_line_ids"]:
+                    keys["invoice_line_ids"].append(rid)
+                continue
+            for name in ("invoice_line_id", "line_id", "record_key"):
+                rid = extract_record_id(entry, name)
+                if rid is not None and rid not in keys["invoice_line_ids"]:
+                    keys["invoice_line_ids"].append(rid)
+            rid = extract_record_id(entry, "invoice_id")
+            if rid is not None and rid not in keys["invoice_ids"]:
+                keys["invoice_ids"].append(rid)
+            rid = extract_record_id(entry, "customer_id")
+            if rid is not None and rid not in keys["customer_ids"]:
+                keys["customer_ids"].append(rid)
+            rid = extract_record_id(entry, "item_id")
+            if rid is not None and rid not in keys["item_ids"]:
+                keys["item_ids"].append(rid)
+    return keys
+
+
+def quarantined_invoice_line_ids(run_id):
+    """Backward-compatible invoice-line-only view of the quarantine keys."""
+    return quarantined_keys(run_id)["invoice_line_ids"]

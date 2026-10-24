@@ -42,70 +42,65 @@ def list_keys(prefix: str = "") -> list[str]:
     return keys
 
 
-DEDUPE_SCENARIO = "baseline_seed9_y5"
-_DATA_SOURCE_CACHE: dict[str, str] = {}
+def normalize_s3_prefix(prefix, dataset_name: str = "") -> str:
+    """Return a bucket-relative key prefix ending in ``/``."""
+    value = str(prefix or "").strip()
+    if value.startswith("s3://"):
+        rest = value[5:]
+        slash = rest.find("/")
+        value = rest[slash + 1 :] if slash >= 0 else ""
+    value = value.lstrip("/")
+    if not value and dataset_name:
+        value = f"scenarios/{dataset_name}/"
+    if value and not value.endswith("/"):
+        value += "/"
+    return value
 
 
-def list_scenario_keys(scenario: str = "baseline_run") -> list[str]:
-    prefix = f"scenarios/{scenario}/"
+def dataset_s3_prefix(dataset_name: str) -> str:
+    """Return the concrete S3 prefix for a dataset.
+
+    Each dataset owns its folder (``datasets.s3_prefix``). There is no
+    baseline fallback: a dataset without an explicit prefix uses the
+    conventional ``scenarios/<name>/`` location.
+    """
+    name = str(dataset_name or "")
+    value = None
+    try:
+        from backend.db.connection import fetch_one
+
+        row = fetch_one("SELECT s3_prefix FROM datasets WHERE name = %s", (name,))
+        if row:
+            value = row.get("s3_prefix")
+    except Exception:
+        value = None
+    return normalize_s3_prefix(value, name)
+
+
+def prefix_folder(prefix: str) -> str:
+    """Last path segment of an S3 prefix (the scenario folder name)."""
+    value = normalize_s3_prefix(prefix).rstrip("/")
+    return value.rsplit("/", 1)[-1] if value else ""
+
+
+def list_scenario_keys(scenario: str = "") -> list[str]:
+    """List keys for a dataset folder or a full bucket-relative prefix."""
+    value = str(scenario or "")
+    if "/" in value:
+        prefix = normalize_s3_prefix(value)
+    else:
+        prefix = normalize_s3_prefix(f"scenarios/{value}/")
     return list_keys(prefix=prefix)
 
 
-def _scenario_folder_exists(scenario: str) -> bool:
-    try:
-        get_s3_client().head_object(
-            Bucket=settings.r2_bucket,
-            Key=f"scenarios/{scenario}/invoices.parquet",
-        )
-        return True
-    except Exception:
-        return False
-
-
 def resolve_data_scenario(dataset_name: str) -> str:
-    """Return the S3 scenario folder that stores a dataset's Parquet files.
-
-    Generated datasets are clones. Prefer the canonical baseline folder and
-    fall back through the legacy names used by the generator/cache.
-    """
-    name = str(dataset_name or "")
-    if not name.startswith("generated_"):
-        return name
-    if name in _DATA_SOURCE_CACHE:
-        return _DATA_SOURCE_CACHE[name]
-
-    candidates = [DEDUPE_SCENARIO]
-    try:
-        from backend.db.connection import fetch_one
-
-        row = fetch_one("SELECT source_dataset FROM datasets WHERE name = %s", (name,))
-        if row and row.get("source_dataset"):
-            candidates.append(row["source_dataset"])
-    except Exception:
-        pass
-    candidates.extend(["baseline_run", name])
-
-    for candidate in dict.fromkeys(candidates):
-        if _scenario_folder_exists(candidate):
-            _DATA_SOURCE_CACHE[name] = candidate
-            return candidate
-    _DATA_SOURCE_CACHE[name] = "baseline_run"
-    return "baseline_run"
+    """Return the dataset's S3 folder name (no baseline fallback)."""
+    return prefix_folder(dataset_s3_prefix(dataset_name))
 
 
 def resolve_scenario_name(scenario: str) -> str:
-    """Resolve a (possibly cloned) scenario to its backing S3 scenario."""
-    try:
-        from backend.db.connection import fetch_one
-
-        row = fetch_one("SELECT source_dataset FROM datasets WHERE name = %s", (scenario,))
-        if row and row.get("source_dataset"):
-            return row["source_dataset"]
-    except Exception:
-        pass
-    if str(scenario).startswith("generated_"):
-        return "baseline_run"
-    return scenario
+    """Resolve a dataset to its concrete S3 folder name."""
+    return resolve_data_scenario(scenario)
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -120,9 +115,10 @@ def verify_manifest(scenario: str, manifest: dict | None = None) -> dict:
     """
     client = get_s3_client()
     bucket = settings.r2_bucket
+    prefix = dataset_s3_prefix(scenario)
     if manifest is None:
         try:
-            raw = client.get_object(Bucket=bucket, Key=f"scenarios/{scenario}/manifest.json")["Body"].read()
+            raw = client.get_object(Bucket=bucket, Key=f"{prefix}manifest.json")["Body"].read()
             manifest = json.loads(raw)
         except Exception:
             manifest = {}
@@ -130,7 +126,7 @@ def verify_manifest(scenario: str, manifest: dict | None = None) -> dict:
     results: dict[str, bool] = {}
     tables = manifest.get("tables", {}) if isinstance(manifest, dict) else {}
     for name, info in tables.items():
-        key = f"scenarios/{scenario}/{name}.parquet"
+        key = f"{prefix}{name}.parquet"
         expected = info.get("sha256") if isinstance(info, dict) else None
         if not expected:
             continue

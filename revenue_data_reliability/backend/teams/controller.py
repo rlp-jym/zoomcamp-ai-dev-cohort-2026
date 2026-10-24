@@ -348,9 +348,10 @@ class ControllerAgent(BaseAgent):
         if not q:
             return None
         from backend.storage.duckdb_client import query_rows
+        from backend.storage.s3_client import dataset_s3_prefix
 
         scenario = pub["dataset_name"]
-        base = f"s3://{settings.r2_bucket}/scenarios/{scenario}"
+        base = f"s3://{settings.r2_bucket}/{dataset_s3_prefix(scenario).rstrip('/')}"
         sql = f"""
             SELECT
                 COUNT(*) FILTER (WHERE i.item_id IS NULL)

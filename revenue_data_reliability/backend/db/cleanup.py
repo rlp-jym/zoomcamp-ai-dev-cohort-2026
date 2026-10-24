@@ -4,10 +4,8 @@ Deletes a dataset row (``baseline_run`` by default) together with every row
 derived from its validation runs: exceptions, discussions/messages,
 quarantines, publications, approvals, alerts, and telemetry.
 
-S3/Filebase is intentionally untouched. Generated datasets still store
-``source_dataset = 'baseline_run'`` and resolve their Parquet files through
-the existing S3 fallback, so the baseline Parquet bundle must remain in the
-bucket.
+S3/Filebase is intentionally untouched. Each live dataset owns its own
+``datasets.s3_prefix``; this script never touches any Parquet object.
 
 Usage (dry run by default)::
 

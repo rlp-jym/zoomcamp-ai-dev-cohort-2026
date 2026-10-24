@@ -69,11 +69,27 @@ python -m backend.db.cleanup --apply
 The script deletes the `baseline_run` dataset row plus its runs, exceptions,
 validation results, reconciliations, quarantines, publications, discussions,
 approvals, alerts, and telemetry. It **never deletes S3/Filebase Parquet
-files**: generated datasets retain `source_dataset = 'baseline_run'` and still
-resolve their Parquet bundle through the S3 fallback.
+files**.
 
 Set `SEED_BASELINE_FIXTURE=1` only when you explicitly want the legacy fixture
 seeded (tests force it in their isolated database).
+
+## Pre-generated Datasets
+
+Fast Generate never runs the data generator inside FastAPI (Render's 512 MB
+container cannot hold a generation run). Datasets are generated offline with
+`data/generate.py` and uploaded once:
+
+| Seed | Dataset | S3 prefix |
+|---|---|---|
+| 101 | `generated_seed101_y5` | `scenarios/seed_101/` |
+| 102 | `generated_seed102_y5` | `scenarios/seed_102/` |
+| 103 | `generated_seed103_y5` | `scenarios/seed_103/` |
+
+`POST /api/generate-scenario` only registers the dataset row and points
+`datasets.s3_prefix` at the matching folder. Unknown seeds return HTTP 400 with
+the available seed list. Dashboards and validation read the dataset's own
+`datasets.s3_prefix`; there is no `baseline_run` fallback.
 
 Local helper scripts: `run_app.bat` (starts app and opens browser after health
 check), `stop_app.bat` (stops app on port 8000).

@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 from backend.config import settings
 from backend.db.connection import execute
+from backend.storage.s3_client import prefix_folder
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +296,7 @@ def attach_scale_info(scenarios: list[dict], timeout: float = SCALE_TIMEOUT_SECO
         scenario["rows"] = None
         scenario["months"] = None
         scenario["size"] = None
-        source = (
+        source = prefix_folder(scenario.get("s3_prefix") or "") or (
             scenario.get("source_dataset")
             or scenario.get("source_scenario")
             or scenario.get("name")

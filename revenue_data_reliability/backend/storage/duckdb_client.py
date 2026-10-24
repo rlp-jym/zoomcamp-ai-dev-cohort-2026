@@ -147,6 +147,7 @@ def query_rows(sql: str) -> list[dict]:
 
 
 def resolve_scenario_name(scenario: str) -> str:
-    if str(scenario).startswith("generated_"):
-        return "baseline_run"
-    return scenario
+    """Resolve a dataset name to its concrete S3 folder (no baseline alias)."""
+    from backend.storage.s3_client import resolve_scenario_name as resolve
+
+    return resolve(scenario)

@@ -62,10 +62,21 @@ def invalidate_all_dashboard_cache() -> None:
 
 
 def _uri(scenario: str, table: str) -> str:
-    from backend.storage.s3_client import resolve_data_scenario
+    from backend.storage.s3_client import dataset_s3_prefix
 
-    source = resolve_data_scenario(scenario)
-    return f"s3://{settings.r2_bucket}/scenarios/{source}/{table}.parquet"
+    prefix = dataset_s3_prefix(scenario)
+    return f"s3://{settings.r2_bucket}/{prefix}{table}.parquet"
+
+
+def _int_list(values) -> str:
+    return ", ".join(str(int(value)) for value in values)
+
+
+def _customer_filter(values, column: str = "customer_id") -> str:
+    """SQL predicate excluding quarantined customers (NULL ids stay valid)."""
+    if not values:
+        return ""
+    return f" AND ({column} IS NULL OR {column} NOT IN ({_int_list(values)}))"
 
 
 def _fmt_m(value) -> str:
@@ -119,6 +130,13 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         return data
 
     pubsql = q["sql"]
+    quarantine_keys = q.get("quarantine_keys") or {}
+    customer_ids = quarantine_keys.get("customer_ids") or []
+    customer_filter = _customer_filter(customer_ids)
+    customer_filter_plain = (
+        f" AND customer_id NOT IN ({_int_list(customer_ids)})"
+        if customer_ids else ""
+    )
 
     # ---- one materialized scan of the published invoice lines -------------
     rows_a = query_rows(f"""
@@ -142,8 +160,10 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                SUM(bil.line_subtotal)
             FROM bil
             JOIN inv i ON bil.invoice_id = i.invoice_id
-            JOIN read_parquet('{_uri(scenario, "customers")}') c
-                 ON i.customer_id = c.customer_id
+            JOIN (
+                SELECT * FROM read_parquet('{_uri(scenario, "customers")}')
+                WHERE 1 = 1{customer_filter_plain}
+            ) c ON i.customer_id = c.customer_id
             GROUP BY 2
     """)
 
@@ -175,6 +195,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                            ORDER BY version DESC
                        ) AS rn
                 FROM read_parquet('{_uri(scenario, "gl_revenue")}')
+                WHERE 1 = 1{customer_filter}
             )
             WHERE rn = 1
             GROUP BY 1
@@ -187,6 +208,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             SELECT strftime(CAST(period AS DATE), '%Y-%m') AS ym,
                    SUM(budget_revenue_amt) AS amt
             FROM read_parquet('{_uri(scenario, "budget")}')
+            WHERE 1 = 1{customer_filter}
             GROUP BY 1
             """
         )

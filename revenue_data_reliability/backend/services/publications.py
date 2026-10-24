@@ -131,36 +131,61 @@ def publish_run(run_id, persona_id, trace_id=None, comment=None):
     }
 
 
-def _invoice_lines_uri(dataset_name):
-    from backend.storage.s3_client import resolve_data_scenario
+def _table_uri(dataset_name, table):
+    from backend.storage.s3_client import dataset_s3_prefix
 
-    source = resolve_data_scenario(dataset_name)
-    return f"s3://{settings.r2_bucket}/scenarios/{source}/invoice_lines.parquet"
+    prefix = dataset_s3_prefix(dataset_name)
+    return f"s3://{settings.r2_bucket}/{prefix}{table}.parquet"
+
+
+def _int_list(values):
+    return ", ".join(str(int(value)) for value in values)
 
 
 def get_published_data_query(dataset_name):
     """Build the published-data query for a dataset.
 
     Reads the dataset's Parquet invoice lines from S3 (Filebase) and
-    excludes every record quarantined for the published run. Returns a
-    dict with the DuckDB SQL, the published run id, and the excluded
-    invoice line ids. Phase 3 (dashboard KPIs) executes this query.
+    excludes every record quarantined for the published run. Quarantine
+    identifiers are typed, so invoice-, customer-, and item-level quarantine
+    rows now remove the affected invoice lines too. Returns a dict with the
+    DuckDB SQL, the published run id, the excluded ids, and the typed
+    quarantine keys used by the dashboard's GL/budget/customer filters.
     """
     run = get_published_run(dataset_name)
     if not run:
         return None
-    excluded = quarantines_svc.quarantined_invoice_line_ids(run["id"])
-    sql = f"SELECT * FROM read_parquet('{_invoice_lines_uri(dataset_name)}') il"
-    if excluded:
-        id_list = ", ".join(str(int(i)) for i in excluded)
-        sql += f" WHERE il.invoice_line_id NOT IN ({id_list})"
+    keys = quarantines_svc.quarantined_keys(run["id"])
+    predicates = []
+    if keys["invoice_line_ids"]:
+        predicates.append(
+            f"il.invoice_line_id NOT IN ({_int_list(keys['invoice_line_ids'])})"
+        )
+    if keys["invoice_ids"]:
+        predicates.append(
+            f"il.invoice_id NOT IN ({_int_list(keys['invoice_ids'])})"
+        )
+    if keys["item_ids"]:
+        predicates.append(
+            f"il.item_id NOT IN ({_int_list(keys['item_ids'])})"
+        )
+    if keys["customer_ids"]:
+        predicates.append(
+            "il.invoice_id NOT IN ("
+            f"SELECT invoice_id FROM read_parquet('{_table_uri(dataset_name, 'invoices')}') "
+            f"WHERE customer_id IN ({_int_list(keys['customer_ids'])}))"
+        )
+    sql = f"SELECT * FROM read_parquet('{_table_uri(dataset_name, 'invoice_lines')}') il"
+    if predicates:
+        sql += " WHERE " + " AND ".join(predicates)
     return {
         "run_id": run["id"],
         "dataset": dataset_name,
         "dataset_name": dataset_name,
         "scenario": dataset_name,
         "sql": sql,
-        "quarantined_ids": excluded,
+        "quarantined_ids": keys["invoice_line_ids"],
+        "quarantine_keys": keys,
     }
 
 

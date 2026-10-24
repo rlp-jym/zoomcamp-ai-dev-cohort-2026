@@ -155,10 +155,10 @@ def execute_all_rules(
     """Run every seeded rule, persist the results, and return them.
 
     Rules are executed on the shared DuckDB connection so the Parquet files
-    are fetched once per pipeline run rather than once per rule.  The original
-    scenario name is kept separately for cache-folder selection because
-    generated clones resolve to ``baseline_run`` in S3.  ``recon_rows`` lets
-    the caller reuse the reconciliation scan for ``VAL_RECON_BILLINGS_GL``.
+    are fetched once per pipeline run rather than once per rule. The original
+    dataset name is kept separately for cache-folder selection while the
+    resolved S3 folder drives the Parquet URIs. ``recon_rows`` lets the
+    caller reuse the reconciliation scan for ``VAL_RECON_BILLINGS_GL``.
     ``years_to_backtrack`` narrows the deterministic demo window when the
     scenario promises a shorter history.
     """

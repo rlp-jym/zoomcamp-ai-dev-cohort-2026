@@ -34,30 +34,37 @@ def cache_root(monkeypatch, tmp_path):
     return root
 
 
-def test_generated_scenarios_share_baseline_folder(monkeypatch, cache_root):
-    objects = _objects("ar_ledger.parquet", "invoices.parquet")
-    fake = FakeS3(objects)
+def test_generated_scenarios_use_their_own_folders(monkeypatch, cache_root):
+    objects_101 = _objects("ar_ledger.parquet", "invoices.parquet", prefix="scenarios/seed_101/")
+    objects_102 = _objects("ar_ledger.parquet", "invoices.parquet", prefix="scenarios/seed_102/")
+    fake = FakeS3(objects_101 + objects_102)
     listings = []
 
     def fake_list(prefix):
         listings.append(prefix)
-        return objects if prefix == "scenarios/baseline_run/" else []
+        if prefix == "scenarios/seed_101/":
+            return objects_101
+        if prefix == "scenarios/seed_102/":
+            return objects_102
+        return []
 
     monkeypatch.setattr(scenario_cache, "get_s3_client", lambda: fake)
     monkeypatch.setattr(scenario_cache, "_list_parquet_objects", fake_list)
 
     first = scenario_cache.ensure_local_scenario(
-        "generated_seed101_y1", "scenarios/baseline_run/"
+        "generated_seed101_y5", "scenarios/seed_101/"
     )
     second = scenario_cache.ensure_local_scenario(
-        "generated_seed42_y2", "scenarios/baseline_run/"
+        "generated_seed102_y5", "scenarios/seed_102/"
     )
 
-    assert first == second == cache_root / "baseline_seed9_y5"
+    assert first == cache_root / "generated_seed101_y5"
+    assert second == cache_root / "generated_seed102_y5"
+    assert first != second
     assert (first / "ar_ledger.parquet").is_file()
-    # The second call is served by the local manifest: no S3 list, no download.
-    assert listings == ["scenarios/baseline_run/"]
-    assert len(fake.downloads) == 2
+    assert (second / "invoices.parquet").is_file()
+    assert listings == ["scenarios/seed_101/", "scenarios/seed_102/"]
+    assert len(fake.downloads) == 4
 
 
 def test_missing_file_is_redownloaded(monkeypatch, cache_root):
@@ -104,18 +111,18 @@ def test_cleanup_evicts_oldest_non_target_folder(monkeypatch, cache_root):
     assert old.is_dir()
 
 
-def test_localize_sql_uses_deduplicated_cache(monkeypatch, cache_root):
+def test_localize_sql_uses_dataset_cache(monkeypatch, cache_root):
     from backend.config import settings
 
     sql = (
         "SELECT * FROM read_parquet("
-        f"'s3://{settings.r2_bucket}/scenarios/baseline_run/invoices.parquet')"
+        f"'s3://{settings.r2_bucket}/scenarios/seed_101/invoices.parquet')"
     )
     localized = scenario_cache.localize_sql(
-        sql, "baseline_run", "generated_seed101_y1"
+        sql, "seed_101", "generated_seed101_y5"
     )
 
-    expected = (cache_root / "baseline_seed9_y5" / "invoices.parquet").as_posix()
+    expected = (cache_root / "generated_seed101_y5" / "invoices.parquet").as_posix()
     assert expected in localized
     assert "s3://" not in localized
 
@@ -126,12 +133,12 @@ def test_validation_rule_sql_reads_local_cache(monkeypatch, cache_root):
     sql = validations._render_sql(
         "SELECT * FROM read_parquet("
         "'s3://{bucket}/scenarios/{scenario}/invoice_lines.parquet')",
-        "baseline_run",
-        "generated_seed101_y1",
+        "seed_101",
+        "generated_seed101_y5",
     )
 
     expected = (
-        cache_root / "baseline_seed9_y5" / "invoice_lines.parquet"
+        cache_root / "generated_seed101_y5" / "invoice_lines.parquet"
     ).as_posix()
     assert expected in sql
     assert "s3://" not in sql
@@ -146,14 +153,16 @@ def test_years_form_bounds_are_rendered():
     assert 'max="5"' in template
 
 
-def test_resolve_data_scenario_uses_baseline_for_generated(monkeypatch):
+def test_resolve_data_scenario_uses_dataset_s3_prefix(monkeypatch):
+    from backend.db import connection
     from backend.storage import s3_client
 
-    s3_client._DATA_SOURCE_CACHE.clear()
-    monkeypatch.setattr(
-        s3_client,
-        "_scenario_folder_exists",
-        lambda name: name == "baseline_run",
-    )
-    assert s3_client.resolve_data_scenario("generated_seed5_y5") == "baseline_run"
-    assert s3_client.resolve_data_scenario("baseline_run") == "baseline_run"
+    def fake_fetch_one(sql, params=None):
+        return {"s3_prefix": "scenarios/seed_101/"} if params == ("generated_seed101_y5",) else None
+
+    monkeypatch.setattr(connection, "fetch_one", fake_fetch_one)
+
+    assert s3_client.dataset_s3_prefix("generated_seed101_y5") == "scenarios/seed_101/"
+    assert s3_client.resolve_data_scenario("generated_seed101_y5") == "seed_101"
+    # Unknown datasets use their own folder; there is no baseline fallback.
+    assert s3_client.dataset_s3_prefix("no_such_dataset") == "scenarios/no_such_dataset/"

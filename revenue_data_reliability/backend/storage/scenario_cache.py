@@ -6,7 +6,7 @@ files once and lets DuckDB read them from local disk.
 
 Two guardrails keep the ephemeral container disk bounded:
 
-* generated demo scenarios all share the ``baseline_seed9_y5`` cache folder;
+* every dataset owns its own cache folder and S3 prefix;
 * before a download, the oldest cache folders are evicted while the cache would
   exceed ``SCENARIO_CACHE_MAX_BYTES`` (800 MB by default).
 
@@ -27,11 +27,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.config import settings
-from backend.storage.s3_client import get_s3_client, resolve_scenario_name
+from backend.storage.s3_client import get_s3_client
 
 logger = logging.getLogger(__name__)
 
-DEDUPE_SCENARIO = "baseline_seed9_y5"
 MANIFEST_NAME = ".cache_manifest.json"
 CACHE_VERSION = 1
 
@@ -52,15 +51,8 @@ _cache_lock = threading.RLock()
 
 
 def cache_scenario_name(scenario_name) -> str:
-    """Return the cache folder name for a scenario.
-
-    Fast-generated scenarios are clones of the same baseline files.  Mapping
-    them all to one folder means one download and no duplicated 400 MB copies.
-    """
-    name = str(scenario_name)
-    if name.startswith("generated_"):
-        return DEDUPE_SCENARIO
-    return name
+    """Return the cache folder name for a dataset."""
+    return str(scenario_name)
 
 
 def scenario_cache_dir(scenario_name) -> Path:
@@ -96,15 +88,10 @@ def _candidate_prefixes(scenario_name, s3_prefix) -> list[str]:
         if normalized and normalized not in candidates:
             candidates.append(normalized)
 
+    # Only the dataset's own prefix and its conventional folder. Generated
+    # datasets are no longer aliases of the baseline Parquet bundle.
     add(s3_prefix)
     add(scenario_s3_prefix(name))
-    if name.startswith("generated_") or name.startswith("baseline_"):
-        try:
-            add(scenario_s3_prefix(resolve_scenario_name(name)))
-        except Exception:  # DB unavailable: still try the conventional prefixes
-            pass
-        add(scenario_s3_prefix("baseline_run"))
-        add(scenario_s3_prefix(DEDUPE_SCENARIO))
     return candidates
 
 
@@ -320,8 +307,12 @@ def ensure_local_scenario(scenario_name, s3_prefix) -> Path:
 
 
 def localize_sql(sql: str, source_scenario: str, cache_scenario=None) -> str:
-    """Rewrite an S3 Parquet URI to the local cache folder."""
+    """Rewrite an S3 Parquet URI to the local cache folder.
+
+    ``source_scenario`` is the concrete S3 folder name (already resolved from
+    the dataset's ``s3_prefix`` by pipeline callers).
+    """
     cache = scenario_cache_dir(cache_scenario or source_scenario).as_posix().rstrip("/")
-    source = str(source_scenario)
+    source = str(source_scenario).strip("/")
     s3_base = f"s3://{settings.r2_bucket}/scenarios/{source}/"
     return sql.replace(s3_base, cache + "/")

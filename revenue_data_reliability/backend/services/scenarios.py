@@ -6,6 +6,38 @@ from datetime import datetime
 from backend.db.connection import execute, fetch_all, fetch_one
 from backend.storage.s3_client import list_scenario_keys
 
+# Offline-generated datasets. The FastAPI app never runs data/generate.py;
+# it only registers these folders and points the dataset at its S3 prefix.
+PRE_GENERATED_SEEDS = {
+    101: {"prefix": "scenarios/seed_101/", "years": 5},
+    102: {"prefix": "scenarios/seed_102/", "years": 5},
+    103: {"prefix": "scenarios/seed_103/", "years": 5},
+}
+
+
+def available_seeds():
+    return sorted(PRE_GENERATED_SEEDS)
+
+
+def pre_generated_dataset(seed):
+    """Return the dataset row payload for a pre-generated seed, or None."""
+    try:
+        seed = int(seed)
+    except (TypeError, ValueError):
+        return None
+    meta = PRE_GENERATED_SEEDS.get(seed)
+    if not meta:
+        return None
+    years = meta["years"]
+    return {
+        "name": f"generated_seed{seed}_y{years}",
+        "seed": seed,
+        "s3_prefix": meta["prefix"],
+        "years_to_backtrack": years,
+        "table_count": 16,
+        "status": "ready",
+    }
+
 
 def _fmt_dt(value):
     if value is None:
@@ -18,7 +50,7 @@ def _fmt_dt(value):
 def list_datasets():
     rows = fetch_all(
         "SELECT name, status, seed, table_count, manifest, file_hashes, source_dataset, "
-        "years_to_backtrack, created_at "
+        "s3_prefix, years_to_backtrack, created_at "
         "FROM datasets ORDER BY created_at DESC, name"
     )
     out = []
@@ -34,6 +66,7 @@ def list_datasets():
                 "file_hashes": r["file_hashes"],
                 "source_dataset": r.get("source_dataset") or r["name"],
                 "source_scenario": r.get("source_dataset") or r["name"],
+                "s3_prefix": r.get("s3_prefix") or f"scenarios/{r['name']}/",
                 "years_to_backtrack": r.get("years_to_backtrack"),
             }
         )
@@ -152,7 +185,7 @@ def get_analysis_scenario(scenario_id):
 def get_dataset(name):
     r = fetch_one(
         "SELECT name, status, seed, table_count, manifest, file_hashes, source_dataset, "
-        "years_to_backtrack, created_at FROM datasets WHERE name = %s",
+        "s3_prefix, years_to_backtrack, created_at FROM datasets WHERE name = %s",
         (name,),
     )
     if not r:
@@ -167,6 +200,7 @@ def get_dataset(name):
         "file_hashes": r["file_hashes"],
         "source_dataset": r.get("source_dataset") or r["name"],
         "source_scenario": r.get("source_dataset") or r["name"],
+        "s3_prefix": r.get("s3_prefix") or f"scenarios/{r['name']}/",
         "years_to_backtrack": r.get("years_to_backtrack"),
     }
 
@@ -214,24 +248,29 @@ def register_dataset(payload):
     except (TypeError, ValueError):
         table_count = 0
     status = "ready"
+    s3_prefix = payload.get("s3_prefix") or payload.get("prefix")
+    source_dataset = payload.get("source_dataset") or name
 
     fetch_one(
         """
         INSERT INTO datasets (name, status, seed, table_count, manifest, file_hashes,
-                              years_to_backtrack, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, now())
+                              source_dataset, s3_prefix, years_to_backtrack, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())
         ON CONFLICT (name) DO UPDATE SET
             status = EXCLUDED.status,
             seed = COALESCE(EXCLUDED.seed, datasets.seed),
             table_count = EXCLUDED.table_count,
             manifest = COALESCE(EXCLUDED.manifest, datasets.manifest),
             file_hashes = COALESCE(EXCLUDED.file_hashes, datasets.file_hashes),
+            source_dataset = COALESCE(EXCLUDED.source_dataset, datasets.source_dataset),
+            s3_prefix = COALESCE(EXCLUDED.s3_prefix, datasets.s3_prefix),
             years_to_backtrack = COALESCE(EXCLUDED.years_to_backtrack, datasets.years_to_backtrack),
             updated_at = now()
         RETURNING name
         """,
         (name, status, seed, table_count, json.dumps(manifest) if manifest is not None else None,
-         json.dumps(file_hashes) if file_hashes is not None else None, years_to_backtrack),
+         json.dumps(file_hashes) if file_hashes is not None else None, source_dataset,
+         s3_prefix, years_to_backtrack),
     )
     return get_dataset(name)
 
@@ -287,6 +326,7 @@ def ensure_baseline_dataset():
             "seed": 9,
             "status": "registered",
             "table_count": 16,
+            "s3_prefix": "scenarios/baseline_run/",
         }
     )
 

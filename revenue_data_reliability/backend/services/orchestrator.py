@@ -379,7 +379,7 @@ def run_pipeline(run_id):
             validations_failed=validations_failed,
             exceptions_created=exceptions_created,
         )
-        superseded = _close_superseded_exceptions(run_id, scenario_name)
+        superseded = _close_superseded_exceptions(run_id, requested_scenario)
         _post_run_event(
             run_id,
             _persona("orchestrator"),

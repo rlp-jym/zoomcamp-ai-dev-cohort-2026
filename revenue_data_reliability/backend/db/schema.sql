@@ -69,13 +69,16 @@ CREATE TABLE IF NOT EXISTS datasets (
 ALTER TABLE datasets ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'ready';
 ALTER TABLE datasets ADD COLUMN IF NOT EXISTS source_dataset TEXT;
 ALTER TABLE datasets ADD COLUMN IF NOT EXISTS years_to_backtrack INTEGER;
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS s3_prefix TEXT;
 UPDATE datasets SET source_dataset = COALESCE(source_dataset, name)
 WHERE source_dataset IS NULL;
-UPDATE datasets SET source_dataset = 'baseline_run'
-WHERE name LIKE 'generated_%' AND source_dataset = name;
 UPDATE datasets
 SET years_to_backtrack = substring(name from '_y([0-9]+)$')::int
 WHERE years_to_backtrack IS NULL AND name ~ '_y[0-9]+$';
+-- Every dataset owns a concrete S3 folder. There is no baseline fallback.
+UPDATE datasets
+SET s3_prefix = 'scenarios/' || name || '/'
+WHERE s3_prefix IS NULL;
 
 CREATE TABLE IF NOT EXISTS analysis_scenarios (
     scenario_id          SERIAL PRIMARY KEY,

@@ -705,15 +705,6 @@ async def observability(request: Request, trace_id: str | None = None):
 # Validation page enhancements: generate data + trigger validation runs
 # ---------------------------------------------------------------------------
 
-def _parse_int(value, default):
-    try:
-        if value is None or value == "":
-            return default
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
 async def _read_payload(request):
     try:
         data = await request.json()
@@ -726,43 +717,6 @@ async def _read_payload(request):
         return dict(form)
     except Exception:
         return {}
-
-
-def _gh_dispatch(scenario_name, seed, years_to_backtrack):
-    import os
-
-    import httpx
-
-    from backend.config import settings
-
-    if not settings.gh_token:
-        return False, "GH_TOKEN not configured"
-    repo = os.getenv("GITHUB_REPOSITORY", "rlp-jym/zoomcamp-ai-dev-cohort-2026")
-    workflow = os.getenv("SCENARIO_GENERATE_WORKFLOW", "scenario-generate.yml")
-    ref = os.getenv("GITHUB_REF_NAME", "main")
-    url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
-    headers = {
-        "Authorization": f"Bearer {settings.gh_token}",
-        "Accept": "application/vnd.github+json",
-    }
-    payload = {
-        "ref": ref,
-        "inputs": {
-            "scenario_name": str(scenario_name),
-            "seed": str(seed),
-            "years_to_backtrack": str(years_to_backtrack),
-        },
-    }
-    try:
-        resp = httpx.post(url, headers=headers, json=payload, timeout=10.0)
-        resp.raise_for_status()
-        return True, None
-    except Exception as exc:  # pragma: no cover - network dependent
-        return False, str(exc)
-
-
-def _success_message():
-    return "Generation started. Data will appear when ready."
 
 
 def _bad_request(request: Request, message: str):
@@ -780,65 +734,45 @@ async def generate_dataset(request: Request):
         raise HTTPException(status_code=403, detail="Only the Analyst can generate datasets.")
 
     payload = await _read_payload(request)
-    seed = _parse_int(payload.get("seed", 42), 42)
     try:
-        years = int(payload.get("years_to_backtrack", 2))
+        seed = int(payload.get("seed", 101))
     except (TypeError, ValueError):
-        return _bad_request(request, "Years to backtrack must be a whole number between 1 and 5.")
-    if not 1 <= years <= 5:
-        return _bad_request(request, "Years to backtrack must be between 1 and 5.")
-    dataset_name = (
-        payload.get("dataset_name")
-        or payload.get("dataset")
-        or payload.get("scenario_name")
-        or payload.get("scenario")
-        or payload.get("scenario_id")
-        or f"generated_seed{seed}_y{years}"
-    )
-
-    from backend.db import execute, fetch_one
-
-    try:
-        baseline = fetch_one("SELECT seed, table_count, manifest, file_hashes FROM datasets WHERE name = 'baseline_run'")
-        baseline_tables = (baseline or {}).get("table_count") or 16
-        baseline_manifest = (baseline or {}).get("manifest")
-        baseline_hashes = (baseline or {}).get("file_hashes")
-        if baseline_manifest is not None and not isinstance(baseline_manifest, str):
-            baseline_manifest = json.dumps(baseline_manifest)
-        if baseline_hashes is not None and not isinstance(baseline_hashes, str):
-            baseline_hashes = json.dumps(baseline_hashes)
-
-        execute(
-            """
-            INSERT INTO datasets (name, status, seed, table_count, manifest, file_hashes,
-                                  source_dataset, years_to_backtrack, updated_at)
-            VALUES (%s, 'generating', %s, %s, %s::jsonb, %s::jsonb, 'baseline_run', %s, now())
-            ON CONFLICT (name) DO UPDATE SET
-                status = 'generating',
-                seed = EXCLUDED.seed,
-                table_count = EXCLUDED.table_count,
-                manifest = COALESCE(EXCLUDED.manifest, datasets.manifest),
-                file_hashes = COALESCE(EXCLUDED.file_hashes, datasets.file_hashes),
-                source_dataset = 'baseline_run',
-                years_to_backtrack = EXCLUDED.years_to_backtrack,
-                updated_at = now()
-            """,
-            (dataset_name, seed, baseline_tables, baseline_manifest, baseline_hashes, years),
+        seeds = ", ".join(str(value) for value in scen_svc.available_seeds())
+        return _bad_request(
+            request,
+            f"Seed must be a whole number. Available seeds: {seeds}.",
         )
 
-        execute("UPDATE datasets SET status = 'ready', updated_at = now() WHERE name = %s", (dataset_name,))
+    pre_generated = scen_svc.pre_generated_dataset(seed)
+    if pre_generated is None:
+        seeds = ", ".join(str(value) for value in scen_svc.available_seeds())
+        return _bad_request(
+            request,
+            f"Seed {seed} has not been pre-generated. Available seeds: {seeds}.",
+        )
 
-        msg = _success_message()
+    # Registration only: data/generate.py runs offline and the Parquet files
+    # already live under the dataset's s3_prefix. Never generate in-process.
+    try:
+        dataset = scen_svc.register_dataset(pre_generated)
+        msg = (
+            f"Dataset {dataset['name']} is ready "
+            f"({dataset['s3_prefix']})."
+        )
         accept = request.headers.get("accept", "")
         if "application/json" in accept:
-            return JSONResponse({"status": "ready", "message": msg})
+            return JSONResponse(
+                {
+                    "status": "ready",
+                    "message": msg,
+                    "dataset": dataset["name"],
+                    "seed": seed,
+                    "s3_prefix": dataset["s3_prefix"],
+                }
+            )
         return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
     except Exception as exc:
-        try:
-            execute("UPDATE datasets SET status = 'failed', updated_at = now() WHERE name = %s", (dataset_name,))
-        except Exception:
-            pass
-        err_msg = f"Failed to generate dataset: {exc}"
+        err_msg = f"Failed to register dataset: {exc}"
         accept = request.headers.get("accept", "")
         if "application/json" in accept:
             return JSONResponse({"status": "error", "message": err_msg}, status_code=500)
