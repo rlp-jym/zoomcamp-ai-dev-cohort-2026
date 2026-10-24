@@ -49,10 +49,17 @@ def get_connection():
 
 def apply_schema() -> None:
     sql = SCHEMA_PATH.read_text(encoding="utf-8")
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-        conn.commit()
+
+    def _run():
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+            conn.commit()
+
+    # A managed Postgres database can be suspended between deploys. The first
+    # connection of the boot sequence then fails while the database wakes up,
+    # which used to abort startup and surface as a Render 502/503.
+    _with_retry(_run, retries=5, delay=2.0)
 
 
 def _with_retry(op, retries: int = 1, delay: float = 0.5):

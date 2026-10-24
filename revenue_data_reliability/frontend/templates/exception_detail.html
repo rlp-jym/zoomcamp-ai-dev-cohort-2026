@@ -15,7 +15,7 @@
 {% endif %}
 <dl class="meta meta-grid">
   <div class="meta-item"><dt>Type</dt><dd>{{ exception.type | capitalize }}</dd></div>
-  <div class="meta-item"><dt>Severity</dt><dd>{{ exception.severity | capitalize }}</dd></div>
+  <div class="meta-item"><dt>Severity</dt><dd><span class="sev sev-{{ exception.severity }}">{{ exception.severity | capitalize }}</span></dd></div>
   <div class="meta-item"><dt>Period</dt><dd>{{ exception.period }}</dd></div>
   <div class="meta-item"><dt>Count</dt><dd>{{ exception.count | human_value }}</dd></div>
   <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
