@@ -123,9 +123,16 @@ def _ensure_example_scenario():
     )
 
 
-def ensure_baseline_fixture() -> None:
-    if os.getenv("SEED_BASELINE_FIXTURE", "1") == "0":
-        return
+def ensure_baseline_fixture(force: bool = False) -> None:
+    """Seed the legacy baseline fixture when explicitly enabled.
+
+    ``baseline_run`` is retired, so boot no longer recreates it. Tests pass
+    ``force=True`` to keep the isolated test database populated.
+    """
+    if not force:
+        enabled = os.getenv("SEED_BASELINE_FIXTURE", "0").strip().lower()
+        if enabled not in {"1", "true", "yes", "on"}:
+            return
     _ensure_scenario()
     run_id = _ensure_baseline_run()
     _ensure_publication(run_id)

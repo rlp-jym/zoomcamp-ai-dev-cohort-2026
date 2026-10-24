@@ -112,24 +112,8 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         "charts": {},
     }
 
-    # Open exceptions are the one KPI we keep on the dashboard: a reminder
-    # that the current numbers still have pending exceptions to fix. The
-    # other KPIs (Revenue/Billings/GL Variance/DQ Pass Rate/Published Runs)
-    # are snapshots with no discussion value and were removed in favour of
-    # the charts + their threads.
-    exc_row = fetch_one(
-        """
-        SELECT COUNT(*) FILTER (
-                   WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')
-               ) AS open_n,
-               COUNT(*) AS total
-        FROM exceptions
-        """
-    )
-    data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
-
     if not q:
-        # No publication yet — keep the open-exceptions reminder only.
+        # No publication yet — keep the empty payload the template needs.
         data["charts"] = {}
         data["attainment"] = None
         return data
@@ -407,7 +391,6 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "alert_count": alerts_svc.open_alert_count(),
             "kpis": [],
             "charts": {},
-            "open_exceptions": 0,
             "chart_messages": {},
             "cache_fresh_at": None,
             "cache_empty": True,
@@ -429,13 +412,6 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     data["chart_messages"] = {
         aid: msgs_by_thread.get(aid, []) for aid in chart_thread_ids
     }
-    # Keep open_exceptions fresh from Postgres.
-    exc_row = fetch_one(
-        "SELECT COUNT(*) FILTER ("
-        "  WHERE status NOT IN ('resolved', 'dismissed', 'approved', 'rejected', 'escalated')"
-        ") AS open_n FROM exceptions"
-    )
-    data["open_exceptions"] = exc_row["open_n"] if exc_row else 0
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %I:%M:%S %p") if refreshed_at else "",
     }

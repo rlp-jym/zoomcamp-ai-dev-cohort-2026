@@ -99,7 +99,13 @@ def resolve_active_run(dataset_name=None, scenario_name=None):
 
 
 def default_dataset():
-    """Dataset of the most recently completed run, else first dataset."""
+    """Prefer the most recent published dataset, then the latest run."""
+    r = fetch_one(
+        "SELECT dataset_name FROM runs WHERE published = TRUE "
+        "ORDER BY published_at DESC NULLS LAST, run_id DESC LIMIT 1"
+    )
+    if r and r.get("dataset_name"):
+        return r["dataset_name"]
     r = fetch_one(
         "SELECT dataset_name FROM runs WHERE status = 'completed' "
         "ORDER BY finished_at DESC NULLS LAST, run_id DESC LIMIT 1"

@@ -13,8 +13,10 @@ by month) and every material reconciliation gap. The DQ/DE/Financial Impact
 Agent/Controller agents post to run and exception threads (template fallback
 when no LLM key is set).
 
-The UI is wired to real Postgres/DuckDB data on every route, with a published
-`baseline_run` fixture so the app is populated immediately after a cold start.
+The UI is wired to real Postgres/DuckDB data on every route. Generated
+datasets are first-class: each has its own validation runs, issues, and
+published pointer, and the default view prefers the most recently published
+dataset.
 
 Implemented highlights:
 - 11 DuckDB validation rules over Parquet on R2.
@@ -33,9 +35,9 @@ Implemented highlights:
   overlay; Controller verifies published state on a schedule.
 - Observability: OpenTelemetry spans/logs/metrics exported to Postgres with
   an in-app viewer and a retention job.
-- Dashboard: historical actuals + FP&A assessment. Open Data Issues stat
-  (red/green, bold) at the top, Target Attainment card (General Ledger revenue
-  as % of target, with the latest month in the title), then three charts
+- Dashboard: historical actuals + FP&A assessment. Target Attainment card
+  (General Ledger revenue as % of target, with the latest month in the title),
+  then three charts
   (Revenue/Billings/Target, Variances by Category, Month-over-Month Growth)
   plus a Billings-by-Customer-Segment bar chart. Each chart carries its own
   discussion thread. Forward-looking projections are not on the dashboard —
@@ -51,18 +53,27 @@ Still open / later work: CI/CD, Dockerfile, infra docs, unit/integration tests,
 scenario data snapshot capture, remaining `dimension_drift` config wiring,
 `VAL_SEGMENT_DRIFT` rule, and per-segment order volume weighting.
 
-## Data Reset & Baseline Fixture
+## Data Reset & Baseline Cleanup
 
-A persistent `baseline_run` fixture is seeded on boot. It includes a registered
-scenario, a completed and published baseline run, a matching publication, and a
-minimal run thread. This keeps the dashboard populated immediately after cold
-starts and resets.
+The pre-loaded `baseline_run` dataset is retired. Generated datasets carry their
+own runs and publication pointers, and boot no longer recreates the baseline
+once any dataset exists.
 
-Reset modes:
-- Preserve baseline (recommended): truncates non-baseline application data while
-  keeping personas, rules, and the baseline fixture intact.
-- Full reset: removes all data including the baseline fixture (set
-  `SEED_BASELINE_FIXTURE=0` and truncate everything).
+One-time cleanup (dry run by default):
+
+```text
+python -m backend.db.cleanup
+python -m backend.db.cleanup --apply
+```
+
+The script deletes the `baseline_run` dataset row plus its runs, exceptions,
+validation results, reconciliations, quarantines, publications, discussions,
+approvals, alerts, and telemetry. It **never deletes S3/Filebase Parquet
+files**: generated datasets retain `source_dataset = 'baseline_run'` and still
+resolve their Parquet bundle through the S3 fallback.
+
+Set `SEED_BASELINE_FIXTURE=1` only when you explicitly want the legacy fixture
+seeded (tests force it in their isolated database).
 
 Local helper scripts: `run_app.bat` (starts app and opens browser after health
 check), `stop_app.bat` (stops app on port 8000).
@@ -75,8 +86,8 @@ Single command (app + Postgres via Docker): `docker compose -f infra/docker-comp
 
 ## Expected Behavior
 - Analyst selects a persona in the header; navigation persists via cookie.
-- Dashboard shows the Open Data Issues stat, Target Attainment, and the four
-  charts, each with its own thread; posting a message updates via HTMX.
+- Dashboard shows Target Attainment and the four charts, each with its own
+  thread; posting a message updates via HTMX.
 - `/scenarios` lists sensitivity analyses bound to the latest published run;
   Analysts can create new ones (title, outcome/projection, assessment).
 - `/validation` (formerly Runs) lists runs; `/validation/{id}` shows all 11
@@ -140,8 +151,8 @@ Consequently, the Manager's available decisions are limited to
 ## Demo Flow
 
 1. Start the app: `docker compose -f infra/docker-compose.yml up --build`.
-2. Open http://localhost:8000 — the dashboard is populated by the
-   `baseline_run` fixture.
+2. Open http://localhost:8000 - the dashboard opens on the most recently
+   published dataset.
 3. Switch persona in the header; navigation persists via cookie.
 4. Review `/data-issues`, `/validation`, `/audit`, `/observability`.
 5. Create a Scenario under `/scenarios`.

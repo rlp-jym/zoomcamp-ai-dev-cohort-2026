@@ -68,8 +68,11 @@ async def lifespan(app: FastAPI):
                 count = cur.fetchone()[0]
         if count == 0:
             trigger_backfill()
-        from backend.services import scenarios as scen_svc
-        scen_svc.ensure_baseline_dataset()
+            # Fresh/empty databases still get a bootstrapped baseline; once
+            # generated datasets exist, the retired baseline is never rebuilt.
+            from backend.services import scenarios as scen_svc
+
+            scen_svc.ensure_baseline_dataset()
         ensure_baseline_fixture()
         from backend.services import runs as runs_svc
         failed = runs_svc.sweep_stale_runs(0)

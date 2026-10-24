@@ -24,7 +24,7 @@ def pytest_sessionstart(session):
     init_pool()
     apply_schema()
     seed()
-    ensure_baseline_fixture()
+    ensure_baseline_fixture(force=True)
 
 
 @pytest.fixture
