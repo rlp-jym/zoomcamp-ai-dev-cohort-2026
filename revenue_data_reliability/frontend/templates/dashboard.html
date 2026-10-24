@@ -99,7 +99,7 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Billings by Customer Segment</h2>
+    <h2>Billings by Customer Segment{% if attainment and attainment.latest %} ({{ attainment.latest }}){% endif %}</h2>
     <div class="chart-box">
       <canvas id="segmentChart"></canvas>
     </div>
