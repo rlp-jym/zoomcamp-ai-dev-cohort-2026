@@ -79,7 +79,7 @@
 
 <div class="charts-grid">
   <div class="chart-card">
-    <h2>Revenue Variance Bridge (Target to Actual)</h2>
+    <h2>Category Variance Bridge (Target to Actual)</h2>
     <div class="chart-box">
       <canvas id="varianceBridgeChart"></canvas>
     </div>
@@ -93,11 +93,18 @@
     </div>
   </div>
   <div class="chart-card">
-    <h2>Segment Variance Bridge (Target to Actual)</h2>
+    <h2>Customer Variance Bridge (Target to Actual)</h2>
     <div class="chart-box">
       <canvas id="segmentBridgeChart"></canvas>
     </div>
     <p class="chart-desc">Target-to-actual bridge by customer segment. Segment totals are allocated from the trailing billings mix.</p>
+    <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-customer-variance">Start a scenario analysis from this discussion</a></p>
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-customer-variance" %}
+      {% set messages = (chart_messages or {}).get("chart-customer-variance", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
 </div>
 
@@ -137,19 +144,11 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Billings by Customer Segment{% if attainment and attainment.latest %} ({{ attainment.latest }}){% endif %}</h2>
+    <h2>Billings Trend by Customer Segment (Trailing 12 Months)</h2>
     <div class="chart-box">
-      <canvas id="segmentChart"></canvas>
+      <canvas id="segmentTrendChart"></canvas>
     </div>
-    <p class="chart-desc">Billings by customer segment (who buys). Customer segments are independent of item categories (what is sold) — the variance chart above groups by item category, this groups by customer segment. A segment the source system does not recognise is a customer-master mapping drift and is flagged in red.</p>
-    <div class="segment-legend">
-      {% for s in charts.segment_mix %}
-      <span class="segment-legend-item">
-        <span class="swatch" style="background: {{ s.color }}"></span>
-        {{ s.label }}{% if not s.known %} <em>(unrecognised)</em>{% endif %} - {{ s.share }}%
-      </span>
-      {% endfor %}
-    </div>
+    <p class="chart-desc">Stacked billings by customer segment across the trailing 12 months — shows which segments are driving the revenue trend.</p>
     <div class="chart-thread">
       <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-segment">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
@@ -170,6 +169,7 @@
       actual_by_category: {{ (actual_by_category or {}) | tojson }}
     };
     const categoryTrend = {{ (revenue_by_category_monthly or {}) | tojson }};
+    const segmentTrend = {{ (billings_by_segment_monthly or {}) | tojson }};
     const segmentBridge = {
       target_total: {{ (target_total or 0) | tojson }},
       actual_total: {{ (actual_total or 0) | tojson }},
@@ -381,30 +381,60 @@
         }
       });
     })();
-  if (c.segment_mix && c.segment_mix.length) {
-    new Chart(document.getElementById("segmentChart"), {
-      type: "bar",
-      data: {
-        labels: c.segment_mix.map(s => s.label + (s.known ? "" : " (unrecognised)")),
-        datasets: [
-          { label: "Billings share (%)", data: c.segment_mix.map(s => s.share),
-            backgroundColor: c.segment_mix.map(s => s.color) }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { font: { size: 12 } } },
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: "% of billings", font: { size: 13 } },
-            ticks: { font: { size: 12 } }
+    (function renderSegmentTrend() {
+      const trend = segmentTrend || {};
+      const months = Object.keys(trend);
+      if (!months.length) return;
+      const segments = Array.from(new Set(
+        months.flatMap(month => Object.keys(trend[month] || {}))
+      ));
+      const palette = [
+        "#1f2a44", "#4a6fa5", "#9aa0a6", "#1a7f37",
+        "#cf222e", "#6f42c1", "#d97706", "#0f766e"
+      ];
+      const datasets = segments.map((segment, index) => ({
+        label: segment
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (ch) => ch.toUpperCase()),
+        data: months.map(month => Number((trend[month] || {})[segment] || 0) / 1e6),
+        borderColor: palette[index % palette.length],
+        backgroundColor: palette[index % palette.length] + "66",
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
+        borderWidth: 2
+      }));
+
+      new Chart(document.getElementById("segmentTrendChart"), {
+        type: "line",
+        data: { labels: months, datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          elements: { line: { fill: true } },
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { font: { size: 12 } }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              ticks: { font: { size: 12 }, autoSkip: true, maxRotation: 45 }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              title: { display: true, text: "$M", font: { size: 13 } },
+              ticks: {
+                font: { size: 12 },
+                callback: (value) => "$" + Number(value).toFixed(1) + "M"
+              }
+            }
           }
         }
-      }
-    });
-  }
+      });
+    })();
 
   })();
 </script>

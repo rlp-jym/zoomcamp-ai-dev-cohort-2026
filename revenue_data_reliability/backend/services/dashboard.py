@@ -35,6 +35,7 @@ CHART_THREAD_IDS = (
     "chart-growth",
     "chart-segment",
     "chart-category-trend",
+    "chart-customer-variance",
 )
 
 # Segments the source system recognises. A segment outside this set is a
@@ -399,6 +400,14 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     data["target_by_segment"] = target_by_segment
     data["actual_by_segment"] = actual_by_segment
     data["revenue_by_category_monthly"] = revenue_by_category_monthly
+    data["billings_by_segment_monthly"] = {
+        month: {
+            label: round(amounts[month], 2)
+            for label, amounts in segments_month.items()
+            if month in amounts
+        }
+        for month in months_12
+    }
 
     data["charts"] = {
         # One chart carries actuals, billings and target: the General
