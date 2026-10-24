@@ -424,3 +424,86 @@ def test_publish_refreshes_dashboard_cache(monkeypatch):
     finally:
         runs_svc.delete_run(run_id)
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_htmx_publish_waits_for_cache_and_redirects(monkeypatch):
+    """HTMX keeps the button disabled until the synchronous cache build ends."""
+    init_pool()
+    dataset = f"test_publish_htmx_{uuid.uuid4().hex[:8]}"
+    execute("INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)", (dataset,))
+    run_id, _trace_id = _make_run(scenario=dataset)
+    try:
+        from backend.services import dashboard as dashboard_svc
+
+        calls = []
+        monkeypatch.setattr(
+            dashboard_svc,
+            "invalidate_dashboard_cache",
+            lambda name=None: calls.append(("invalidate", name)),
+        )
+        monkeypatch.setattr(
+            dashboard_svc,
+            "refresh_dashboard_cache",
+            lambda name: calls.append(("refresh", name)) or "updated",
+        )
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        page = c.get(f"/runs/{run_id}")
+        assert f'hx-post="/runs/{run_id}/approve"' in page.text
+        assert 'data-loading-label="Building Dashboard Cache' in page.text
+
+        response = c.post(
+            f"/runs/{run_id}/approve",
+            headers={"HX-Request": "true"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+        assert response.headers["hx-redirect"] == f"/runs/{run_id}"
+        assert ("invalidate", dataset) in calls
+        assert calls[-1] == ("refresh", dataset)
+    finally:
+        runs_svc.delete_run(run_id)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_dashboard_has_no_initializing_banner(monkeypatch):
+    """The synchronous publish flow makes the cache-building banner obsolete."""
+    init_pool()
+    from backend.services import dashboard as dashboard_svc
+    from backend.services import publications as pub_svc
+
+    dataset = f"test_dashboard_banner_{uuid.uuid4().hex[:8]}"
+    execute("INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)", (dataset,))
+    try:
+        monkeypatch.setattr(
+            dashboard_svc,
+            "get_dashboard_data_cached",
+            lambda name: {
+                "dataset": name,
+                "dataset_name": name,
+                "scenario": name,
+                "published_run": None,
+                "available": False,
+                "alerts": [],
+                "alert_count": 0,
+                "kpis": [],
+                "charts": {},
+                "chart_messages": {},
+                "cache_fresh_at": None,
+                "cache_empty": True,
+            },
+        )
+        monkeypatch.setattr(
+            pub_svc,
+            "get_published_run",
+            lambda name: {"id": 1},
+        )
+
+        c = TestClient(app)
+        response = c.get(f"/?scenario={dataset}")
+        assert response.status_code == 200
+        assert "Initializing dashboard data" not in response.text
+        assert "Refresh KPIs now" in response.text
+    finally:
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))

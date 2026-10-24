@@ -16,19 +16,15 @@
 </div>
 {% endif %}
 
-{% if not available %}
+{% if not available and not has_published_data %}
 <div class="banner banner-info">
-  {% if has_published_data %}
-    Initializing dashboard data for this dataset. Please refresh in a few seconds.
-  {% else %}
-    No published data for this dataset yet. Publish a validation run to view the dashboard.
-  {% endif %}
+  No published data for this dataset yet. Publish a validation run to view the dashboard.
 </div>
-{% if has_published_data %}
+{% endif %}
+{% if not available and has_published_data %}
 <form method="post" action="/dashboard/refresh" style="margin-top:8px">
   <button type="submit">Refresh KPIs now</button>
 </form>
-{% endif %}
 {% endif %}
 
 {% if kpi_cache and kpi_cache.refreshed_at %}

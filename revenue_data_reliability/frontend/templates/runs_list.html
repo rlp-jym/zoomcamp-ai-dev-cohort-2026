@@ -18,8 +18,8 @@
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Generate New Dataset</h2>
   <p>
-    Registers a pre-generated dataset instantly. Available seeds:
-    <strong>101, 102, 103</strong>.
+    Select a pre-generated dataset to load into the environment. Available
+    seeds: <strong>101, 102, 103</strong>.
   </p>
   <form hx-post="/api/generate-dataset" hx-target="#generate-result" hx-swap="innerHTML">
     <label>Seed: <input type="number" name="seed" value="101" required></label>

@@ -43,8 +43,13 @@
   Cannot publish: {{ issue_counts.open }} open data issues remain. Resolve or Dismiss them in the Data Issues page first.
 </div>
 {% endif %}
-<form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;">
-  <button class="btn" type="submit" {% if publish_blocked or persona.id != "manager" %}disabled{% endif %}>Approve Go-Live</button>
+<form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;"
+      data-approve-form
+      hx-post="/runs/{{ run.id }}/approve"
+      hx-swap="none">
+  <button class="btn" type="submit"
+          data-loading-label="Building Dashboard Cache…"
+          {% if publish_blocked or persona.id != "manager" %}disabled{% endif %}>Approve Go-Live</button>
   {% if publish_blocked %}
     <span style="color:#842029;font-size:0.8rem;">Blocked by open data issues</span>
   {% elif persona.id == "manager" %}
@@ -81,4 +86,32 @@
 {% set anchor_id = anchor_id %}
 {% set messages = messages %}
 {% include "partials/thread.html" %}
+<script>
+  (function () {
+    function approveForm(event) {
+      var source = event.detail && event.detail.elt;
+      return source && source.closest ? source.closest("[data-approve-form]") : null;
+    }
+    document.addEventListener("htmx:beforeRequest", function (event) {
+      var form = approveForm(event);
+      if (!form) return;
+      var button = form.querySelector("button[type='submit']");
+      if (!button) return;
+      button.dataset.originalLabel = button.textContent;
+      button.textContent = button.dataset.loadingLabel || "Building Dashboard Cache…";
+      button.disabled = true;
+    });
+    document.addEventListener("htmx:afterRequest", function (event) {
+      var form = approveForm(event);
+      if (!form) return;
+      var button = form.querySelector("button[type='submit']");
+      if (!button || !button.dataset.originalLabel) return;
+      // Successful approvals navigate away via HX-Redirect; restore only on error.
+      if (!event.detail.successful) {
+        button.textContent = button.dataset.originalLabel;
+        button.disabled = false;
+      }
+    });
+  })();
+</script>
 {% endblock %}

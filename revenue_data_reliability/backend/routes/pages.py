@@ -8,7 +8,7 @@ import threading
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from backend.config import settings
 from backend.db import execute, fetch_one
@@ -612,7 +612,12 @@ async def approve_run(request: Request, run_id: int):
             "published_by": persona["id"],
         },
     )
-    return RedirectResponse(url=f"/runs/{run_id}", status_code=303)
+    target = f"/runs/{run_id}"
+    if request.headers.get("HX-Request") == "true":
+        # HTMX keeps the button in its loading state until this response
+        # arrives; HX-Redirect then performs a full navigation to the run.
+        return Response(status_code=200, headers={"HX-Redirect": target})
+    return RedirectResponse(url=target, status_code=303)
 
 
 @router.post("/runs/{run_id}/reject")
