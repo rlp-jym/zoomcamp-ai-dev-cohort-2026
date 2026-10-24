@@ -121,11 +121,8 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS error_message TEXT;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
 
--- Reattach legacy orphaned runs to a real dataset so their exceptions remain
--- reachable. Prefer the oldest dataset; create baseline_run only when empty.
-INSERT INTO datasets (name, status, seed, table_count)
-SELECT 'baseline_run', 'registered', 9, 16
-WHERE NOT EXISTS (SELECT 1 FROM datasets);
+-- Attach legacy orphaned runs to a real dataset when one exists. No dataset
+-- is created at boot: the reviewer loads a pre-generated dataset first.
 UPDATE runs
 SET dataset_name = (SELECT name FROM datasets ORDER BY created_at, name LIMIT 1)
 WHERE dataset_name IS NULL;

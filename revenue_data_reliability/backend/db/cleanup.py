@@ -1,16 +1,18 @@
-"""One-time database cleanup for the retired baseline dataset.
+"""One-time database cleanup for loaded datasets.
 
-Deletes a dataset row (``baseline_run`` by default) together with every row
-derived from its validation runs: exceptions, discussions/messages,
-quarantines, publications, approvals, alerts, and telemetry.
+``cleanup_dataset`` deletes one dataset row together with every row derived
+from its validation runs. ``cleanup_all`` clears every loaded dataset and
+restarts the run id sequence so the reviewer starts from an empty environment.
 
 S3/Filebase is intentionally untouched. Each live dataset owns its own
 ``datasets.s3_prefix``; this script never touches any Parquet object.
 
 Usage (dry run by default)::
 
-    python -m backend.db.cleanup
-    python -m backend.db.cleanup --apply
+    python -m backend.db.cleanup                # inspect the baseline dataset
+    python -m backend.db.cleanup --apply        # delete the baseline dataset
+    python -m backend.db.cleanup --all          # inspect every dataset
+    python -m backend.db.cleanup --all --apply  # clean slate
 """
 
 from __future__ import annotations
@@ -22,6 +24,28 @@ from dataclasses import asdict, dataclass
 from backend.db.connection import close_pool, get_connection, init_pool
 
 BASELINE_DATASET = "baseline_run"
+
+# Child tables first; ``TRUNCATE ... CASCADE`` also clears any table that
+# references these rows. Personas and rules are configuration, not data.
+CLEAN_SLATE_TABLES = (
+    "messages",
+    "discussions",
+    "approvals",
+    "quarantines",
+    "validations",
+    "publications",
+    "reconciliations",
+    "exceptions",
+    "alerts",
+    "agent_actions",
+    "otel_spans",
+    "otel_logs",
+    "otel_metrics",
+    "dashboard_cache",
+    "runs",
+    "datasets",
+    "analysis_scenarios",
+)
 
 _ANCHOR_PREDICATE = """
     (
@@ -210,12 +234,50 @@ def cleanup_dataset(dataset_name: str = BASELINE_DATASET, apply: bool = False) -
     return asdict(CleanupSummary(**counts))
 
 
+def cleanup_all(apply: bool = False) -> dict:
+    """Remove every loaded dataset and reset ``runs.run_id`` to 1.
+
+    Returns per-table row counts. When ``apply`` is false the counts are
+    read inside a transaction that is rolled back, so the database is left
+    untouched.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            counts = {
+                table: _count(cur, f"SELECT COUNT(*) FROM {table}")
+                for table in CLEAN_SLATE_TABLES
+            }
+            if apply:
+                cur.execute(
+                    "TRUNCATE TABLE "
+                    + ", ".join(CLEAN_SLATE_TABLES)
+                    + " RESTART IDENTITY CASCADE"
+                )
+                cur.execute("ALTER SEQUENCE runs_run_id_seq RESTART WITH 1")
+
+        if apply:
+            conn.commit()
+        else:
+            conn.rollback()
+
+    return {
+        "applied": apply,
+        "counts": counts,
+        "runs_sequence_reset": apply,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dataset",
         default=BASELINE_DATASET,
         help=f"Dataset to remove (default: {BASELINE_DATASET})",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Remove every dataset and restart the runs sequence at 1.",
     )
     parser.add_argument(
         "--apply",
@@ -226,7 +288,10 @@ def main(argv: list[str] | None = None) -> int:
 
     init_pool()
     try:
-        summary = cleanup_dataset(args.dataset, apply=args.apply)
+        if args.all:
+            summary = cleanup_all(apply=args.apply)
+        else:
+            summary = cleanup_dataset(args.dataset, apply=args.apply)
     finally:
         close_pool()
 

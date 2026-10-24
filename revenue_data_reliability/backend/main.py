@@ -20,7 +20,6 @@ from backend.db import (
     seed,
 )
 from backend.routes import debug, pages, personas, scenarios, threads
-from backend.services.backfill import trigger_backfill
 from backend.services.scheduler import shutdown_scheduler, start_scheduler
 from backend.storage import init_duckdb
 from backend.storage.scenario_cache import ensure_local_scenario, scenario_s3_prefix
@@ -67,12 +66,9 @@ async def lifespan(app: FastAPI):
                 cur.execute("SELECT COUNT(*) FROM datasets")
                 count = cur.fetchone()[0]
         if count == 0:
-            trigger_backfill()
-            # Fresh/empty databases still get a bootstrapped baseline; once
-            # generated datasets exist, the retired baseline is never rebuilt.
-            from backend.services import scenarios as scen_svc
-
-            scen_svc.ensure_baseline_dataset()
+            # Clean slate: boot never registers or generates a dataset. The
+            # reviewer must use "Load Dataset" on the Validation page.
+            logger.info("No datasets registered; waiting for a reviewer to load one.")
         ensure_baseline_fixture()
         from backend.services import runs as runs_svc
         failed = runs_svc.sweep_stale_runs(0)

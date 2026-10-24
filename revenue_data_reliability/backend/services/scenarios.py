@@ -50,7 +50,11 @@ def _fmt_dt(value):
 def list_datasets():
     rows = fetch_all(
         "SELECT name, status, seed, table_count, manifest, file_hashes, source_dataset, "
-        "s3_prefix, years_to_backtrack, created_at "
+        "s3_prefix, years_to_backtrack, created_at, "
+        "(SELECT r.run_id FROM runs r "
+        " WHERE r.dataset_name = datasets.name AND r.status = 'completed' "
+        " ORDER BY r.finished_at DESC NULLS LAST, r.run_id DESC LIMIT 1) "
+        "AS completed_run_id "
         "FROM datasets ORDER BY created_at DESC, name"
     )
     out = []
@@ -68,6 +72,7 @@ def list_datasets():
                 "source_scenario": r.get("source_dataset") or r["name"],
                 "s3_prefix": r.get("s3_prefix") or f"scenarios/{r['name']}/",
                 "years_to_backtrack": r.get("years_to_backtrack"),
+                "completed_run_id": r.get("completed_run_id"),
             }
         )
     return out
