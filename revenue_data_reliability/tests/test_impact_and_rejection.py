@@ -103,47 +103,19 @@ def test_financial_impact_agent_persists_exception_impact(monkeypatch):
         runs_svc.delete_run(run_id)
 
 
-def test_manager_rejection_requires_reason_and_triggers_de(monkeypatch):
+def test_reject_route_is_removed():
     init_pool()
     run_id, trace_id = _make_run()
     try:
         exception_id = _make_exception(run_id, trace_id, status="awaiting_approval")
-        execute(
-            "UPDATE exceptions SET remediation_attempts = 1 WHERE exception_id = %s",
-            (exception_id,),
-        )
-
-        from backend.teams import de as de_team
-
-        monkeypatch.setattr(
-            de_team.llm_client,
-            "call_llm",
-            lambda *a, **k: "Revised proposal addressing: Missed rows.",
-        )
-
         c = TestClient(app)
         c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
-
-        missing = c.post(f"/exceptions/{exception_id}/reject", data={"reason": ""})
-        assert missing.status_code == 400
-
-        response = c.post(
-            f"/exceptions/{exception_id}/reject",
-            data={"reason": "Missed rows"},
-            follow_redirects=False,
-        )
-        assert response.status_code == 303
-
-        updated = exc_svc.get_exception(exception_id)
-        assert updated["status"] == "awaiting_approval"
-        assert updated["remediation_attempts"] == 2
-
-        from backend.services import messages
-
-        thread = messages.get_messages("exception", str(exception_id))
-        assert any("Missed rows" in m["content"] for m in thread)
+        response = c.post(f"/exceptions/{exception_id}/reject", data={"reason": "Missed rows"})
+        assert response.status_code == 404
     finally:
         runs_svc.delete_run(run_id)
+
+
 def test_reconciliation_exception_uses_rule_metadata():
     init_pool()
     run_id, trace_id = _make_run()
@@ -307,7 +279,7 @@ def test_request_remediation_triggers_de_for_one_exception(monkeypatch):
         runs_svc.delete_run(run_id)
 
 
-def test_reject_presets_are_rule_specific():
+def test_awaiting_approval_has_only_quarantine_or_dismiss():
     init_pool()
     run_id, trace_id = _make_run()
     try:
@@ -316,9 +288,10 @@ def test_reject_presets_are_rule_specific():
         )
         c = TestClient(app)
         r = c.get(f"/exceptions/{exception_id}")
-        assert "Fix source mapping" in r.text
-        assert "Quarantine affected rows" not in r.text
-        assert "Select an action or type instructions." in r.text
+        assert "Execute Fix (Quarantine)" in r.text
+        assert "Dismiss (False Positive)" in r.text
+        assert "Request Revision" not in r.text
+        assert 'name="reason"' not in r.text
     finally:
         runs_svc.delete_run(run_id)
 
@@ -367,7 +340,7 @@ def test_decision_layout_is_state_driven():
 
         open_page = c.get(f"/exceptions/{exception_id}")
         assert "Request Remediation" in open_page.text
-        assert "Execute Fix (Approve)" not in open_page.text
+        assert "Execute Fix (Quarantine)" not in open_page.text
         assert "Dismiss (False Positive)" not in open_page.text
 
         execute(
@@ -375,9 +348,9 @@ def test_decision_layout_is_state_driven():
             (exception_id,),
         )
         awaiting_page = c.get(f"/exceptions/{exception_id}")
-        assert "Execute Fix (Approve)" in awaiting_page.text
-        assert "Request Revision" in awaiting_page.text
+        assert "Execute Fix (Quarantine)" in awaiting_page.text
         assert "Dismiss (False Positive)" in awaiting_page.text
+        assert "Request Revision" not in awaiting_page.text
         assert ">Approve</button>" not in awaiting_page.text
     finally:
         runs_svc.delete_run(run_id)

@@ -6,8 +6,31 @@ ids captured from the exception details or validation samples).
 """
 
 import json
+from datetime import datetime
 
 from backend.db.connection import fetch_all, fetch_one
+
+
+def _fmt_dt(value):
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return f"{value:%b} {value.day}, {value:%Y, %I:%M %p}"
+    return str(value)
+
+
+def _reason_label(reason_code):
+    if not reason_code:
+        return ""
+    rule_id = str(reason_code).removeprefix("QUARANTINE_")
+    from backend.services.validations import EXCEPTION_TITLES
+
+    if rule_id in EXCEPTION_TITLES:
+        return EXCEPTION_TITLES[rule_id]
+    row = fetch_one("SELECT description FROM rules WHERE rule_id = %s", (rule_id,))
+    if row and row.get("description"):
+        return row["description"]
+    return str(reason_code).replace("_", " ").title()
 
 
 def create_quarantine(run_id, exception_id, reason_code, record_keys, created_by):
@@ -35,9 +58,10 @@ def _to_dict(r):
         "run_id": r["run_id"],
         "exception_id": r["exception_id"],
         "reason_code": r["reason_code"],
+        "reason_label": _reason_label(r["reason_code"]),
         "record_keys": json.loads(r["record_keys"]) if isinstance(r["record_keys"], str) else r["record_keys"],
         "created_by": r["created_by"],
-        "created_at": str(r["created_at"]),
+        "created_at": _fmt_dt(r["created_at"]),
     }
 
 

@@ -93,15 +93,9 @@ class DEAgent(BaseAgent):
             })
         return out
 
-    def propose_remediation(self, exc: dict, trace_id: str, rejection_reason: str | None = None) -> dict:
-        """Generate and post a remediation proposal for a single exception.
-
-        ``rejection_reason`` is set by the Manager rejection loop; the DE
-        agent must address it explicitly in the next proposal.
-        """
+    def propose_remediation(self, exc: dict, trace_id: str) -> dict:
+        """Generate and post a remediation proposal for a single exception."""
         context = self._build_context(exc)
-        if rejection_reason:
-            context["rejection_reason"] = rejection_reason
 
         try:
             skill_text = load_skill("de_remediation_explanation")
@@ -247,9 +241,7 @@ class DEAgent(BaseAgent):
             f"Proposed Action: {action}",
             f"Rule: {rule_id}",
         ]
-        if context.get("rejection_reason"):
-            lines.append(f"Addressed rejection feedback: {context['rejection_reason']}")
-        lines.append("Manager: Approve or Reject with a reason to continue.")
+        lines.append("Manager: Execute Fix (Quarantine) or Dismiss (False Positive).")
         return "\n".join(lines)
 
     def _build_context(self, exc: dict) -> dict:
@@ -303,8 +295,5 @@ class DEAgent(BaseAgent):
             lines.append(
                 f"Reconciliation rows: {json.dumps(context['reconciliation_rows'][:3], default=str)}"
             )
-        if context.get("rejection_reason"):
-            lines.append(f"Manager rejection reason: {context['rejection_reason']}")
-            lines.append("Revise the remediation to address this rejection explicitly.")
         lines.append(f"Playbook steps: {', '.join(context['playbook_steps'])}")
         return "\n".join(lines)

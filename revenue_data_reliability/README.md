@@ -126,13 +126,16 @@ See the "Expected Behavior" section above.
 
 ### Governance Loop (Human-in-the-loop)
 
-The AI proposes; the human decides; the AI iterates on rejection. The DE agent
-posts a remediation proposal, the Manager either approves (issue resolves) or
-rejects with a required reason. On rejection, the DE agent reads the reason and
-submits a new proposal. After three rejected proposals the issue auto-escalates
-to the Director instead of looping indefinitely. The Financial Impact Agent
-attaches a financial narrative to each issue so the human decision is grounded
-in monetary impact.
+The AI proposes; the human decides. The DE agent posts a remediation proposal
+and the Manager either executes the fix or dismisses it as a false positive.
+The Financial Impact Agent attaches a financial narrative to each issue so the
+human decision is grounded in monetary impact.
+
+**Governance constraint:** to maintain data immutability and audit trails, the
+Data Engineer (DE) Agent's only executable action is Quarantine (excluding rows
+from dashboard calculations without altering the raw Parquet files).
+Consequently, the Manager's available decisions are limited to
+"Execute Fix" or "Dismiss (False Positive)".
 
 ## Demo Flow
 

@@ -26,11 +26,7 @@ router = APIRouter()
 
 _reset_lock = threading.Lock()
 
-REJECT_PRESETS = {
-    "VAL_FK_CUSTOMER_EXISTS": ["Fix source mapping"],
-    "VAL_DUPLICATE_INVOICE_LINE": ["Remove duplicates"],
-}
-DEFAULT_REJECT_PRESETS = []
+
 
 
 def _current_persona(request: Request):
@@ -174,14 +170,12 @@ async def exception_detail(request: Request, exc_id: int):
         reconciliation_rows = exc_svc.get_reconciliation_rows_for_exception(exc)
     else:
         sampled = exc_svc.get_sampled_failures_for_exception(exc)
-    reject_presets = REJECT_PRESETS.get(exc.get("rule_id"), DEFAULT_REJECT_PRESETS)
     return templates.TemplateResponse(
         request,
         "exception_detail.html",
         _ctx(request, exception=exc, anchor_type="exception", anchor_id=str(exc_id),
              messages=msgs, sampled_failures=sampled,
-             reconciliation_rows=reconciliation_rows, quarantines=quarantine_rows,
-             reject_presets=reject_presets),
+             reconciliation_rows=reconciliation_rows, quarantines=quarantine_rows),
     )
 
 
@@ -264,83 +258,6 @@ async def approve_exception(request: Request, exc_id: int):
             "status": "resolved",
         },
     )
-
-    return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
-
-
-@router.post("/exceptions/{exc_id}/reject")
-async def reject_exception(request: Request, exc_id: int):
-    """Manager rejects a remediation with a required reason.
-
-    The DE agent reads the reason and posts a new proposal. After three
-    proposals the exception auto-escalates instead of looping forever.
-    """
-    persona = _current_persona(request)
-    if persona["id"] != "manager":
-        raise HTTPException(status_code=403, detail="Only the Manager can reject remediations.")
-
-    form = await request.form()
-    reason = (form.get("reason") or "").strip()
-    if not reason:
-        raise HTTPException(status_code=400, detail="A rejection reason is required.")
-
-    exc = exc_svc.get_exception(exc_id)
-    if not exc:
-        raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] in ("resolved", "escalated", "approved", "dismissed", "rejected"):
-        raise HTTPException(status_code=400, detail="Exception is already closed.")
-
-    trace_id = exc.get("trace_id")
-    attempts = int(exc.get("remediation_attempts") or 0)
-
-    if reason.lower() == "dismiss as false positive":
-        execute(
-            "UPDATE exceptions SET status = 'dismissed', updated_at = now() WHERE exception_id = %s",
-            (exc_id,),
-        )
-        messages.post_message(
-            "exception",
-            str(exc_id),
-            persona,
-            "Remediation dismissed as a false positive. Status: dismissed.",
-            trace_id=trace_id,
-            evidence={"dismissed": True, "reason": reason},
-        )
-        return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
-
-    execute(
-        "UPDATE exceptions SET status = 'in_discussion', updated_at = now() WHERE exception_id = %s",
-        (exc_id,),
-    )
-    messages.post_message(
-        "exception",
-        str(exc_id),
-        persona,
-        f"Revision requested (attempt {attempts}/3): {reason}",
-        trace_id=trace_id,
-        evidence={"revision_requested": True, "reason": reason, "attempt": attempts},
-    )
-
-    if attempts >= 3:
-        execute(
-            "UPDATE exceptions SET status = 'escalated', updated_at = now() WHERE exception_id = %s",
-            (exc_id,),
-        )
-        messages.post_message(
-            "exception",
-            str(exc_id),
-            persona,
-            "Auto-escalated after 3 revision attempts. Director review required.",
-            trace_id=trace_id,
-            evidence={"escalated": True, "attempts": attempts},
-        )
-    else:
-        de_agent = DEAgent()
-        de_agent.propose_remediation(
-            {**exc, "status": "in_discussion"},
-            trace_id,
-            rejection_reason=reason,
-        )
 
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
