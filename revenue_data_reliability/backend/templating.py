@@ -50,6 +50,16 @@ def human_value(value):
     return text
 
 
+def display_title(value):
+    """Title-case labels while preserving common acronyms such as SMB."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if text.lower() == "smb":
+        return "SMB"
+    return text.replace("_", " ").title()
+
+
 def persona_label(persona_id):
     """Map a raw persona id to its display title."""
     if not persona_id:
@@ -63,3 +73,4 @@ def persona_label(persona_id):
 templates.env.filters["scenario_label"] = scenario_label
 templates.env.filters["persona_label"] = persona_label
 templates.env.filters["human_value"] = human_value
+templates.env.filters["display_title"] = display_title

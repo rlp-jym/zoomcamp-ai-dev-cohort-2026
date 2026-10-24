@@ -166,20 +166,18 @@
       <thead>
         <tr>
           <th>Rank</th><th>Group</th><th>Name</th>
-          <th>Total ($M)</th><th>Total (%)</th><th>Group (%)</th>
-          <th>12-Mo Avg ($M)</th><th>Latest vs Avg (%)</th>
+          <th>Total (%)</th><th>Group (%)</th>
+          <th>Latest vs 12-Mo Avg (%)</th>
         </tr>
       </thead>
       <tbody>
         {% for row in top_products %}
         <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
           <td>{{ row.rank }}</td>
-          <td>{{ row.group }}</td>
-          <td>{{ row.name }}</td>
-          <td>${{ "%.2f"|format(row.total_revenue / 1000000) }}M</td>
+          <td>{{ row.group | display_title }}</td>
+          <td>{{ row.name | display_title }}</td>
           <td>{{ "%.1f"|format(row.total_pct) }}%</td>
           <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
-          <td>${{ "%.2f"|format(row.avg_monthly_revenue / 1000000) }}M</td>
           <td>
             <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
               {{ "%.1f"|format(row.volatility_pct) }}%
@@ -187,7 +185,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="empty">No product revenue data.</td></tr>
+        <tr><td colspan="6" class="empty">No product revenue data.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -198,20 +196,18 @@
       <thead>
         <tr>
           <th>Rank</th><th>Group</th><th>Name</th>
-          <th>Total ($M)</th><th>Total (%)</th><th>Group (%)</th>
-          <th>12-Mo Avg ($M)</th><th>Latest vs Avg (%)</th>
+          <th>Total (%)</th><th>Group (%)</th>
+          <th>Latest vs 12-Mo Avg (%)</th>
         </tr>
       </thead>
       <tbody>
         {% for row in top_clients %}
         <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
           <td>{{ row.rank }}</td>
-          <td>{{ row.group }}</td>
-          <td>{{ row.name }}</td>
-          <td>${{ "%.2f"|format(row.total_revenue / 1000000) }}M</td>
+          <td>{{ row.group | display_title }}</td>
+          <td>{{ row.name | display_title }}</td>
           <td>{{ "%.1f"|format(row.total_pct) }}%</td>
           <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
-          <td>${{ "%.2f"|format(row.avg_monthly_revenue / 1000000) }}M</td>
           <td>
             <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
               {{ "%.1f"|format(row.volatility_pct) }}%
@@ -219,7 +215,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="empty">No client revenue data.</td></tr>
+        <tr><td colspan="6" class="empty">No client revenue data.</td></tr>
         {% endfor %}
       </tbody>
     </table>
