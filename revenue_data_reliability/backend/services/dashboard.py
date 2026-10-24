@@ -345,9 +345,11 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                 FROM read_parquet('{_uri(scenario, "invoices")}')
             ),
             bil AS MATERIALIZED ({pubsql})
-            SELECT il.item_id AS id,
-                   COALESCE(i.item_description, i.item_sku, 'Unknown') AS name,
-                   COALESCE(i.category, 'Unknown') AS grp,
+            SELECT COALESCE(i.category, 'Unknown') AS grp,
+                   CASE
+                       WHEN i.abc_class IS NULL OR i.abc_class = '' THEN 'Unknown'
+                       ELSE 'Class ' || i.abc_class
+                   END AS name,
                    SUM(il.line_subtotal) AS total_revenue,
                    SUM(CASE WHEN inv.ym = {latest_sql}
                             THEN il.line_subtotal ELSE 0 END) AS latest_revenue
@@ -356,7 +358,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             LEFT JOIN read_parquet('{_uri(scenario, "items")}') i
                    ON il.item_id = i.item_id
             WHERE inv.ym IN ({month_sql})
-            GROUP BY 1, 2, 3
+            GROUP BY 1, 2
         """)
         client_rows = query_rows(f"""
             WITH inv AS (
@@ -365,9 +367,13 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                 FROM read_parquet('{_uri(scenario, "invoices")}')
             ),
             bil AS MATERIALIZED ({pubsql})
-            SELECT inv.customer_id AS id,
-                   COALESCE(c.customer_name, 'Unknown') AS name,
-                   COALESCE(c.segment, 'Unknown') AS grp,
+            SELECT COALESCE(c.segment, 'Unknown') AS grp,
+                   CASE lower(COALESCE(c.activity_tier, ''))
+                       WHEN 'high' THEN 'High Activity'
+                       WHEN 'med' THEN 'Medium Activity'
+                       WHEN 'low' THEN 'Low Activity'
+                       ELSE COALESCE(c.activity_tier, 'Unknown')
+                   END AS name,
                    SUM(il.line_subtotal) AS total_revenue,
                    SUM(CASE WHEN inv.ym = {latest_sql}
                             THEN il.line_subtotal ELSE 0 END) AS latest_revenue
@@ -376,7 +382,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             LEFT JOIN read_parquet('{_uri(scenario, "customers")}') c
                    ON inv.customer_id = c.customer_id
             WHERE inv.ym IN ({month_sql})
-            GROUP BY 1, 2, 3
+            GROUP BY 1, 2
         """)
         top_products = _top_movers(product_rows, len(months_12))
         top_clients = _top_movers(client_rows, len(months_12))
