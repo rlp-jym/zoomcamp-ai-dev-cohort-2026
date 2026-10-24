@@ -9,7 +9,7 @@
 {% endif %}
 {% if exception.status == 'awaiting_approval' %}
 <div class="banner banner-warn">
-  The DE Agent has proposed a quarantine remediation. Please review and Execute Fix or Dismiss as a false positive.
+  This data issue is awaiting a decision. Execute the quarantine fix or dismiss it as a false positive.
 </div>
 {% endif %}
 <dl class="meta meta-grid">
@@ -28,17 +28,7 @@
 <p class="page-description"><strong>Reconciliation detail:</strong> {{ exception.details.summary }}</p>
 {% endif %}
 
-{% if exception.status in ["open", "in_discussion"] %}
-<form method="post" action="/exceptions/{{ exception.id }}/request-fix" style="margin:1rem 0;">
-  <button class="btn btn-request" type="submit"
-          {% if persona.id not in ["manager", "de"] %}disabled{% endif %}>Request Remediation</button>
-  {% if persona.id in ["manager", "de"] %}
-    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager/DE</span>
-  {% else %}
-    <span style="color:red;font-size:0.8rem;">Requires Manager or DE</span>
-  {% endif %}
-</form>
-{% elif exception.status == "awaiting_approval" %}
+{% if exception.status in ["open", "awaiting_approval"] %}
 <section class="decision-panel">
   <h2>Decision</h2>
   <form method="post" action="/exceptions/{{ exception.id }}/approve" style="margin:1rem 0;">

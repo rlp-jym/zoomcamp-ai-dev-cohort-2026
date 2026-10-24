@@ -342,9 +342,9 @@ def test_decision_layout_is_state_driven():
         c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
 
         open_page = c.get(f"/exceptions/{exception_id}")
-        assert "Request Remediation" in open_page.text
-        assert "Execute Fix (Quarantine)" not in open_page.text
-        assert "Dismiss (False Positive)" not in open_page.text
+        assert "Request Remediation" not in open_page.text
+        assert "Execute Fix (Quarantine)" in open_page.text
+        assert "Dismiss (False Positive)" in open_page.text
 
         execute(
             "UPDATE exceptions SET status = 'awaiting_approval' WHERE exception_id = %s",
@@ -353,6 +353,7 @@ def test_decision_layout_is_state_driven():
         awaiting_page = c.get(f"/exceptions/{exception_id}")
         assert "Execute Fix (Quarantine)" in awaiting_page.text
         assert "Dismiss (False Positive)" in awaiting_page.text
+        assert "Request Remediation" not in awaiting_page.text
         assert "Request Revision" not in awaiting_page.text
         assert ">Approve</button>" not in awaiting_page.text
     finally:

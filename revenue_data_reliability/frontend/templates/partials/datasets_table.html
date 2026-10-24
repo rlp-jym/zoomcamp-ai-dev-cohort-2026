@@ -14,7 +14,11 @@
         <td>{{ s.size or "—" }}</td>
         <td>
           {% if s.completed_run_id %}
-          <a class="btn" href="/runs/{{ s.completed_run_id }}">View Results</a>
+          <a class="btn"
+             href="/runs/{{ s.completed_run_id }}"
+             hx-get="/runs/{{ s.completed_run_id }}"
+             hx-target="#run-details"
+             hx-swap="innerHTML">View Results</a>
           {% else %}
           <form style="display:inline;" hx-post="/runs" hx-target="#runs-tbody" hx-swap="afterbegin">
             <input type="hidden" name="dataset" value="{{ s.name }}">

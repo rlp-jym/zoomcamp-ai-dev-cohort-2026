@@ -274,7 +274,7 @@ async def approve_exception(request: Request, exc_id: int):
 
 @router.post("/exceptions/{exc_id}/dismiss")
 async def dismiss_exception(request: Request, exc_id: int):
-    """Manager dismisses an awaiting-approval issue as a false positive."""
+    """Manager dismisses an open issue as a false positive."""
     persona = _current_persona(request)
     if persona["id"] != "manager":
         raise HTTPException(status_code=403, detail="Only the Manager can dismiss exceptions.")
@@ -282,10 +282,10 @@ async def dismiss_exception(request: Request, exc_id: int):
     exc = exc_svc.get_exception(exc_id)
     if not exc:
         raise HTTPException(status_code=404, detail="Exception not found.")
-    if exc["status"] != "awaiting_approval":
+    if exc["status"] not in ("open", "awaiting_approval"):
         raise HTTPException(
             status_code=400,
-            detail="Only awaiting-approval exceptions can be dismissed.",
+            detail="Only open or awaiting-approval exceptions can be dismissed.",
         )
 
     execute(
@@ -444,9 +444,14 @@ async def run_detail(request: Request, run_id: int):
     validations = val_svc.list_validations(run_id)
     publication = pub_svc.get_publication_for_run(run_id)
     issue_counts = exc_svc.run_issue_counts(run_id)
+    template = (
+        "partials/run_detail_body.html"
+        if request.headers.get("HX-Request") == "true"
+        else "run_detail.html"
+    )
     return templates.TemplateResponse(
         request,
-        "run_detail.html",
+        template,
         _ctx(request, dataset=dataset, run=run, anchor_type="run", anchor_id=str(run_id),
              messages=msgs, validations=validations, publication=publication,
              issue_counts=issue_counts),
@@ -901,7 +906,9 @@ async def run_status_partial(request: Request, run_id: int):
         }
     elif run.get("status") in ("completed", "failed", "rejected"):
         run["progress_percent"] = 100
-    return templates.TemplateResponse(request, "partials/run_row.html", {"run": run})
+    return templates.TemplateResponse(
+        request, "partials/run_row.html", {"run": run, "poll_result": True}
+    )
 
 
 @router.delete("/runs/{run_id}")

@@ -30,5 +30,11 @@
       Delete
     </button>
     {% endif %}
+    {% if poll_result and run.status in ("completed", "failed", "rejected") %}
+    <span hx-get="/runs/{{ run.id }}"
+          hx-target="#run-details"
+          hx-swap="innerHTML"
+          hx-trigger="load"></span>
+    {% endif %}
   </td>
 </tr>
