@@ -234,6 +234,47 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         m for m in (set(gl_month) | set(billings_month) | set(budget_month))
         if m in set(full_months)
     )[-6:]
+    month_set = set(months)
+
+    # ---- target vs actual bridge (trailing chart window) -------------------
+    # New cache keys only: the existing billings/variance keys stay intact.
+    gl_category_rows = query_rows(f"""
+        SELECT period, item_category, SUM(recognized_revenue_amt) AS amt
+        FROM (
+            SELECT period, account_id, item_category, recognized_revenue_amt,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY period, account_id, item_category
+                       ORDER BY version DESC
+                   ) AS rn
+            FROM read_parquet('{_uri(scenario, "gl_revenue")}')
+            WHERE 1 = 1{customer_filter}
+        )
+        WHERE rn = 1
+        GROUP BY 1, 2
+    """)
+    budget_category_rows = query_rows(f"""
+        SELECT strftime(CAST(period AS DATE), '%Y-%m') AS period,
+               item_category, SUM(budget_revenue_amt) AS amt
+        FROM read_parquet('{_uri(scenario, "budget")}')
+        WHERE 1 = 1{customer_filter}
+        GROUP BY 1, 2
+    """)
+    actual_by_category: dict[str, float] = {}
+    for row in gl_category_rows:
+        if row["period"] in month_set:
+            category = row["item_category"] or "Unknown"
+            actual_by_category[category] = (
+                actual_by_category.get(category, 0.0) + float(row["amt"] or 0.0)
+            )
+    target_by_category: dict[str, float] = {}
+    for row in budget_category_rows:
+        if row["period"] in month_set:
+            category = row["item_category"] or "Unknown"
+            target_by_category[category] = (
+                target_by_category.get(category, 0.0) + float(row["amt"] or 0.0)
+            )
+    target_total = sum(target_by_category.values())
+    actual_total = sum(actual_by_category.values())
 
     gl_total = sum(gl_month.values())
     (
@@ -298,6 +339,15 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                 else SEGMENT_COLORS["known"][idx % len(SEGMENT_COLORS["known"])]
             ),
         })
+
+    data["target_total"] = round(target_total, 2)
+    data["actual_total"] = round(actual_total, 2)
+    data["target_by_category"] = {
+        key: round(value, 2) for key, value in sorted(target_by_category.items())
+    }
+    data["actual_by_category"] = {
+        key: round(value, 2) for key, value in sorted(actual_by_category.items())
+    }
 
     data["charts"] = {
         # One chart carries actuals, billings and target: the General
