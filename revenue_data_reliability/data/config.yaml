@@ -2,7 +2,8 @@ name: demo_run
 seed: 42
 
 timeline:
-  start_month: "2022-01"
+  # The end month is derived at run time: the last completed month before
+  # today. n_months is only used when --years-to-backtrack is not provided.
   n_months: 60
   phases:
     - {name: growth,  months: 24, driver: customer_adds}
@@ -37,6 +38,7 @@ scale:
   customer_segment_weights: [0.15, 0.30, 0.55]
   gl_category_bias_spread: 0.004
   budget_growth_target_by_year:
+    2021: 1.00
     2022: 1.08
     2023: 1.05
     2024: 1.05

@@ -2,12 +2,34 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 
 def _parse_ym(s: str) -> tuple[int, int]:
     y, m = s.split("-")
     return int(y), int(m)
+
+
+def previous_month_end(today: date | None = None) -> date:
+    """Last day of the month before *today* (defaults to the current date)."""
+    today = today or date.today()
+    return date(today.year, today.month, 1) - timedelta(days=1)
+
+
+def month_span_ending_previous_month(
+    n_months: int, today: date | None = None
+) -> tuple[str, str]:
+    """Return ``(start_month, end_month)`` for *n_months* ending last month."""
+    n_months = int(n_months)
+    if n_months < 1:
+        raise ValueError("n_months must be >= 1")
+    end = previous_month_end(today)
+    end_index = end.year * 12 + (end.month - 1)
+    start_year, start_month0 = divmod(end_index - (n_months - 1), 12)
+    return (
+        f"{start_year:04d}-{start_month0 + 1:02d}",
+        f"{end.year:04d}-{end.month:02d}",
+    )
 
 
 def month_list(start_month: str, n_months: int) -> list[str]:

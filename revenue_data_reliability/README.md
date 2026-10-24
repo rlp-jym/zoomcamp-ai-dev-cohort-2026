@@ -44,7 +44,8 @@ Implemented highlights:
   they are authored under Scenarios.
 - Scenarios: repurposed as a forward-looking sensitivity workspace bound to the
   latest published run (title, outcome/projection, assessment, thread).
-- Synthetic data window 2022-01 to 2026-12 (60 months), reproducible per seed.
+- Synthetic data window spans 60 months and ends at the last completed month,
+  reproducible per seed.
 - Terminology in the UI: Runs → Validation, Exceptions → Data Issues,
   Budget → Target. Nav order: Dashboard, Scenarios, Validation, Data Issues,
   Audit, Observability.

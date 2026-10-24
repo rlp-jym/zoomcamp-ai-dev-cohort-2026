@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import argparse
 import os
+from datetime import date
 
 import numpy as np
 from config import load_config
 from dimensions import generate_dimensions
-from timeline import month_list, monthly_order_counts
+from timeline import month_list, month_span_ending_previous_month, monthly_order_counts
 
 
 def main() -> None:
@@ -39,9 +40,11 @@ def main() -> None:
         env_y = os.getenv("YEARS_TO_BACKTRACK")
         if env_y not in (None, ""):
             y = int(env_y)
-    if y is not None:
-        cfg["timeline"]["start_month"] = f"{2026 - int(y):04d}-01"
-        cfg["timeline"]["n_months"] = (int(y) + 1) * 12
+    n_months = int(y) * 12 if y is not None else int(cfg["timeline"]["n_months"])
+    start_month, end_month = month_span_ending_previous_month(n_months, date.today())
+    cfg["timeline"]["start_month"] = start_month
+    cfg["timeline"]["n_months"] = n_months
+    print(f"timeline start={start_month} end={end_month} months={n_months}")
     rng = np.random.default_rng(int(cfg["seed"]))
 
     counts = monthly_order_counts(cfg)
