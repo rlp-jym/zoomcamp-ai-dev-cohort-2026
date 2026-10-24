@@ -97,6 +97,12 @@ h1 { margin-top: 0; }
 .chart-card h2 { margin-top: 0; font-size: 1rem; }
 .chart-box { position: relative; height: 300px; }
 .chart-card canvas { width: 100% !important; height: 100% !important; }
+.movers-table { font-size: 0.8rem; }
+.movers-table th, .movers-table td { padding: 0.3rem 0.35rem; vertical-align: top; }
+.row-rest { background: #f4f5f7; font-weight: 600; }
+.row-total { font-weight: 700; border-top: 2px solid #ccc; }
+.metric-positive { color: #1a7f37; }
+.metric-negative { color: #cf222e; }
 .chart-desc { font-size: 0.8rem; color: #666; margin: 0.4rem 0 0; }
 .charts-grid .span-2 { grid-column: 1 / -1; }
 .open-exceptions-stat { display: flex; align-items: baseline; gap: 0.6rem; background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 0.6rem 1rem; margin: 1.5rem 0 0; }

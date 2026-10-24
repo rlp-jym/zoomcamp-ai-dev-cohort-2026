@@ -118,6 +118,81 @@ def _pct_delta(current, previous) -> str | None:
     return f"{(current - previous) / previous * 100:+.1f}%"
 
 
+def _top_movers(rows: list[dict], divisor: int = 12) -> list[dict]:
+    """Build ranked Top-5 + Rest + Total rows from grouped revenue rows."""
+    divisor = max(int(divisor), 1)
+    normalized = []
+    for row in rows:
+        total = float(row.get("total_revenue") or 0.0)
+        if total <= 0:
+            continue
+        normalized.append({
+            "name": row.get("name") or "Unknown",
+            "group": row.get("grp") or "Unknown",
+            "total": total,
+            "latest": float(row.get("latest_revenue") or 0.0),
+        })
+    normalized.sort(key=lambda row: -row["total"])
+
+    total_revenue = sum(row["total"] for row in normalized)
+    total_latest = sum(row["latest"] for row in normalized)
+    group_totals: dict[str, float] = {}
+    for row in normalized:
+        group_totals[row["group"]] = group_totals.get(row["group"], 0.0) + row["total"]
+
+    def _metrics(row, rank):
+        average = row["total"] / divisor
+        volatility = (row["latest"] - average) / average * 100 if average else 0.0
+        return {
+            "rank": rank,
+            "group": row["group"],
+            "name": row["name"],
+            "total_revenue": row["total"],
+            "total_pct": row["total"] / total_revenue * 100 if total_revenue else 0.0,
+            "group_pct": (
+                row["total"] / group_totals[row["group"]] * 100
+                if group_totals.get(row["group"]) else 0.0
+            ),
+            "avg_monthly_revenue": average,
+            "volatility_pct": volatility,
+        }
+
+    out = [_metrics(row, rank) for rank, row in enumerate(normalized[:5], start=1)]
+    top_total = sum(row["total"] for row in normalized[:5])
+    top_latest = sum(row["latest"] for row in normalized[:5])
+    rest_total = total_revenue - top_total
+    rest_latest = total_latest - top_latest
+    rest_avg = rest_total / divisor
+    out.append({
+        "rank": "—",
+        "group": "—",
+        "name": "Rest",
+        "total_revenue": rest_total,
+        "total_pct": rest_total / total_revenue * 100 if total_revenue else 0.0,
+        "group_pct": None,
+        "avg_monthly_revenue": rest_avg,
+        "volatility_pct": (
+            (rest_latest - rest_avg) / rest_avg * 100 if rest_avg else 0.0
+        ),
+        "row_class": "row-rest",
+    })
+    total_avg = total_revenue / divisor
+    out.append({
+        "rank": "—",
+        "group": "—",
+        "name": "Total",
+        "total_revenue": total_revenue,
+        "total_pct": 100.0 if total_revenue else 0.0,
+        "group_pct": None,
+        "avg_monthly_revenue": total_avg,
+        "volatility_pct": (
+            (total_latest - total_avg) / total_avg * 100 if total_avg else 0.0
+        ),
+        "row_class": "row-total",
+    })
+    return out
+
+
 def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     """All dashboard payload: open-exceptions stat, 3 charts, attainment card, alert badge."""
     from backend.storage.duckdb_client import query_rows
@@ -257,6 +332,54 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     )[-12:]
     month_set = set(months)
     month_set_12 = set(months_12)
+
+    top_products: list[dict] = []
+    top_clients: list[dict] = []
+    if months_12:
+        month_sql = ", ".join(f"'{month}'" for month in months_12)
+        latest_sql = f"'{months_12[-1]}'"
+        product_rows = query_rows(f"""
+            WITH inv AS (
+                SELECT invoice_id, customer_id,
+                       strftime(invoice_date, '%Y-%m') AS ym
+                FROM read_parquet('{_uri(scenario, "invoices")}')
+            ),
+            bil AS MATERIALIZED ({pubsql})
+            SELECT il.item_id AS id,
+                   COALESCE(i.item_description, i.item_sku, 'Unknown') AS name,
+                   COALESCE(i.category, 'Unknown') AS grp,
+                   SUM(il.line_subtotal) AS total_revenue,
+                   SUM(CASE WHEN inv.ym = {latest_sql}
+                            THEN il.line_subtotal ELSE 0 END) AS latest_revenue
+            FROM bil il
+            JOIN inv ON il.invoice_id = inv.invoice_id
+            LEFT JOIN read_parquet('{_uri(scenario, "items")}') i
+                   ON il.item_id = i.item_id
+            WHERE inv.ym IN ({month_sql})
+            GROUP BY 1, 2, 3
+        """)
+        client_rows = query_rows(f"""
+            WITH inv AS (
+                SELECT invoice_id, customer_id,
+                       strftime(invoice_date, '%Y-%m') AS ym
+                FROM read_parquet('{_uri(scenario, "invoices")}')
+            ),
+            bil AS MATERIALIZED ({pubsql})
+            SELECT inv.customer_id AS id,
+                   COALESCE(c.customer_name, 'Unknown') AS name,
+                   COALESCE(c.segment, 'Unknown') AS grp,
+                   SUM(il.line_subtotal) AS total_revenue,
+                   SUM(CASE WHEN inv.ym = {latest_sql}
+                            THEN il.line_subtotal ELSE 0 END) AS latest_revenue
+            FROM bil il
+            JOIN inv ON il.invoice_id = inv.invoice_id
+            LEFT JOIN read_parquet('{_uri(scenario, "customers")}') c
+                   ON inv.customer_id = c.customer_id
+            WHERE inv.ym IN ({month_sql})
+            GROUP BY 1, 2, 3
+        """)
+        top_products = _top_movers(product_rows, len(months_12))
+        top_clients = _top_movers(client_rows, len(months_12))
 
     # ---- target vs actual bridge (trailing chart window) -------------------
     # New cache keys only: the existing billings/variance keys stay intact.
@@ -399,6 +522,8 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     }
     data["target_by_segment"] = target_by_segment
     data["actual_by_segment"] = actual_by_segment
+    data["top_products"] = top_products
+    data["top_clients"] = top_clients
     data["revenue_by_category_monthly"] = revenue_by_category_monthly
     data["billings_by_segment_monthly"] = {
         month: {
