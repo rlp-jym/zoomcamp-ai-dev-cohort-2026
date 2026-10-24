@@ -3,7 +3,9 @@
     {% for m in messages %}
       <div class="message {% if m.is_agent %}agent{% endif %}">
         <div class="message-meta">
-          <span class="badge badge-{{ 'agent' if m.is_agent else 'human' }}">{{ m.persona_title }}</span>
+          {% set persona_id = m.persona_id or ('agent' if m.is_agent else 'human') %}
+          {% set badge_persona = 'fia' if persona_id == 'fa' else persona_id %}
+          <span class="badge badge-{{ badge_persona }}">{{ m.persona_title }}</span>
           <span class="ts">{{ m.created_at }}</span>
           <button class="btn-danger btn-sm"
                   style="font-size:0.75rem;padding:0.1rem 0.4rem;"

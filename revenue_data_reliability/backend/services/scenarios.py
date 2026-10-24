@@ -211,7 +211,11 @@ def get_dataset(name):
 
 
 def delete_dataset(name):
-    execute("DELETE FROM datasets WHERE name = %s", (name,))
+    # Runs are FK-restricted, and discussions are polymorphic (anchor_id),
+    # so delete the run-derived rows and threads explicitly first.
+    from backend.db.cleanup import cleanup_dataset
+
+    cleanup_dataset(name, apply=True)
 
 
 def register_dataset(payload):

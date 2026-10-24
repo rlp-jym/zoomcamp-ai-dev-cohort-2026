@@ -196,6 +196,9 @@ CREATE TABLE IF NOT EXISTS publications (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Discussions are polymorphic (anchor_type/anchor_id), so runs and datasets
+-- cannot own them through a FK. Application deletes remove discussions
+-- explicitly; messages cascade from discussions via the FK below.
 CREATE TABLE IF NOT EXISTS discussions (
     discussion_id  SERIAL PRIMARY KEY,
     anchor_type    TEXT NOT NULL CHECK (anchor_type IN ('run', 'exception', 'analysis')),
