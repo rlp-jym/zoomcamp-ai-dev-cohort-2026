@@ -43,12 +43,12 @@
   <label>Source Discussion
     <select name="source_discussion" style="width:100%; margin:0.25rem 0 0.75rem;">
       <option value="">None</option>
-      <option value="analysis:chart-revenue-plan" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
-      <option value="analysis:chart-variance-category" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-variance-category' %}selected{% endif %}>Variances by Category</option>
-      <option value="analysis:chart-growth" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
-      <option value="analysis:chart-category-trend" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-category-trend' %}selected{% endif %}>Revenue Trend by Category</option>
-      <option value="analysis:chart-customer-variance" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-customer-variance' %}selected{% endif %}>Customer Variance Bridge</option>
-      <option value="analysis:chart-segment" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-segment' %}selected{% endif %}>Billings by Customer Segment</option>
+      <option value="chart-revenue-plan" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
+      <option value="chart-variance-category" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-variance-category' %}selected{% endif %}>Category Variance Bridge</option>
+      <option value="chart-customer-variance" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-customer-variance' %}selected{% endif %}>Customer Variance Bridge</option>
+      <option value="chart-growth" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
+      <option value="chart-category-trend" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-category-trend' %}selected{% endif %}>Revenue Trend by Category</option>
+      <option value="chart-segment" {% if scenario.source_anchor_type == 'analysis' and scenario.source_anchor_id == 'chart-segment' %}selected{% endif %}>Revenue Trend by Customer</option>
     </select>
   </label>
   <label>From date <input type="date" name="from_date" style="margin:0.25rem 0 0.75rem;"></label>

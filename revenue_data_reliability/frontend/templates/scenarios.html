@@ -11,10 +11,12 @@
   <label>Source Discussion
     <select name="source_discussion" style="width:100%; margin:0.25rem 0 0.75rem;">
       <option value="">None (no linked thread)</option>
-      <option value="analysis:chart-revenue-plan" {% if src_type == 'analysis' and src_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
-      <option value="analysis:chart-variance-category" {% if src_type == 'analysis' and src_id == 'chart-variance-category' %}selected{% endif %}>Variances by Category</option>
-      <option value="analysis:chart-growth" {% if src_type == 'analysis' and src_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
-      <option value="analysis:chart-segment" {% if src_type == 'analysis' and src_id == 'chart-segment' %}selected{% endif %}>Billings by Customer Segment</option>
+      <option value="chart-revenue-plan" {% if src_type == 'analysis' and src_id == 'chart-revenue-plan' %}selected{% endif %}>Revenue, Billings & Plan</option>
+      <option value="chart-variance-category" {% if src_type == 'analysis' and src_id == 'chart-variance-category' %}selected{% endif %}>Category Variance Bridge</option>
+      <option value="chart-customer-variance" {% if src_type == 'analysis' and src_id == 'chart-customer-variance' %}selected{% endif %}>Customer Variance Bridge</option>
+      <option value="chart-growth" {% if src_type == 'analysis' and src_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
+      <option value="chart-category-trend" {% if src_type == 'analysis' and src_id == 'chart-category-trend' %}selected{% endif %}>Revenue Trend by Category</option>
+      <option value="chart-segment" {% if src_type == 'analysis' and src_id == 'chart-segment' %}selected{% endif %}>Revenue Trend by Customer</option>
     </select>
   </label>
   <label>Import from date <input type="date" name="from_date" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
@@ -39,9 +41,11 @@
       <td>{{ s.open_issues | human_value }}</td>
       <td>
         {% if s.source_anchor_id == 'chart-revenue-plan' %}Revenue, Billings & Plan
-        {% elif s.source_anchor_id == 'chart-variance-category' %}Variances by Category
+        {% elif s.source_anchor_id == 'chart-variance-category' %}Category Variance Bridge
+        {% elif s.source_anchor_id == 'chart-customer-variance' %}Customer Variance Bridge
         {% elif s.source_anchor_id == 'chart-growth' %}Month-over-Month Growth
-        {% elif s.source_anchor_id == 'chart-segment' %}Billings by Customer Segment
+        {% elif s.source_anchor_id == 'chart-category-trend' %}Revenue Trend by Category
+        {% elif s.source_anchor_id == 'chart-segment' %}Revenue Trend by Customer
         {% elif s.source_anchor_id %}{{ s.source_anchor_id }}
         {% else %}—{% endif %}
       </td>
