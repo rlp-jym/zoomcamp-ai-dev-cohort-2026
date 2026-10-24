@@ -34,6 +34,7 @@ CHART_THREAD_IDS = (
     "chart-variance-category",
     "chart-growth",
     "chart-segment",
+    "chart-category-trend",
 )
 
 # Segments the source system recognises. A segment outside this set is a
@@ -175,6 +176,16 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
                 WHERE 1 = 1{customer_filter_plain}
             ) c ON i.customer_id = c.customer_id
             GROUP BY 2
+        UNION ALL
+        SELECT 'segment_month', COALESCE(c.segment, 'Unknown'),
+               CAST(i.ym AS VARCHAR), SUM(bil.line_subtotal)
+            FROM bil
+            JOIN inv i ON bil.invoice_id = i.invoice_id
+            JOIN (
+                SELECT * FROM read_parquet('{_uri(scenario, "customers")}')
+                WHERE 1 = 1{customer_filter_plain}
+            ) c ON i.customer_id = c.customer_id
+            GROUP BY 2, 3
     """)
 
     billings_month = {
@@ -186,6 +197,11 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         for r in rows_a if r["kind"] == "segment"
     ]
     segments.sort(key=lambda s: -s["amount"])
+    segments_month: dict[str, dict[str, float]] = {}
+    for r in rows_a:
+        if r["kind"] == "segment_month" and r["ym"]:
+            label = r["label"] or "Unknown"
+            segments_month.setdefault(label, {})[r["ym"]] = float(r["amt"])
     billings_total = next(
         (float(r["amt"]) for r in rows_a if r["kind"] == "billings_total"), 0.0
     )
@@ -280,6 +296,23 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             )
     target_total = sum(target_by_category.values())
     actual_total = sum(actual_by_category.values())
+
+    # Generated GL and budget rows do not carry a usable segment grain
+    # (GL.customer_id is null and the budget keeps a large unassigned
+    # remainder). Allocate both totals across segments using the trailing
+    # billings mix, which is the only reliable segment-level signal.
+    segment_billings = {
+        label: sum(amount for month, amount in by_month.items() if month in month_set)
+        for label, by_month in segments_month.items()
+    }
+    total_segment_billings = sum(segment_billings.values())
+    target_by_segment: dict[str, float] = {}
+    actual_by_segment: dict[str, float] = {}
+    if total_segment_billings:
+        for label, amount in sorted(segment_billings.items()):
+            share = amount / total_segment_billings
+            target_by_segment[label] = round(target_total * share, 2)
+            actual_by_segment[label] = round(actual_total * share, 2)
     revenue_by_category_monthly: dict[str, dict[str, float]] = {
         month: {} for month in months_12
     }
@@ -363,6 +396,8 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     data["actual_by_category"] = {
         key: round(value, 2) for key, value in sorted(actual_by_category.items())
     }
+    data["target_by_segment"] = target_by_segment
+    data["actual_by_segment"] = actual_by_segment
     data["revenue_by_category_monthly"] = revenue_by_category_monthly
 
     data["charts"] = {

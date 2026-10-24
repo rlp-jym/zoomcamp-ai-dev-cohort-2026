@@ -378,3 +378,8 @@ Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
 - [ ] **31.3 Top Movers (Drill-down):** Add a table showing the Top 5 Customers/Items by variance to prompt specific discussions.
 - [ ] **31.4 DSO / Cash Metrics:** Add Days Sales Outstanding metrics to prompt cash/collections discussions.
 - [ ] **31.5 Target Attainment Context:** Add a historical average marker to the Target Attainment bar to contextualize current performance.
+
+## 32. Audit & Observability Enhancements
+- [ ] **32.1 Audit Dashboard Charts:** Add Chart.js visualizations to `/audit` (e.g., Agent Actions over time, Approvals by persona).
+- [ ] **32.2 Observability Metrics:** Add charts to `/observability` (e.g., Request Latency (p50/p95), Span count over time, Error rate).
+- [ ] **32.3 Trace Visualization Polish:** Ensure the `/observability` span tree is easy to read (indentation, color-coded spans by service).

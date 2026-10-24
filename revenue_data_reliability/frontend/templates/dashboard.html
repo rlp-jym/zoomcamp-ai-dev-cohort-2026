@@ -75,6 +75,9 @@
       {% include "partials/thread.html" %}
     </div>
   </div>
+</div>
+
+<div class="charts-grid">
   <div class="chart-card">
     <h2>Revenue Variance Bridge (Target to Actual)</h2>
     <div class="chart-box">
@@ -90,6 +93,16 @@
     </div>
   </div>
   <div class="chart-card">
+    <h2>Segment Variance Bridge (Target to Actual)</h2>
+    <div class="chart-box">
+      <canvas id="segmentBridgeChart"></canvas>
+    </div>
+    <p class="chart-desc">Target-to-actual bridge by customer segment. Segment totals are allocated from the trailing billings mix.</p>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card span-2">
     <h2>Month-over-Month Growth (Trailing 12 Months)</h2>
     <div class="chart-box">
       <canvas id="growthChart"></canvas>
@@ -112,6 +125,13 @@
       <canvas id="categoryTrendChart"></canvas>
     </div>
     <p class="chart-desc">Stacked General Ledger revenue by item category across the trailing 12 months — shows which categories are driving the revenue trend.</p>
+    <div class="chart-thread">
+      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-category-trend">Start a scenario analysis from this discussion</a></p>
+      {% set anchor_type = "analysis" %}
+      {% set anchor_id = "chart-category-trend" %}
+      {% set messages = (chart_messages or {}).get("chart-category-trend", []) %}
+      {% include "partials/thread.html" %}
+    </div>
   </div>
 </div>
 
@@ -150,6 +170,12 @@
       actual_by_category: {{ (actual_by_category or {}) | tojson }}
     };
     const categoryTrend = {{ (revenue_by_category_monthly or {}) | tojson }};
+    const segmentBridge = {
+      target_total: {{ (target_total or 0) | tojson }},
+      actual_total: {{ (actual_total or 0) | tojson }},
+      target_by_segment: {{ (target_by_segment or {}) | tojson }},
+      actual_by_segment: {{ (actual_by_segment or {}) | tojson }}
+    };
     if (!c || !c.revenue_plan) return;
 
     new Chart(document.getElementById("revenuePlanChart"), {
@@ -179,22 +205,27 @@
       }
     });
 
-    (function renderVarianceBridge() {
+    function renderWaterfall(canvasId, targetValue, actualValue, targets, actuals) {
       const fallbackTargetM = (c.revenue_plan.budget || [])
         .reduce((sum, value) => sum + Number(value || 0), 0);
       const fallbackActualM = (c.revenue_plan.actual || [])
         .reduce((sum, value) => sum + Number(value || 0), 0);
-      const targetM = bridge.target_total
-        ? Number(bridge.target_total) / 1e6 : fallbackTargetM;
-      const actualM = bridge.actual_total
-        ? Number(bridge.actual_total) / 1e6 : fallbackActualM;
-      const targets = bridge.target_by_category || {};
-      const actuals = bridge.actual_by_category || {};
-      const categories = Array.from(new Set([...Object.keys(targets), ...Object.keys(actuals)]));
-      const moves = categories
-        .map(cat => ({
-          label: cat,
-          delta: (Number(actuals[cat] || 0) - Number(targets[cat] || 0)) / 1e6
+      const targetM = targetValue
+        ? Number(targetValue) / 1e6 : fallbackTargetM;
+      const actualM = actualValue
+        ? Number(actualValue) / 1e6 : fallbackActualM;
+      const targetsByKey = targets || {};
+      const actualsByKey = actuals || {};
+      const keys = Array.from(new Set([
+        ...Object.keys(targetsByKey), ...Object.keys(actualsByKey)
+      ]));
+      const labelText = (value) => String(value)
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (ch) => ch.toUpperCase());
+      const moves = keys
+        .map(key => ({
+          label: labelText(key),
+          delta: (Number(actualsByKey[key] || 0) - Number(targetsByKey[key] || 0)) / 1e6
         }))
         .filter(move => Math.abs(move.delta) >= 0.0005)
         .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
@@ -213,7 +244,7 @@
       data.push([0, actualM]);
       colors.push("#1f2a44");
 
-      new Chart(document.getElementById("varianceBridgeChart"), {
+      new Chart(document.getElementById(canvasId), {
         type: "bar",
         data: {
           labels: labels,
@@ -241,7 +272,13 @@
             }
           },
           scales: {
-            x: { ticks: { font: { size: 12 } } },
+            x: {
+              ticks: {
+                font: { size: 12 },
+                autoSkip: true,
+                maxRotation: 45
+              }
+            },
             y: {
               beginAtZero: true,
               suggestedMax: Math.max(targetM, actualM) > 0
@@ -256,7 +293,22 @@
           }
         }
       });
-    })();
+    }
+
+    renderWaterfall(
+      "varianceBridgeChart",
+      bridge.target_total,
+      bridge.actual_total,
+      bridge.target_by_category,
+      bridge.actual_by_category
+    );
+    renderWaterfall(
+      "segmentBridgeChart",
+      segmentBridge.target_total,
+      segmentBridge.actual_total,
+      segmentBridge.target_by_segment,
+      segmentBridge.actual_by_segment
+    );
 
     new Chart(document.getElementById("growthChart"), {
       type: "bar",
