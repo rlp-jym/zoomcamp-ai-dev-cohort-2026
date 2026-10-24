@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from backend.config import settings
 from backend.db import execute, fetch_one
 from backend.db.reset import reset_preserve_baseline
+from backend.services import audit as audit_svc
 from backend.services import exceptions as exc_svc
 from backend.services import messages, stub_data
 from backend.services import publications as pub_svc
@@ -646,19 +647,24 @@ async def reject_run(request: Request, run_id: int):
 
 @router.get("/audit")
 async def audit(request: Request, trace_id: str | None = None):
-    """§20: real agent_actions / approvals / publications, trace filterable."""
+    """Unified chronological ledger of approvals, publications, and actions."""
     from backend.db.connection import fetch_all
 
     clause, params = "", ()
     if trace_id:
         clause = " WHERE trace_id = %s"
         params = (trace_id,)
+    pub_clause, pub_params = "", ()
+    if trace_id:
+        pub_clause = " WHERE r.trace_id = %s"
+        pub_params = (trace_id,)
+
     actions = fetch_all(
         f"""
         SELECT action_id, agent_id, action, anchor_type, anchor_id,
                trace_id, payload, created_at
         FROM agent_actions{clause}
-        ORDER BY action_id DESC
+        ORDER BY created_at DESC NULLS LAST
         LIMIT 200
         """,
         params,
@@ -666,27 +672,78 @@ async def audit(request: Request, trace_id: str | None = None):
     approvals = fetch_all(
         f"""
         SELECT approval_id, target_type, target_id, persona_id, decision,
-               trace_id, created_at
+               comment, trace_id, created_at
         FROM approvals{clause}
-        ORDER BY approval_id DESC
+        ORDER BY created_at DESC NULLS LAST
         LIMIT 100
         """,
         params,
     )
     publications = fetch_all(
-        """
+        f"""
         SELECT p.publication_id, p.run_id, p.published_by, p.pointer,
                p.published_at, r.trace_id
         FROM publications p
-        LEFT JOIN runs r ON r.run_id = p.run_id
-        ORDER BY p.publication_id DESC
+        LEFT JOIN runs r ON r.run_id = p.run_id{pub_clause}
+        ORDER BY p.published_at DESC NULLS LAST
         LIMIT 50
-        """
+        """,
+        pub_params,
     )
+
+    events = []
+    for row in actions:
+        events.append(
+            {
+                "timestamp": audit_svc.format_timestamp(row["created_at"]),
+                "sort": str(row["created_at"] or ""),
+                "actor": row["agent_id"],
+                "action": audit_svc.action_label(row["action"]),
+                "target": audit_svc.target_label(
+                    row["anchor_type"], row["anchor_id"]
+                ),
+                "details": audit_svc.format_payload(row["payload"]),
+                "trace_id": row["trace_id"],
+            }
+        )
+    for row in approvals:
+        events.append(
+            {
+                "timestamp": audit_svc.format_timestamp(row["created_at"]),
+                "sort": str(row["created_at"] or ""),
+                "actor": row["persona_id"],
+                "action": audit_svc.approval_action(
+                    row["decision"], row["target_type"]
+                ),
+                "target": audit_svc.target_label(
+                    row["target_type"], row["target_id"]
+                ),
+                "details": audit_svc.format_payload(
+                    {"comment": row["comment"]} if row["comment"] else None
+                ),
+                "trace_id": row["trace_id"],
+            }
+        )
+    for row in publications:
+        events.append(
+            {
+                "timestamp": audit_svc.format_timestamp(row["published_at"]),
+                "sort": str(row["published_at"] or ""),
+                "actor": row["published_by"],
+                "action": "Published Go-Live",
+                "target": audit_svc.target_label("run", row["run_id"]),
+                "details": audit_svc.format_payload(
+                    {"pointer": row["pointer"]} if row["pointer"] else None
+                ),
+                "trace_id": row["trace_id"],
+            }
+        )
+    events.sort(key=lambda event: event["sort"], reverse=True)
+
     return templates.TemplateResponse(
-        request, "audit.html",
-        _ctx(request, actions=actions, approvals=approvals,
-             publications=publications, trace_id=trace_id),
+        request,
+        "audit.html",
+        _ctx(request, events=events, trace_id=trace_id),
     )
 
 
@@ -700,6 +757,8 @@ async def observability(request: Request, trace_id: str | None = None):
     spans = obs_svc.get_span_tree(selected) if selected else []
     logs = obs_svc.get_trace_logs(selected) if selected else []
     summary = obs_svc.telemetry_summary()
+    latency = obs_svc.latency_series()
+    services = obs_svc.spans_by_service()
     return templates.TemplateResponse(
         request,
         "observability.html",
@@ -710,6 +769,8 @@ async def observability(request: Request, trace_id: str | None = None):
             expanded_spans=spans,
             trace_logs=logs,
             summary=summary,
+            latency=latency,
+            services=services,
         ),
     )
 

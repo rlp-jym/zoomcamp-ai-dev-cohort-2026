@@ -380,6 +380,8 @@ Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
 - [ ] **31.5 Target Attainment Context:** Add a historical average marker to the Target Attainment bar to contextualize current performance.
 
 ## 32. Audit & Observability Enhancements
-- [ ] **32.1 Audit Dashboard Charts:** Add Chart.js visualizations to `/audit` (e.g., Agent Actions over time, Approvals by persona).
-- [ ] **32.2 Observability Metrics:** Add charts to `/observability` (e.g., Request Latency (p50/p95), Span count over time, Error rate).
-- [ ] **32.3 Trace Visualization Polish:** Ensure the `/observability` span tree is easy to read (indentation, color-coded spans by service).
+- [ ] **32.1 Explanatory Notes:** Review all pages and add consistent subtitle text explaining the purpose of the page.
+- [x] **32.2 Unified Audit Timeline:** Merge Approvals, Publications, and Agent Actions into a single chronological event ledger.
+- [x] **32.3 Observability Charts:** Add Request Latency and Spans-by-Service charts.
+- [x] **32.4 Trace Waterfall:** Replace the plain-text span tree with a visual Gantt/Waterfall chart (using Chart.js horizontal bars) to show span duration and overlap.
+- [x] **32.5 Payload Readability:** Format JSON payloads into human-readable strings.

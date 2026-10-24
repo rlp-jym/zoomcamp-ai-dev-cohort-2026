@@ -70,6 +70,9 @@ h1 { margin-top: 0; }
 .badge-controller { background: #cf222e; color: #fff; }
 .badge-director { background: #3b4a7a; color: #fff; }
 .badge-orchestrator { background: #6b4a1f; color: #fff; }
+.badge-system { background: #e2e3e5; color: #41464b; }
+.trace-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; user-select: all; }
+.audit-details { max-width: 30rem; font-size: 0.82rem; color: #555; }
 .ts { color: #888; }
 .message-body { white-space: pre-wrap; }
 .thread-form { display: flex; gap: 0.5rem; }

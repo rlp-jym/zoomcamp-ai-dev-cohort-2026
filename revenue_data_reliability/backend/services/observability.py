@@ -64,7 +64,7 @@ def list_traces(limit: int = 25) -> list[dict]:
 
 
 def get_span_tree(trace_id: str) -> list[dict]:
-    """Spans for one trace, depth-sorted with a computed depth per node."""
+    """Spans for one trace, depth-sorted with depth, offset and service."""
     rows = fetch_all(
         """
         SELECT span_id, trace_id, parent_span_id, name, start_time, end_time,
@@ -76,6 +76,9 @@ def get_span_tree(trace_id: str) -> list[dict]:
         (trace_id,),
     )
     by_id = {r["span_id"]: r for r in rows}
+    root_start = min(
+        (r["start_time"] for r in rows if r["start_time"]), default=None
+    )
 
     def depth_of(row: dict, seen: set | None = None) -> int:
         seen = seen or set()
@@ -87,15 +90,93 @@ def get_span_tree(trace_id: str) -> list[dict]:
 
     out = []
     for r in rows:
-        duration = f"{float(r['duration_ms']):.1f}ms" if r["duration_ms"] is not None else "-"
+        attrs = r.get("attributes")
+        if isinstance(attrs, str):
+            try:
+                attrs = json.loads(attrs)
+            except (TypeError, ValueError):
+                attrs = {}
+        attrs = attrs if isinstance(attrs, dict) else {}
+        duration_ms = float(r["duration_ms"] or 0.0)
+        offset_ms = 0.0
+        if root_start and r["start_time"]:
+            offset_ms = (r["start_time"] - root_start).total_seconds() * 1000
         out.append(
             {
                 "span_id": r["span_id"],
                 "name": r["name"],
-                "duration": duration,
+                "duration": (
+                    f"{duration_ms:.1f}ms" if r["duration_ms"] is not None else "-"
+                ),
+                "duration_ms": round(duration_ms, 2),
+                "offset_ms": round(offset_ms, 2),
                 "status": r["status"].lower() if r["status"] else "unset",
                 "depth": depth_of(r),
+                "service": (
+                    attrs.get("otel.scope.name")
+                    or attrs.get("service.name")
+                    or "unknown"
+                ),
                 "started_at": _fmt_dt(r["start_time"]),
+            }
+        )
+    return out
+
+
+def latency_series(hours: int = 24) -> dict:
+    """Hourly p50/p95 span latency for the recent window."""
+    rows = fetch_all(
+        """
+        SELECT date_trunc('hour', start_time) AS bucket,
+               percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms) AS p50,
+               percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95
+        FROM otel_spans
+        WHERE start_time >= now() - (%s * interval '1 hour')
+          AND duration_ms IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1
+        """,
+        (hours,),
+    )
+    return {
+        "labels": [r["bucket"].strftime("%H:00") for r in rows if r["bucket"]],
+        "p50": [round(float(r["p50"] or 0), 2) for r in rows],
+        "p95": [round(float(r["p95"] or 0), 2) for r in rows],
+    }
+
+
+def spans_by_service(hours: int = 24) -> list[dict]:
+    """Span counts grouped by instrumentation/service scope."""
+    rows = fetch_all(
+        """
+        SELECT COALESCE(
+                   attributes->>'otel.scope.name',
+                   attributes->>'service.name',
+                   'unknown'
+               ) AS service,
+               COUNT(*) AS spans
+        FROM otel_spans
+        WHERE start_time >= now() - (%s * interval '1 hour')
+        GROUP BY 1
+        ORDER BY spans DESC
+        """,
+        (hours,),
+    )
+    names = {
+        "fastapi": "FastAPI",
+        "psycopg": "PostgreSQL",
+        "botocore": "AWS SDK",
+        "duckdb": "DuckDB",
+        "controller": "Scheduler",
+    }
+    out = []
+    for r in rows:
+        raw = str(r["service"] or "unknown")
+        key = raw.split(".")[-1].lower()
+        out.append(
+            {
+                "service": names.get(key, raw.replace("_", " ").title()),
+                "spans": int(r["spans"] or 0),
             }
         )
     return out

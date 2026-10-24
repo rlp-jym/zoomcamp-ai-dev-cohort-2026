@@ -1,13 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Observability{% endblock %}
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
 {% block content %}
 <h1>Observability</h1>
-<p class="page-description">Trace list — select a trace to view its span tree and linked logs. All telemetry is exported in-app to Postgres.</p>
+<p class="page-description">Operational telemetry — request latency, span volume by service, and a trace waterfall. All telemetry is exported in-app to Postgres.</p>
 <p class="empty">
   {{ summary.span_count if summary else 0 }} spans across
   {{ summary.trace_count if summary else 0 }} traces,
   {{ summary.log_count if summary else 0 }} linked logs (exporter: in-app Postgres).
 </p>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h2>Request Latency (p50 / p95, 24h)</h2>
+    <div class="chart-box">
+      <canvas id="latencyChart"></canvas>
+    </div>
+    <p class="chart-desc">Hourly span latency percentiles over the last 24 hours — p95 exposes tail latency that averages hide.</p>
+  </div>
+  <div class="chart-card">
+    <h2>Spans by Service</h2>
+    <div class="chart-box">
+      <canvas id="serviceChart"></canvas>
+    </div>
+    <p class="chart-desc">Span volume by instrumentation service over the last 24 hours.</p>
+  </div>
+</div>
+
 <h2>Traces</h2>
 {% if traces %}
 <table class="table">
@@ -30,8 +51,15 @@
 {% else %}
 <p class="empty">No traces recorded yet. Activity (pipeline runs, page visits) generates traces automatically.</p>
 {% endif %}
+
 {% if expanded_trace %}
-<h2>Expanded span tree: {{ expanded_trace }}</h2>
+<h2>Trace waterfall: {{ expanded_trace }}</h2>
+{% if expanded_spans %}
+<div class="chart-box" style="height: {{ [expanded_spans|length * 28 + 100, 320]|max }}px;">
+  <canvas id="traceGanttChart"></canvas>
+</div>
+{% endif %}
+<h3>Span tree</h3>
 <ul class="span-tree">
   {% for s in expanded_spans %}
   <li style="margin-left: {{ s.depth * 20 }}px;">
@@ -56,4 +84,124 @@
 <p class="empty">No log records linked to this trace.</p>
 {% endif %}
 {% endif %}
+
+<script>
+  (function () {
+    const latency = {{ latency | tojson }};
+    const services = {{ services | tojson }};
+    const spans = {{ expanded_spans | tojson }};
+    const palette = [
+      "#1f2a44", "#4a6fa5", "#9aa0a6", "#1a7f37",
+      "#cf222e", "#6f42c1", "#d97706", "#0f766e"
+    ];
+
+    if (latency.labels && latency.labels.length) {
+      new Chart(document.getElementById("latencyChart"), {
+        type: "line",
+        data: {
+          labels: latency.labels,
+          datasets: [
+            {
+              label: "p50 (ms)", data: latency.p50,
+              borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.12)",
+              tension: 0.25, fill: true, pointRadius: 2
+            },
+            {
+              label: "p95 (ms)", data: latency.p95,
+              borderColor: "#cf222e", borderDash: [4, 3],
+              tension: 0.25, fill: false, pointRadius: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { position: "bottom", labels: { font: { size: 12 } } }
+          },
+          scales: {
+            x: {
+              ticks: { font: { size: 11 }, autoSkip: true, maxRotation: 45 }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "ms", font: { size: 12 } },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    if (services.length) {
+      new Chart(document.getElementById("serviceChart"), {
+        type: "pie",
+        data: {
+          labels: services.map(item => item.service),
+          datasets: [{
+            data: services.map(item => item.spans),
+            backgroundColor: services.map(
+              (item, index) => palette[index % palette.length]
+            )
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { position: "bottom", labels: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    if (spans.length && document.getElementById("traceGanttChart")) {
+      const ganttServices = Array.from(new Set(spans.map(span => span.service)));
+      const serviceColor = {};
+      ganttServices.forEach((service, index) => {
+        serviceColor[service] = palette[index % palette.length];
+      });
+      const colors = spans.map(span => serviceColor[span.service]);
+      new Chart(document.getElementById("traceGanttChart"), {
+        type: "bar",
+        data: {
+          labels: spans.map(span => "  ".repeat(span.depth) + span.name),
+          datasets: [{
+            label: "Span duration",
+            data: spans.map(
+              span => [span.offset_ms, span.offset_ms + span.duration_ms]
+            ),
+            backgroundColor: colors,
+            borderColor: colors,
+            borderWidth: 1,
+            barPercentage: 0.7
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const span = spans[context.dataIndex];
+                  return `${span.name} — ${span.duration_ms.toFixed(1)}ms (${span.service})`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              title: { display: true, text: "ms from root" },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              ticks: { font: { size: 10 }, autoSkip: false }
+            }
+          }
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}
