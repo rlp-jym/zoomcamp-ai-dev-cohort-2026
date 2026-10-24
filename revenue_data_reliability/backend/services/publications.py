@@ -132,9 +132,10 @@ def publish_run(run_id, persona_id, trace_id=None, comment=None):
 
 
 def _invoice_lines_uri(dataset_name):
-    return (
-        f"s3://{settings.r2_bucket}/scenarios/{dataset_name}/invoice_lines.parquet"
-    )
+    from backend.storage.s3_client import resolve_data_scenario
+
+    source = resolve_data_scenario(dataset_name)
+    return f"s3://{settings.r2_bucket}/scenarios/{source}/invoice_lines.parquet"
 
 
 def get_published_data_query(dataset_name):

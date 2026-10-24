@@ -62,7 +62,10 @@ def invalidate_all_dashboard_cache() -> None:
 
 
 def _uri(scenario: str, table: str) -> str:
-    return f"s3://{settings.r2_bucket}/scenarios/{scenario}/{table}.parquet"
+    from backend.storage.s3_client import resolve_data_scenario
+
+    source = resolve_data_scenario(scenario)
+    return f"s3://{settings.r2_bucket}/scenarios/{source}/{table}.parquet"
 
 
 def _fmt_m(value) -> str:

@@ -145,3 +145,15 @@ def test_years_form_bounds_are_rendered():
     assert 'min="1"' in template
     assert 'max="5"' in template
 
+
+def test_resolve_data_scenario_uses_baseline_for_generated(monkeypatch):
+    from backend.storage import s3_client
+
+    s3_client._DATA_SOURCE_CACHE.clear()
+    monkeypatch.setattr(
+        s3_client,
+        "_scenario_folder_exists",
+        lambda name: name == "baseline_run",
+    )
+    assert s3_client.resolve_data_scenario("generated_seed5_y5") == "baseline_run"
+    assert s3_client.resolve_data_scenario("baseline_run") == "baseline_run"

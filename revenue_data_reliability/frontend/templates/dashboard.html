@@ -17,18 +17,18 @@
 {% endif %}
 
 {% if not available %}
-<div class="empty">
-  {% if cache_empty %}
-    No dashboard cache yet — first KPI refresh initializes right after
-    server boot, then every 15 min.
+<div class="banner banner-info">
+  {% if has_published_data %}
+    Initializing dashboard data for this dataset. Please refresh in a few seconds.
   {% else %}
-    No published data for dataset <strong>{{ (dataset or scenario) | scenario_label }}</strong> yet.
-    Approve a run (Manager) to publish a dataset — KPIs and charts will light up.
+    No published data for this dataset yet. Publish a validation run to view the dashboard.
   {% endif %}
-  <form method="post" action="/dashboard/refresh" style="margin-top:8px">
-    <button type="submit">Refresh KPIs now</button>
-  </form>
 </div>
+{% if has_published_data %}
+<form method="post" action="/dashboard/refresh" style="margin-top:8px">
+  <button type="submit">Refresh KPIs now</button>
+</form>
+{% endif %}
 {% endif %}
 
 {% if kpi_cache and kpi_cache.refreshed_at %}

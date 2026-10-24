@@ -42,9 +42,55 @@ def list_keys(prefix: str = "") -> list[str]:
     return keys
 
 
+DEDUPE_SCENARIO = "baseline_seed9_y5"
+_DATA_SOURCE_CACHE: dict[str, str] = {}
+
+
 def list_scenario_keys(scenario: str = "baseline_run") -> list[str]:
     prefix = f"scenarios/{scenario}/"
     return list_keys(prefix=prefix)
+
+
+def _scenario_folder_exists(scenario: str) -> bool:
+    try:
+        get_s3_client().head_object(
+            Bucket=settings.r2_bucket,
+            Key=f"scenarios/{scenario}/invoices.parquet",
+        )
+        return True
+    except Exception:
+        return False
+
+
+def resolve_data_scenario(dataset_name: str) -> str:
+    """Return the S3 scenario folder that stores a dataset's Parquet files.
+
+    Generated datasets are clones. Prefer the canonical baseline folder and
+    fall back through the legacy names used by the generator/cache.
+    """
+    name = str(dataset_name or "")
+    if not name.startswith("generated_"):
+        return name
+    if name in _DATA_SOURCE_CACHE:
+        return _DATA_SOURCE_CACHE[name]
+
+    candidates = [DEDUPE_SCENARIO]
+    try:
+        from backend.db.connection import fetch_one
+
+        row = fetch_one("SELECT source_dataset FROM datasets WHERE name = %s", (name,))
+        if row and row.get("source_dataset"):
+            candidates.append(row["source_dataset"])
+    except Exception:
+        pass
+    candidates.extend(["baseline_run", name])
+
+    for candidate in dict.fromkeys(candidates):
+        if _scenario_folder_exists(candidate):
+            _DATA_SOURCE_CACHE[name] = candidate
+            return candidate
+    _DATA_SOURCE_CACHE[name] = "baseline_run"
+    return "baseline_run"
 
 
 def resolve_scenario_name(scenario: str) -> str:

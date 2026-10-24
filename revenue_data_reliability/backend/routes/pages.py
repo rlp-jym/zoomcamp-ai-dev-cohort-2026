@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import uuid
@@ -23,6 +24,7 @@ from backend.teams.de import DEAgent
 from backend.templating import templates
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _reset_lock = threading.Lock()
 
@@ -102,6 +104,14 @@ async def dashboard(request: Request):
     active_run_id = runs_svc.resolve_active_run(dataset)
     data = dashboard_svc.get_dashboard_data_cached(dataset)
     data["active_run_id"] = active_run_id
+    has_published_data = bool(data.get("published_run"))
+    if not has_published_data:
+        try:
+            has_published_data = pub_svc.get_published_run(dataset) is not None
+        except Exception:
+            has_published_data = False
+    data["has_published_data"] = has_published_data
+    data["cache_building"] = bool(data.get("cache_empty") and has_published_data)
     resp = templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
     return resp
 
@@ -118,8 +128,8 @@ async def dashboard_refresh(request: Request):
     def _job():
         try:
             dashboard_svc.refresh_dashboard_cache(dataset)
-        except Exception:  # logged inside refresh; keep the server safe
-            pass
+        except Exception:
+            logger.exception("Dashboard cache refresh failed for dataset %s", dataset)
 
     threading.Thread(target=_job, daemon=True).start()
     return RedirectResponse(url=f"/?dataset={dataset}", status_code=303)
@@ -573,8 +583,11 @@ async def approve_run(request: Request, run_id: int):
             dashboard_svc.invalidate_dashboard_cache(dataset_name)
             dashboard_svc.refresh_dashboard_cache(dataset_name)
         except Exception:
-            # Publishing must not fail because a dashboard refresh failed.
-            pass
+            logger.exception(
+                "Dashboard cache build failed for dataset %s after publishing run %s",
+                dataset_name,
+                run_id,
+            )
 
     if pub["created"]:
         content = (
