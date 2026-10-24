@@ -27,6 +27,22 @@ def scenario_label(name):
     return name.replace("_", " ").title()
 
 
+def human_value(value):
+    """Render booleans/nulls consistently for tables and detail summaries."""
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    text = str(value).strip()
+    if not text or text.lower() in {"none", "null", "nan"}:
+        return "—"
+    if text.lower() == "true":
+        return "Yes"
+    if text.lower() == "false":
+        return "No"
+    return text
+
+
 def persona_label(persona_id):
     """Map a raw persona id to its display title."""
     if not persona_id:
@@ -39,3 +55,4 @@ def persona_label(persona_id):
 
 templates.env.filters["scenario_label"] = scenario_label
 templates.env.filters["persona_label"] = persona_label
+templates.env.filters["human_value"] = human_value

@@ -184,6 +184,27 @@ def list_exceptions(status=None, limit=50, offset=0, run_id=None):
     return out
 
 
+def run_issue_counts(run_id):
+    """Open/awaiting vs resolved counts for one validation run."""
+    row = fetch_one(
+        """
+        SELECT COUNT(*) FILTER (WHERE status IN ('open', 'awaiting_approval')) AS open_n,
+               COUNT(*) FILTER (WHERE status = 'resolved') AS resolved_n,
+               COUNT(*) AS total
+        FROM exceptions
+        WHERE run_id = %s
+        """,
+        (run_id,),
+    )
+    if not row:
+        return {"open": 0, "resolved": 0, "total": 0}
+    return {
+        "open": row["open_n"],
+        "resolved": row["resolved_n"],
+        "total": row["total"],
+    }
+
+
 def exception_counts(run_id=None):
     params = ()
     where = ""

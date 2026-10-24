@@ -36,7 +36,7 @@
     <tr>
       <td>{{ s.created_at.split(' ')[0] if s.created_at else '' }}</td>
       <td>{{ s.title }}</td>
-      <td>{{ s.open_issues if s.open_issues is not none else '—' }}</td>
+      <td>{{ s.open_issues | human_value }}</td>
       <td>
         {% if s.source_anchor_id == 'chart-revenue-plan' %}Revenue, Billings & Plan
         {% elif s.source_anchor_id == 'chart-variance-category' %}Variances by Category

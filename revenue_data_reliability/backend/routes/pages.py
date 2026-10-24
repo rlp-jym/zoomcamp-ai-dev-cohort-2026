@@ -433,11 +433,13 @@ async def run_detail(request: Request, run_id: int):
     msgs = messages.get_messages("run", str(run_id))
     validations = val_svc.list_validations(run_id)
     publication = pub_svc.get_publication_for_run(run_id)
+    issue_counts = exc_svc.run_issue_counts(run_id)
     return templates.TemplateResponse(
         request,
         "run_detail.html",
         _ctx(request, dataset=dataset, run=run, anchor_type="run", anchor_id=str(run_id),
-             messages=msgs, validations=validations, publication=publication),
+             messages=msgs, validations=validations, publication=publication,
+             issue_counts=issue_counts),
     )
 
 
@@ -532,12 +534,13 @@ async def scenario_detail(request: Request, scenario_id: int):
 
 
 @router.post("/runs/{run_id}/approve")
+@router.post("/runs/{run_id}/publish")
 async def approve_run(request: Request, run_id: int):
     """Manager approves go-live: publication row + published pointer.
 
-    Creates a row in the `publications` table, moves the scenario's
-    published pointer to this run, and posts a confirmation to the run
-    thread. Only the Manager persona may approve.
+    Blocked while open/awaiting issues remain. After publishing, the
+    dataset dashboard cache is invalidated and refreshed synchronously.
+    Only the Manager persona may approve.
     """
     persona = _current_persona(request)
     if persona["id"] != "manager":
@@ -549,8 +552,29 @@ async def approve_run(request: Request, run_id: int):
     if run["status"] != "completed":
         raise HTTPException(status_code=400, detail="Only completed runs can be published.")
 
+    issue_counts = exc_svc.run_issue_counts(run_id)
+    if issue_counts["open"] > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot publish: {issue_counts['open']} open data issues remain. "
+                "Resolve or Dismiss them in the Data Issues page first."
+            ),
+        )
+
     trace_id = run["trace_id"]
     pub = pub_svc.publish_run(run_id, persona["id"], trace_id)
+
+    from backend.services import dashboard as dashboard_svc
+
+    dataset_name = run.get("dataset") or run.get("scenario")
+    if dataset_name:
+        try:
+            dashboard_svc.invalidate_dashboard_cache(dataset_name)
+            dashboard_svc.refresh_dashboard_cache(dataset_name)
+        except Exception:
+            # Publishing must not fail because a dashboard refresh failed.
+            pass
 
     if pub["created"]:
         content = (

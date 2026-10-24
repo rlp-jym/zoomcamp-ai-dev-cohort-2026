@@ -32,7 +32,7 @@
       <td>{{ e.type | capitalize }}</td>
       <td><span class="sev sev-{{ e.severity }}">{{ e.severity | capitalize }}</span></td>
       <td>{{ (e.impact or "—") | capitalize }}</td>
-      <td>{{ e.count if e.count is not none else "—" }}</td>
+      <td>{{ e.count | human_value }}</td>
       <td>{{ e.title }}</td>
       <td>{{ e.description }}</td>
       <td><span class="status-badge status-{{ e.status }}">{{ e.status | replace("_", " ") | title }}</span></td>

@@ -45,7 +45,7 @@
       <td>{{ r.published_by | persona_label }}</td>
       <td><code>{{ r.pointer }}</code></td>
       <td>{{ r.trace_id }}</td>
-      <td>{{ r.published_at }}</td>
+      <td>{{ r.published_at | human_value }}</td>
     </tr>
     {% else %}
     <tr><td colspan="6" class="empty">No publications.</td></tr>

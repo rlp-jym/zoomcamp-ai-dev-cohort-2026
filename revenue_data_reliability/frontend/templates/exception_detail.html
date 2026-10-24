@@ -11,7 +11,7 @@
   <div class="meta-item"><dt>Type</dt><dd>{{ exception.type | capitalize }}</dd></div>
   <div class="meta-item"><dt>Severity</dt><dd>{{ exception.severity | capitalize }}</dd></div>
   <div class="meta-item"><dt>Period</dt><dd>{{ exception.period }}</dd></div>
-  <div class="meta-item"><dt>Count</dt><dd>{{ exception.count if exception.count is not none else "—" }}</dd></div>
+  <div class="meta-item"><dt>Count</dt><dd>{{ exception.count | human_value }}</dd></div>
   <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
   <div class="meta-item"><dt>Impact</dt><dd>{{ (exception.impact or "—") | capitalize }}</dd></div>
   <div class="meta-item"><dt>Trace</dt><dd>{{ exception.trace_id }}</dd></div>
@@ -75,9 +75,9 @@
       <td>{{ r.period }}</td>
       <td>{{ r.account_id }}</td>
       <td>{{ r.item_category }}</td>
-      <td>{{ "%.2f"|format(r.billings) if r.billings is not none else "" }}</td>
-      <td>{{ "%.2f"|format(r.gl) if r.gl is not none else "" }}</td>
-      <td>{{ "%.2f"|format(r.variance_pct * 100) if r.variance_pct is not none else "" }}%</td>
+      <td>{{ "%.2f"|format(r.billings) if r.billings is not none else "—" }}</td>
+      <td>{{ "%.2f"|format(r.gl) if r.gl is not none else "—" }}</td>
+      <td>{% if r.variance_pct is not none %}{{ "%.2f"|format(r.variance_pct * 100) }}%{% else %}—{% endif %}</td>
       <td><span class="status status-{{ r.status }}">{{ r.status | capitalize }}</span></td>
     </tr>
     {% endfor %}

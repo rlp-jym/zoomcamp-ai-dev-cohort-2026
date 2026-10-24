@@ -370,3 +370,54 @@ def test_dismissed_and_resolved_leave_open_queue():
     finally:
         runs_svc.delete_run(run_id)
 
+
+def test_publish_gate_blocks_open_data_issues():
+    init_pool()
+    dataset = f"test_publish_gate_{uuid.uuid4().hex[:8]}"
+    execute("INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)", (dataset,))
+    run_id, trace_id = _make_run(scenario=dataset)
+    try:
+        _make_exception(run_id, trace_id, status="open")
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+
+        page = c.get(f"/runs/{run_id}")
+        assert "Cannot publish: 1 open data issues remain." in page.text
+        assert "disabled>Approve Go-Live" in page.text
+
+        blocked = c.post(f"/runs/{run_id}/approve", follow_redirects=False)
+        assert blocked.status_code == 400
+    finally:
+        runs_svc.delete_run(run_id)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_publish_refreshes_dashboard_cache(monkeypatch):
+    init_pool()
+    dataset = f"test_publish_cache_{uuid.uuid4().hex[:8]}"
+    execute("INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)", (dataset,))
+    run_id, _trace_id = _make_run(scenario=dataset)
+    try:
+        from backend.services import dashboard as dashboard_svc
+
+        calls = []
+        monkeypatch.setattr(
+            dashboard_svc,
+            "invalidate_dashboard_cache",
+            lambda name=None: calls.append(("invalidate", name)),
+        )
+        monkeypatch.setattr(
+            dashboard_svc,
+            "refresh_dashboard_cache",
+            lambda name: calls.append(("refresh", name)) or "updated",
+        )
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        response = c.post(f"/runs/{run_id}/approve", follow_redirects=False)
+        assert response.status_code == 303
+        assert ("invalidate", dataset) in calls
+        assert ("refresh", dataset) in calls
+    finally:
+        runs_svc.delete_run(run_id)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
