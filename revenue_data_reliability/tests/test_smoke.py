@@ -37,17 +37,24 @@ def test_htmx_post_message():
 
 def test_exceptions_status_filter_and_trend():
     from backend.db import init_pool
+    from backend.db.connection import execute
     from backend.services import exceptions as exc_svc
     from backend.services import runs as runs_svc
 
     init_pool()
     trace_id = uuid.uuid4().hex
-    run_id = runs_svc.create_run("baseline_run", "test", trace_id)
+    # Use an isolated dataset name so concurrent pipeline tests that close
+    # superseded exceptions in ``baseline_run`` cannot mutate this run.
+    dataset = f"test_smoke_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) "
+        "VALUES (%s, 'ready', 1, 16)",
+        (dataset,),
+    )
+    run_id = runs_svc.create_run(dataset, "test", trace_id)
 
     try:
         # Insert a controlled set of exceptions for this isolated run.
-        from backend.db.connection import execute
-
         execute(
             """
             INSERT INTO exceptions (run_id, type, severity, period, title, status, trace_id)
@@ -74,3 +81,4 @@ def test_exceptions_status_filter_and_trend():
         assert len(default_open) <= 50
     finally:
         runs_svc.delete_run(run_id)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))

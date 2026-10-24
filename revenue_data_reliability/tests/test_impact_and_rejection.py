@@ -292,6 +292,9 @@ def test_awaiting_approval_has_only_quarantine_or_dismiss():
         assert "Dismiss (False Positive)" in r.text
         assert "Request Revision" not in r.text
         assert 'name="reason"' not in r.text
+        assert "Remediation attempts" not in r.text
+        assert "Back to Validation Run" in r.text
+        assert f'href="/runs/{run_id}"' in r.text
     finally:
         runs_svc.delete_run(run_id)
 

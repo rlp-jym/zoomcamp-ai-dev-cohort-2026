@@ -2,6 +2,11 @@
 {% block title %}Data Issue {{ exception.id }}{% endblock %}
 {% block content %}
 <h1>Data Issue #{{ exception.id }}</h1>
+{% if exception.run_id %}
+<div style="margin:0.5rem 0 1rem;">
+  <a class="btn" href="/runs/{{ exception.run_id }}">&larr; Back to Validation Run</a>
+</div>
+{% endif %}
 {% if exception.status == 'awaiting_approval' %}
 <div class="banner banner-warn">
   The DE Agent has proposed a quarantine remediation. Please review and Execute Fix or Dismiss as a false positive.
@@ -15,10 +20,9 @@
   <div class="meta-item"><dt>Status</dt><dd><span class="status-badge status-{{ exception.status }}">{{ exception.status | replace("_", " ") | title }}</span></dd></div>
   <div class="meta-item"><dt>Impact</dt><dd>{{ (exception.impact or "—") | capitalize }}</dd></div>
   <div class="meta-item"><dt>Trace</dt><dd>{{ exception.trace_id }}</dd></div>
-  <div class="meta-item"><dt>Source Run</dt><dd>From Run #{{ exception.run_id }} ({{ (exception.dataset_name or exception.scenario_name) | scenario_label }})</dd></div>
+  <div class="meta-item"><dt>Source Run</dt><dd>{% if exception.run_id %}<a href="/runs/{{ exception.run_id }}">From Run #{{ exception.run_id }}</a>{% else %}—{% endif %} ({{ (exception.dataset_name or exception.scenario_name) | scenario_label }})</dd></div>
   <div class="meta-item"><dt>Title</dt><dd>{{ exception.title }}</dd></div>
   <div class="meta-item"><dt>Description</dt><dd>{{ exception.description }}</dd></div>
-  <div class="meta-item"><dt>Remediation attempts</dt><dd>{{ exception.remediation_attempts or 0 }} / 3</dd></div>
 </dl>
 {% if exception.details and exception.details.summary %}
 <p class="page-description"><strong>Reconciliation detail:</strong> {{ exception.details.summary }}</p>
