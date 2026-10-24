@@ -21,7 +21,7 @@ from backend.services import runs as runs_svc
 from backend.services import scenarios as scen_svc
 from backend.services import validations as val_svc
 from backend.teams.de import DEAgent
-from backend.templating import templates
+from backend.templating import dataset_label, templates
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -112,6 +112,7 @@ async def dashboard(request: Request):
             has_published_data = False
     data["has_published_data"] = has_published_data
     data["cache_building"] = bool(data.get("cache_empty") and has_published_data)
+    data["dataset_label"] = dataset_label(dataset) or dataset or "—"
     resp = templates.TemplateResponse(request, "dashboard.html", _ctx(request, **data))
     return resp
 

@@ -6,7 +6,7 @@
 {% block content %}
 <h1>
   Dashboard
-  {% if published_run %}<span class="badge">(run id {{ published_run }})</span>{% endif %}
+  {% if dataset_label %}<span class="badge">({{ dataset_label }})</span>{% endif %}
 </h1>
 <p class="page-description">Historical actuals and FP&A assessment — revenue, reconciliation, and the customer mix for the published run.</p>
 

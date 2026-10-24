@@ -1,5 +1,14 @@
 <tr id="run-row-{{ run.id }}">
-  <td><a href="/runs/{{ run.id }}">{{ run.id }}</a></td>
+  <td>
+    {% if run.status == "completed" %}
+    <a href="/runs/{{ run.id }}"
+       hx-get="/runs/{{ run.id }}"
+       hx-target="#run-details"
+       hx-swap="innerHTML">{{ run.id }}</a>
+    {% else %}
+    {{ run.id }}
+    {% endif %}
+  </td>
   <td>{{ (run.dataset or run.scenario) | scenario_label }}</td>
   <td>{{ run.status | capitalize }}</td>
   <td>

@@ -104,8 +104,10 @@ def test_dashboard_differs_between_datasets():
         ra = c.get(f"/?scenario={a}")
         rb = c.get(f"/?scenario={b}")
         assert ra.status_code == 200 and rb.status_code == 200
-        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE dataset_name = %s', (a,))['run_id']}" in ra.text
-        assert f"run id {fetch_one('SELECT run_id FROM runs WHERE dataset_name = %s', (b,))['run_id']}" in rb.text
+        from backend.templating import dataset_label
+
+        assert f"({dataset_label(a)})" in ra.text
+        assert f"({dataset_label(b)})" in rb.text
         assert ra.text != rb.text
     finally:
         _cleanup([a, b])

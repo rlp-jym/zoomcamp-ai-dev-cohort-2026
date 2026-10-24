@@ -27,6 +27,13 @@ def scenario_label(name):
     return name.replace("_", " ").title()
 
 
+def dataset_label(name):
+    """Short dataset label without the years-to-backtrack suffix."""
+    label = scenario_label(name)
+    match = re.match(r"^(.*?)\s*\(Year \d+\)$", label)
+    return match.group(1) if match else label
+
+
 def human_value(value):
     """Render booleans/nulls consistently for tables and detail summaries."""
     if value is None:

@@ -5,6 +5,7 @@
 {% if exception.run_id %}
 <div style="margin:0.5rem 0 1rem;">
   <a class="btn" href="/runs/{{ exception.run_id }}">&larr; Back to Validation Run</a>
+  <a href="/exceptions" style="margin-left: 1rem;">&larr; Back to Data Issues</a>
 </div>
 {% endif %}
 {% if exception.status == 'awaiting_approval' %}
