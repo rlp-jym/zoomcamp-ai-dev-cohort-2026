@@ -754,6 +754,9 @@ async def observability(request: Request, trace_id: str | None = None):
 
     traces = obs_svc.list_traces()
     selected = trace_id or (traces[0]["trace_id"] if traces else None)
+    selected_name = next(
+        (t["name"] for t in traces if t["trace_id"] == selected), "Unknown"
+    )
     spans = obs_svc.get_span_tree(selected) if selected else []
     logs = obs_svc.get_trace_logs(selected) if selected else []
     summary = obs_svc.telemetry_summary()
@@ -766,6 +769,7 @@ async def observability(request: Request, trace_id: str | None = None):
             request,
             traces=traces,
             expanded_trace=selected,
+            expanded_trace_name=selected_name,
             expanded_spans=spans,
             trace_logs=logs,
             summary=summary,

@@ -28,22 +28,33 @@ def _fmt_duration(start, end) -> str:
 
 
 def list_traces(limit: int = 25) -> list[dict]:
-    """One row per trace: root span name, span count, duration, status."""
+    """One row per trace, excluding health checks/static assets.
+
+    Slowest traces sort first, matching standard APM behavior.
+    """
     rows = fetch_all(
         """
-        SELECT
-            trace_id,
-            COALESCE(
-                (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST) FILTER (WHERE parent_span_id IS NULL))[1],
-                (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST))[1]
-            ) AS root_name,
-            COUNT(*) AS span_count,
-            MIN(start_time) AS started_at,
-            MAX(end_time) AS ended_at,
-            BOOL_OR(status = 'ERROR') AS has_error
-        FROM otel_spans
-        GROUP BY trace_id
-        ORDER BY MAX(start_time) DESC NULLS LAST
+        SELECT *
+        FROM (
+            SELECT
+                trace_id,
+                COALESCE(
+                    (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST) FILTER (WHERE parent_span_id IS NULL))[1],
+                    (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST))[1]
+                ) AS root_name,
+                COUNT(*) AS span_count,
+                MIN(start_time) AS started_at,
+                MAX(end_time) AS ended_at,
+                BOOL_OR(status = 'ERROR') AS has_error,
+                EXTRACT(EPOCH FROM (MAX(end_time) - MIN(start_time))) AS duration_seconds
+            FROM otel_spans
+            GROUP BY trace_id
+        ) traced
+        WHERE COALESCE(root_name, '') NOT LIKE '%%/static%%'
+          AND COALESCE(root_name, '') NOT ILIKE 'HEAD /%%'
+          AND COALESCE(root_name, '') NOT LIKE '%%/health%%'
+        ORDER BY duration_seconds DESC NULLS LAST,
+                 started_at DESC NULLS LAST
         LIMIT %s
         """,
         (limit,),
@@ -154,11 +165,12 @@ def spans_by_service(hours: int = 24) -> list[dict]:
                    attributes->>'service.name',
                    'unknown'
                ) AS service,
-               COUNT(*) AS spans
+               COUNT(*) AS spans,
+               COALESCE(SUM(duration_ms), 0) AS duration_ms
         FROM otel_spans
         WHERE start_time >= now() - (%s * interval '1 hour')
         GROUP BY 1
-        ORDER BY spans DESC
+        ORDER BY duration_ms DESC
         """,
         (hours,),
     )
@@ -177,6 +189,7 @@ def spans_by_service(hours: int = 24) -> list[dict]:
             {
                 "service": names.get(key, raw.replace("_", " ").title()),
                 "spans": int(r["spans"] or 0),
+                "duration_ms": round(float(r["duration_ms"] or 0), 2),
             }
         )
     return out

@@ -12,20 +12,21 @@
   {{ summary.log_count if summary else 0 }} linked logs (exporter: in-app Postgres).
 </p>
 
+<h2>Global System Telemetry (Last 24 Hours)</h2>
 <div class="charts-grid">
   <div class="chart-card">
     <h2>Request Latency (p50 / p95, 24h)</h2>
     <div class="chart-box">
       <canvas id="latencyChart"></canvas>
     </div>
-    <p class="chart-desc">Hourly span latency percentiles over the last 24 hours — p95 exposes tail latency that averages hide.</p>
+    <p class="chart-desc">p50 is the median request time. p95 is the slowest 5% of requests. Spikes indicate user-facing slowness.</p>
   </div>
   <div class="chart-card">
     <h2>Spans by Service</h2>
     <div class="chart-box">
       <canvas id="serviceChart"></canvas>
     </div>
-    <p class="chart-desc">Span volume by instrumentation service over the last 24 hours.</p>
+    <p class="chart-desc">Total time spent in each subsystem. A large PostgreSQL slice indicates database query lag.</p>
   </div>
 </div>
 
@@ -37,7 +38,7 @@
   </thead>
   <tbody>
     {% for t in traces %}
-    <tr>
+    <tr{% if t.trace_id == expanded_trace %} class="trace-selected"{% endif %}>
       <td><a href="/observability?trace_id={{ t.trace_id }}">{{ t.trace_id }}</a></td>
       <td>{{ t.name }}</td>
       <td>{{ t.started_at }}</td>
@@ -53,7 +54,7 @@
 {% endif %}
 
 {% if expanded_trace %}
-<h2>Trace waterfall: {{ expanded_trace }}</h2>
+<h2>Trace Detail: {{ expanded_trace }} - {{ expanded_trace_name }}</h2>
 {% if expanded_spans %}
 <div class="chart-box" style="height: {{ [expanded_spans|length * 28 + 100, 320]|max }}px;">
   <canvas id="traceGanttChart"></canvas>
@@ -138,7 +139,7 @@
         data: {
           labels: services.map(item => item.service),
           datasets: [{
-            data: services.map(item => item.spans),
+            data: services.map(item => item.duration_ms),
             backgroundColor: services.map(
               (item, index) => palette[index % palette.length]
             )

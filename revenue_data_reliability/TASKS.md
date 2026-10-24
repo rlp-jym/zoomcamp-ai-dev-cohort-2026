@@ -385,3 +385,4 @@ Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
 - [x] **32.3 Observability Charts:** Add Request Latency and Spans-by-Service charts.
 - [x] **32.4 Trace Waterfall:** Replace the plain-text span tree with a visual Gantt/Waterfall chart (using Chart.js horizontal bars) to show span duration and overlap.
 - [x] **32.5 Payload Readability:** Format JSON payloads into human-readable strings.
+- [ ] **32.6 Controller Context:** Document in the README that the Controller agent runs as an asynchronous guardrail (post-publish) and does not block the FP&A workflow.
