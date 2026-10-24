@@ -55,8 +55,10 @@ _DASHBOARD_CACHE: dict = {}
 _DASHBOARD_CACHE_TTL = 5.0
 _DASHBOARD_REFRESHING: set = set()
 _DASHBOARD_BUILDING: set = set()
+_DASHBOARD_BUILD_STARTED: dict[str, float] = {}
 _DASHBOARD_REFRESH_LOCK = threading.Lock()
 _DASHBOARD_BUILD_LOCK = threading.Lock()
+_CACHE_BUILD_TIMEOUT_SECONDS = 30
 
 
 def invalidate_dashboard_cache(scenario=None) -> None:
@@ -722,16 +724,43 @@ def start_dashboard_refresh(scenario: str = SCENARIO) -> bool:
         if scenario in _DASHBOARD_BUILDING:
             return False
         _DASHBOARD_BUILDING.add(scenario)
+        _DASHBOARD_BUILD_STARTED[scenario] = time.time()
+
+    def _timeout():
+        if _DASHBOARD_BUILD_LOCK.acquire(blocking=False):
+            # Build already finished; let its normal completion path win.
+            _DASHBOARD_BUILD_LOCK.release()
+            return
+        logger.error(
+            "Dashboard cache build exceeded %ss for %s; writing empty payload.",
+            _CACHE_BUILD_TIMEOUT_SECONDS,
+            scenario,
+        )
+        try:
+            _store_cache(
+                scenario,
+                _minimal_cache(scenario, "cache build timed out"),
+            )
+        except Exception:
+            logger.exception("Dashboard timeout fallback write failed for %s", scenario)
+        with _DASHBOARD_REFRESH_LOCK:
+            _DASHBOARD_BUILDING.discard(scenario)
+            _DASHBOARD_BUILD_STARTED.pop(scenario, None)
 
     def _job():
         try:
             refresh_dashboard_cache(scenario)
-        except Exception:
-            logger.exception("Dashboard cache rebuild failed for %s", scenario)
+        except Exception as exc:
+            logger.exception("Dashboard cache build failed: %s", exc)
         finally:
+            timer.cancel()
             with _DASHBOARD_REFRESH_LOCK:
                 _DASHBOARD_BUILDING.discard(scenario)
+                _DASHBOARD_BUILD_STARTED.pop(scenario, None)
 
+    timer = threading.Timer(_CACHE_BUILD_TIMEOUT_SECONDS, _timeout)
+    timer.daemon = True
+    timer.start()
     threading.Thread(
         target=_job,
         name=f"dashboard-refresh-{scenario}",
@@ -743,9 +772,25 @@ def start_dashboard_refresh(scenario: str = SCENARIO) -> bool:
 def dashboard_cache_status(scenario: str = SCENARIO) -> str:
     """Return ``building`` | ``ready`` | ``missing`` for the status poller."""
     scenario = str(scenario)
+    timed_out = False
     with _DASHBOARD_REFRESH_LOCK:
+        started = _DASHBOARD_BUILD_STARTED.get(scenario)
         if scenario in _DASHBOARD_BUILDING:
-            return "building"
+            if started and time.time() - started < _CACHE_BUILD_TIMEOUT_SECONDS:
+                return "building"
+            timed_out = True
+            _DASHBOARD_BUILDING.discard(scenario)
+            _DASHBOARD_BUILD_STARTED.pop(scenario, None)
+    if timed_out:
+        logger.error(
+            "Dashboard cache status timed out for %s; writing empty payload.",
+            scenario,
+        )
+        try:
+            _store_cache(scenario, _minimal_cache(scenario, "cache build timed out"))
+        except Exception:
+            logger.exception("Dashboard status fallback write failed for %s", scenario)
+        return "ready"
     data, _ = get_from_cache(scenario)
     return "ready" if data is not None else "missing"
 
