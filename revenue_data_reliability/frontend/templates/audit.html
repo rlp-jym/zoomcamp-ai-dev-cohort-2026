@@ -21,7 +21,11 @@
     <tr>
       <td>{{ r.approval_id }}</td>
       <td>{{ r.target_type }}:{{ r.target_id }}</td>
-      <td>{{ r.persona_id | persona_label }}</td>
+      <td>
+        {% set persona_id = r.persona_id or 'human' %}
+        {% set badge_persona = 'fia' if persona_id == 'fa' else persona_id %}
+        <span class="badge badge-{{ badge_persona }}">{{ (r.persona_id | persona_label) or "—" }}</span>
+      </td>
       <td>{{ r.decision | capitalize }}</td>
       <td>{{ r.trace_id }}</td>
       <td>{{ r.created_at }}</td>
@@ -42,7 +46,11 @@
     <tr>
       <td>{{ r.publication_id }}</td>
       <td><a href="/runs/{{ r.run_id }}">run {{ r.run_id }}</a></td>
-      <td>{{ r.published_by | persona_label }}</td>
+      <td>
+        {% set persona_id = r.published_by or 'human' %}
+        {% set badge_persona = 'fia' if persona_id == 'fa' else persona_id %}
+        <span class="badge badge-{{ badge_persona }}">{{ (r.published_by | persona_label) or "—" }}</span>
+      </td>
       <td><code>{{ r.pointer }}</code></td>
       <td>{{ r.trace_id }}</td>
       <td>{{ r.published_at | human_value }}</td>
@@ -62,7 +70,11 @@
     {% for r in actions %}
     <tr>
       <td>{{ r.action_id }}</td>
-      <td>{{ r.agent_id | persona_label }}</td>
+      <td>
+        {% set persona_id = r.agent_id or 'human' %}
+        {% set badge_persona = 'fia' if persona_id == 'fa' else persona_id %}
+        <span class="badge badge-{{ badge_persona }}">{{ (r.agent_id | persona_label) or "—" }}</span>
+      </td>
       <td>{{ r.action | replace("_", " ") | capitalize }}</td>
       <td>{{ r.anchor_type }}:{{ r.anchor_id }}</td>
       <td><a href="/observability?trace_id={{ r.trace_id }}">{{ r.trace_id }}</a></td>

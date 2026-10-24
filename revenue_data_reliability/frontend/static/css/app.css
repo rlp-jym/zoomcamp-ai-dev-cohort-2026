@@ -95,7 +95,8 @@ h1 { margin-top: 0; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
 .chart-card { background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 1rem; }
 .chart-card h2 { margin-top: 0; font-size: 1rem; }
-.chart-card canvas { width: 100% !important; height: 260px !important; }
+.chart-box { position: relative; height: 300px; }
+.chart-card canvas { width: 100% !important; height: 100% !important; }
 .chart-desc { font-size: 0.8rem; color: #666; margin: 0.4rem 0 0; }
 .charts-grid .span-2 { grid-column: 1 / -1; }
 .open-exceptions-stat { display: flex; align-items: baseline; gap: 0.6rem; background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 0.6rem 1rem; margin: 1.5rem 0 0; }
