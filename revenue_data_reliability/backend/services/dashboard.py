@@ -36,6 +36,8 @@ CHART_THREAD_IDS = (
     "chart-segment",
     "chart-category-trend",
     "chart-customer-variance",
+    "chart-top-products",
+    "chart-top-clients",
 )
 
 # Segments the source system recognises. A segment outside this set is a

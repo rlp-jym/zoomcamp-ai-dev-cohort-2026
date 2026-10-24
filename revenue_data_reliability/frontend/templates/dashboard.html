@@ -159,72 +159,84 @@
   </div>
 </div>
 
-<div class="charts-grid">
-  <div class="chart-card">
-    <h2>Concentration & Volatility</h2>
-    <p class="chart-desc"><strong>Top 5 Products (by ABC Class)</strong></p>
-    <p class="chart-desc" style="margin-top:-0.25rem;">Avg (%) shows the latest month's deviation from the 12-month average.</p>
-    <table class="table movers-table">
-      <thead>
-        <tr>
-          <th>Rank</th><th>Group</th><th>Name</th>
-          <th>Total (%)</th><th>Group (%)</th>
-          <th>Avg (%)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in top_products %}
-        <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
-          <td>{{ row.rank }}</td>
-          <td>{{ row.group | display_title }}</td>
-          <td>{{ row.name | display_title }}</td>
-          <td>{{ "%.1f"|format(row.total_pct) }}%</td>
-          <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
-          <td>
-            <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
-              {{ "%.1f"|format(row.volatility_pct) }}%
-            </span>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="empty">No product revenue data.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<section style="margin-top:2rem;">
+  <h2>Concentration & Volatility</h2>
+  <p class="chart-desc" style="margin-top:0.25rem;">Avg (%) shows the latest month's deviation from the 12-month average.</p>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Top 5 Products (by ABC Class)</h3>
+      <table class="table movers-table">
+        <thead>
+          <tr>
+            <th>Rank</th><th>Group</th><th>Name</th>
+            <th>Avg (%)</th><th>Group (%)</th><th>Total (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_products %}
+          <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
+            <td>{{ row.rank }}</td>
+            <td>{{ row.group | display_title }}</td>
+            <td>{{ row.name | display_title }}</td>
+            <td>
+              <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
+                {{ "%.1f"|format(row.volatility_pct) }}%
+              </span>
+            </td>
+            <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
+            <td>{{ "%.1f"|format(row.total_pct) }}%</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">No product revenue data.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="chart-thread">
+        <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-top-products">Start a scenario analysis from this discussion</a></p>
+        {% set anchor_type = "analysis" %}
+        {% set anchor_id = "chart-top-products" %}
+        {% set messages = (chart_messages or {}).get("chart-top-products", []) %}
+        {% include "partials/thread.html" %}
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Top 5 Clients (by Activity Tier)</h3>
+      <table class="table movers-table">
+        <thead>
+          <tr>
+            <th>Rank</th><th>Group</th><th>Name</th>
+            <th>Avg (%)</th><th>Group (%)</th><th>Total (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_clients %}
+          <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
+            <td>{{ row.rank }}</td>
+            <td>{{ row.group | display_title }}</td>
+            <td>{{ row.name | display_title }}</td>
+            <td>
+              <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
+                {{ "%.1f"|format(row.volatility_pct) }}%
+              </span>
+            </td>
+            <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
+            <td>{{ "%.1f"|format(row.total_pct) }}%</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">No client revenue data.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="chart-thread">
+        <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-top-clients">Start a scenario analysis from this discussion</a></p>
+        {% set anchor_type = "analysis" %}
+        {% set anchor_id = "chart-top-clients" %}
+        {% set messages = (chart_messages or {}).get("chart-top-clients", []) %}
+        {% include "partials/thread.html" %}
+      </div>
+    </div>
   </div>
-  <div class="chart-card">
-    <h2>Concentration & Volatility</h2>
-    <p class="chart-desc"><strong>Top 5 Clients (by Activity Tier)</strong></p>
-    <p class="chart-desc" style="margin-top:-0.25rem;">Avg (%) shows the latest month's deviation from the 12-month average.</p>
-    <table class="table movers-table">
-      <thead>
-        <tr>
-          <th>Rank</th><th>Group</th><th>Name</th>
-          <th>Total (%)</th><th>Group (%)</th>
-          <th>Avg (%)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in top_clients %}
-        <tr {% if row.row_class %}class="{{ row.row_class }}"{% endif %}>
-          <td>{{ row.rank }}</td>
-          <td>{{ row.group | display_title }}</td>
-          <td>{{ row.name | display_title }}</td>
-          <td>{{ "%.1f"|format(row.total_pct) }}%</td>
-          <td>{% if row.group_pct is not none %}{{ "%.1f"|format(row.group_pct) }}%{% else %}—{% endif %}</td>
-          <td>
-            <span class="{{ 'metric-negative' if row.volatility_pct < 0 else 'metric-positive' }}">
-              {{ "%.1f"|format(row.volatility_pct) }}%
-            </span>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="empty">No client revenue data.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+</section>
 
 <script>
   (function () {

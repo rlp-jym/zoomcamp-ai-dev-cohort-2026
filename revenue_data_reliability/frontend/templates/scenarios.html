@@ -17,6 +17,8 @@
       <option value="chart-growth" {% if src_type == 'analysis' and src_id == 'chart-growth' %}selected{% endif %}>Month-over-Month Growth</option>
       <option value="chart-category-trend" {% if src_type == 'analysis' and src_id == 'chart-category-trend' %}selected{% endif %}>Revenue Trend by Category</option>
       <option value="chart-segment" {% if src_type == 'analysis' and src_id == 'chart-segment' %}selected{% endif %}>Revenue Trend by Customer</option>
+      <option value="chart-top-products" {% if src_type == 'analysis' and src_id == 'chart-top-products' %}selected{% endif %}>Top 5 Products (by ABC Class)</option>
+      <option value="chart-top-clients" {% if src_type == 'analysis' and src_id == 'chart-top-clients' %}selected{% endif %}>Top 5 Clients (by Activity Tier)</option>
     </select>
   </label>
   <label>Import from date <input type="date" name="from_date" style="width:100%; margin:0.25rem 0 0.75rem;"></label>
