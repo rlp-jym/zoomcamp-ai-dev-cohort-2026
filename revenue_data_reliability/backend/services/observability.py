@@ -27,34 +27,54 @@ def _fmt_duration(start, end) -> str:
     return f"{delta:.2f}s"
 
 
+def _trace_context(name: str) -> str:
+    mapping = {
+        "pipeline.run": "Pipeline Run",
+        "controller.verification_job": "Controller Verification",
+        "controller_verification_job": "Controller Verification",
+    }
+    return mapping.get(name, name or "Unknown")
+
+
+def _trace_action(name: str, attributes) -> str:
+    attrs = attributes
+    if isinstance(attrs, str):
+        try:
+            attrs = json.loads(attrs)
+        except (TypeError, ValueError):
+            attrs = {}
+    attrs = attrs if isinstance(attrs, dict) else {}
+    if name == "pipeline.run":
+        run_id = attrs.get("run.id") or attrs.get("run_id")
+        return f"Run #{run_id}" if run_id else "Pipeline Run"
+    if "controller" in (name or "").lower():
+        return "Controller Verification"
+    if (name or "").startswith(
+        ("GET ", "POST ", "PUT ", "PATCH ", "DELETE ", "OPTIONS ")
+    ):
+        return "HTTP Request"
+    return "Isolated span"
+
+
 def list_traces(limit: int = 25) -> list[dict]:
-    """One row per trace, excluding health checks/static assets.
+    """Root spans only, excluding health checks/static assets and DB noise.
 
     Slowest traces sort first, matching standard APM behavior.
     """
     rows = fetch_all(
         """
-        SELECT *
-        FROM (
-            SELECT
-                trace_id,
-                COALESCE(
-                    (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST) FILTER (WHERE parent_span_id IS NULL))[1],
-                    (ARRAY_AGG(name ORDER BY start_time ASC NULLS LAST))[1]
-                ) AS root_name,
-                COUNT(*) AS span_count,
-                MIN(start_time) AS started_at,
-                MAX(end_time) AS ended_at,
-                BOOL_OR(status = 'ERROR') AS has_error,
-                EXTRACT(EPOCH FROM (MAX(end_time) - MIN(start_time))) AS duration_seconds
-            FROM otel_spans
-            GROUP BY trace_id
-        ) traced
-        WHERE COALESCE(root_name, '') NOT LIKE '%%/static%%'
-          AND COALESCE(root_name, '') NOT ILIKE 'HEAD /%%'
-          AND COALESCE(root_name, '') NOT LIKE '%%/health%%'
-        ORDER BY duration_seconds DESC NULLS LAST,
-                 started_at DESC NULLS LAST
+        SELECT s.trace_id, s.name, s.start_time, s.end_time,
+               s.duration_ms, s.status, s.attributes,
+               (SELECT COUNT(*) FROM otel_spans c
+                WHERE c.trace_id = s.trace_id) AS span_count
+        FROM otel_spans s
+        WHERE s.parent_span_id IS NULL
+          AND COALESCE(s.name, '') NOT LIKE '%%/static%%'
+          AND COALESCE(s.name, '') NOT ILIKE 'HEAD /%%'
+          AND COALESCE(s.name, '') NOT LIKE '%%/health%%'
+          AND COALESCE(s.name, '') <> 'duckdb.query'
+        ORDER BY s.duration_ms DESC NULLS LAST,
+                 s.start_time DESC NULLS LAST
         LIMIT %s
         """,
         (limit,),
@@ -64,14 +84,30 @@ def list_traces(limit: int = 25) -> list[dict]:
         out.append(
             {
                 "trace_id": r["trace_id"],
-                "name": r["root_name"],
-                "duration": _fmt_duration(r["started_at"], r["ended_at"]),
-                "status": "error" if r["has_error"] else "ok",
+                "name": r["name"],
+                "context": _trace_context(r["name"]),
+                "action": _trace_action(r["name"], r["attributes"]),
+                "duration": _fmt_duration(r["start_time"], r["end_time"]),
+                "status": "error" if r["status"] == "ERROR" else "ok",
                 "spans": r["span_count"],
-                "started_at": _fmt_dt(r["started_at"]),
+                "started_at": _fmt_dt(r["start_time"]),
             }
         )
     return out
+
+
+def get_trace_name(trace_id: str) -> str:
+    """Resolve a trace's root span name for the detail header."""
+    row = fetch_one(
+        """
+        SELECT name FROM otel_spans
+        WHERE trace_id = %s
+        ORDER BY (parent_span_id IS NULL) DESC, start_time ASC NULLS LAST
+        LIMIT 1
+        """,
+        (trace_id,),
+    )
+    return row["name"] if row else "Unknown"
 
 
 def get_span_tree(trace_id: str) -> list[dict]:

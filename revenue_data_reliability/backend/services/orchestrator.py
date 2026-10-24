@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 import psutil
+from opentelemetry import trace as otel_trace
 
 from backend.config import settings
 from backend.db.connection import execute, execute_many, fetch_one
@@ -208,6 +209,33 @@ def _close_superseded_exceptions(run_id, scenario_name):
 
 
 def run_pipeline(run_id):
+    """Start the pipeline root span and align the run's trace id with it."""
+    tracer = otel_trace.get_tracer("backend.pipeline")
+    with tracer.start_as_current_span("pipeline.run") as span:
+        span.set_attribute("run.id", run_id)
+        run = runs_svc.get_run(run_id)
+        dataset = (run.get("dataset") or run.get("scenario")) if run else None
+        if dataset:
+            span.set_attribute("dataset", dataset)
+        context = span.get_span_context()
+        if context and context.is_valid:
+            trace_id = format(context.trace_id, "032x")
+            previous = run.get("trace_id") if run else None
+            if previous and previous != trace_id:
+                execute(
+                    "UPDATE agent_actions SET trace_id = %s "
+                    "WHERE trace_id = %s AND anchor_type = 'run' "
+                    "AND anchor_id = %s",
+                    (trace_id, previous, str(run_id)),
+                )
+            execute(
+                "UPDATE runs SET trace_id = %s WHERE run_id = %s",
+                (trace_id, run_id),
+            )
+        return _run_pipeline(run_id)
+
+
+def _run_pipeline(run_id):
     run = runs_svc.get_run(run_id)
     if not run:
         raise RuntimeError(f"run {run_id} not found")

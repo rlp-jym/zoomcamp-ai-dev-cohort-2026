@@ -34,13 +34,14 @@
 {% if traces %}
 <table class="table">
   <thead>
-    <tr><th>Trace ID</th><th>Name</th><th>Started</th><th>Duration</th><th>Status</th><th>Spans</th></tr>
+    <tr><th>Trace ID</th><th>Context</th><th>Action</th><th>Started</th><th>Duration</th><th>Status</th><th>Spans</th></tr>
   </thead>
   <tbody>
     {% for t in traces %}
     <tr{% if t.trace_id == expanded_trace %} class="trace-selected"{% endif %}>
       <td><a href="/observability?trace_id={{ t.trace_id }}">{{ t.trace_id }}</a></td>
-      <td>{{ t.name }}</td>
+      <td>{{ t.context }}</td>
+      <td>{{ t.action }}</td>
       <td>{{ t.started_at }}</td>
       <td>{{ t.duration }}</td>
       <td><span class="span-status {{ t.status }}">{{ t.status | capitalize }}</span></td>
