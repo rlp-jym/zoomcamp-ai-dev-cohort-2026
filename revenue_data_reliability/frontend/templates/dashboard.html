@@ -36,6 +36,14 @@
 </div>
 {% endif %}
 
+{% set dq = data_quality_impact or {} %}
+{% set dq_delta = (dq.get('delta') or 0) / 1000000 %}
+<div class="banner banner-info" style="margin-top:1rem;">
+  <strong>Data Quality Impact:</strong> Adjusted Billings by
+  ${{ "%.2f"|format(dq_delta) }}M
+  ({{ dq.get('quarantined_records') or 0 }} records quarantined).
+</div>
+
 <div class="charts-grid">
   <div class="chart-card span-2">
     <h2>Target Attainment{% if attainment and attainment.latest %} ({{ attainment.latest }}){% endif %}</h2>

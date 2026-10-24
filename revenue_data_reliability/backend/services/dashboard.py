@@ -350,6 +350,7 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
     if not data.get("available"):
         logger.info("Dashboard: no published dataset — cache left empty.")
         return "empty"
+    data["data_quality_impact"] = get_raw_vs_cleaned_delta(scenario)
     execute(
         """
         INSERT INTO dashboard_cache (cache_key, dataset_name, data, refreshed_at)
@@ -392,6 +393,53 @@ def _background_refresh(scenario: str) -> None:
     finally:
         with _DASHBOARD_REFRESH_LOCK:
             _DASHBOARD_REFRESHING.discard(scenario)
+
+
+def get_raw_vs_cleaned_delta(dataset_name: str) -> dict:
+    """Compare raw invoice-line billings with the published (cleaned) view.
+
+    Read-only: runs one DuckDB aggregate over the dataset's Parquet invoice
+    lines and one over the published-data query, which already applies the
+    quarantine overlay. Failures degrade to a zero-impact payload so a
+    dashboard render never fails because of this metric.
+    """
+    empty = {
+        "raw_billings": 0.0,
+        "cleaned_billings": 0.0,
+        "delta": 0.0,
+        "quarantined_records": 0,
+    }
+    try:
+        query = pub_svc.get_published_data_query(dataset_name)
+        if not query:
+            return empty
+        from backend.storage.duckdb_client import query_rows
+
+        raw_rows = query_rows(
+            "SELECT COALESCE(SUM(line_subtotal), 0) AS amt, COUNT(*) AS n "
+            f"FROM read_parquet('{_uri(dataset_name, 'invoice_lines')}')"
+        )
+        cleaned_rows = query_rows(
+            "SELECT COALESCE(SUM(line_subtotal), 0) AS amt, COUNT(*) AS n "
+            f"FROM ({query['sql']}) cleaned"
+        )
+        raw = raw_rows[0] if raw_rows else {}
+        cleaned = cleaned_rows[0] if cleaned_rows else {}
+        raw_amt = float(raw.get("amt") or 0.0)
+        cleaned_amt = float(cleaned.get("amt") or 0.0)
+        return {
+            "raw_billings": round(raw_amt, 2),
+            "cleaned_billings": round(cleaned_amt, 2),
+            "delta": round(raw_amt - cleaned_amt, 2),
+            "quarantined_records": max(
+                int(raw.get("n") or 0) - int(cleaned.get("n") or 0), 0
+            ),
+        }
+    except Exception:
+        logger.warning(
+            "Raw vs cleaned delta failed for dataset %s", dataset_name, exc_info=True
+        )
+        return empty
 
 
 def _chart_messages() -> dict:

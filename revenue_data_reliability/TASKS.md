@@ -372,3 +372,9 @@ One dataset = one `scenarios` row. The app is scoped to a single active dataset 
 
 ## Non-goals guardrail
 Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
+## 31. Dashboard Feature Enhancements (Future Roadmap)
+- [ ] **31.1 Variance Bridge (Waterfall Chart):** Replace/augment the category variance bar chart with a waterfall bridging Target to Actuals (Volume, Price, FX).
+- [x] **31.2 Raw vs. Cleaned Data Delta:** Show the financial impact of the data quality quarantine on the dashboard.
+- [ ] **31.3 Top Movers (Drill-down):** Add a table showing the Top 5 Customers/Items by variance to prompt specific discussions.
+- [ ] **31.4 DSO / Cash Metrics:** Add Days Sales Outstanding metrics to prompt cash/collections discussions.
+- [ ] **31.5 Target Attainment Context:** Add a historical average marker to the Target Attainment bar to contextualize current performance.
