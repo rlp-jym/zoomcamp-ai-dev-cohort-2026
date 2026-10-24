@@ -234,7 +234,12 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         m for m in (set(gl_month) | set(billings_month) | set(budget_month))
         if m in set(full_months)
     )[-6:]
+    months_12 = sorted(
+        m for m in (set(gl_month) | set(billings_month) | set(budget_month))
+        if m in set(full_months)
+    )[-12:]
     month_set = set(months)
+    month_set_12 = set(months_12)
 
     # ---- target vs actual bridge (trailing chart window) -------------------
     # New cache keys only: the existing billings/variance keys stay intact.
@@ -275,6 +280,15 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             )
     target_total = sum(target_by_category.values())
     actual_total = sum(actual_by_category.values())
+    revenue_by_category_monthly: dict[str, dict[str, float]] = {
+        month: {} for month in months_12
+    }
+    for row in gl_category_rows:
+        if row["period"] in month_set_12:
+            category = row["item_category"] or "Unknown"
+            revenue_by_category_monthly[row["period"]][category] = round(
+                float(row["amt"] or 0.0), 2
+            )
 
     gl_total = sum(gl_month.values())
     (
@@ -309,13 +323,14 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         (q["run_id"],),
     )
 
-    # ---- growth and target attainment ---------------------------------------
-    gl_values = [gl_month.get(m, 0.0) for m in months]
+    # ---- growth (trailing 12 months) and target attainment ----------------
+    gl_values_12 = [gl_month.get(m, 0.0) for m in months_12]
     growth_rates = [
-        round((gl_values[i] - gl_values[i - 1]) / gl_values[i - 1] * 100, 1)
-        if gl_values[i - 1] > 0 else None
-        for i in range(1, len(gl_values))
+        round((gl_values_12[i] - gl_values_12[i - 1]) / gl_values_12[i - 1] * 100, 1)
+        if gl_values_12[i - 1] > 0 else None
+        for i in range(1, len(gl_values_12))
     ]
+    gl_values = [gl_month.get(m, 0.0) for m in months]
 
     budget_total = sum(budget_month.get(m, 0.0) for m in months)
     attainment_pct = (
@@ -348,6 +363,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     data["actual_by_category"] = {
         key: round(value, 2) for key, value in sorted(actual_by_category.items())
     }
+    data["revenue_by_category_monthly"] = revenue_by_category_monthly
 
     data["charts"] = {
         # One chart carries actuals, billings and target: the General
@@ -355,17 +371,17 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         # against billings). Forward-looking projections now live under
         # Scenarios, not on this actuals page.
         "revenue_plan": {
-            "labels": months,
+            "labels": months_12,
             "actual": [
-                round(gl_month.get(m, 0.0) / 1e6, 3) for m in months
+                round(gl_month.get(m, 0.0) / 1e6, 3) for m in months_12
             ],
             "billings": [
-                round(billings_month.get(m, 0.0) / 1e6, 3) for m in months
+                round(billings_month.get(m, 0.0) / 1e6, 3) for m in months_12
             ],
             "budget": [
                 round(budget_month[m] / 1e6, 3)
                 if budget_month.get(m) is not None else None
-                for m in months
+                for m in months_12
             ],
         },
         "variance_category": {
@@ -373,7 +389,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             "values": [round(float(r["avg_var"] or 0), 4) for r in variance_rows],
         },
         "growth": {
-            "labels": months[1:],
+            "labels": months_12[1:],
             "values": growth_rates,
         },
         "segment_mix": segment_mix,

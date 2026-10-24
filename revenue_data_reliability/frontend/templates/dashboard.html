@@ -62,7 +62,7 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Revenue, Billings & Plan (Trailing 6 Months)</h2>
+    <h2>Revenue, Billings & Plan (Trailing 12 Months)</h2>
     <div class="chart-box">
       <canvas id="revenuePlanChart"></canvas>
     </div>
@@ -90,7 +90,7 @@
     </div>
   </div>
   <div class="chart-card">
-    <h2>Month-over-Month Growth (General Ledger)</h2>
+    <h2>Month-over-Month Growth (Trailing 12 Months)</h2>
     <div class="chart-box">
       <canvas id="growthChart"></canvas>
     </div>
@@ -102,6 +102,16 @@
       {% set messages = (chart_messages or {}).get("chart-growth", []) %}
       {% include "partials/thread.html" %}
     </div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card span-2">
+    <h2>Revenue Trend by Category (Trailing 12 Months)</h2>
+    <div class="chart-box">
+      <canvas id="categoryTrendChart"></canvas>
+    </div>
+    <p class="chart-desc">Stacked General Ledger revenue by item category across the trailing 12 months — shows which categories are driving the revenue trend.</p>
   </div>
 </div>
 
@@ -139,6 +149,7 @@
       target_by_category: {{ (target_by_category or {}) | tojson }},
       actual_by_category: {{ (actual_by_category or {}) | tojson }}
     };
+    const categoryTrend = {{ (revenue_by_category_monthly or {}) | tojson }};
     if (!c || !c.revenue_plan) return;
 
     new Chart(document.getElementById("revenuePlanChart"), {
@@ -158,7 +169,7 @@
         responsive: true, maintainAspectRatio: false, animation: false,
         plugins: { legend: { position: "bottom", labels: { font: { size: 13 } } } },
         scales: {
-          x: { ticks: { font: { size: 12 } } },
+          x: { ticks: { font: { size: 12 }, autoSkip: true, maxRotation: 45 } },
           y: {
             type: "linear", position: "left",
             title: { display: true, text: "$M", font: { size: 13 } },
@@ -260,11 +271,64 @@
         responsive: true, maintainAspectRatio: false, animation: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { font: { size: 12 } } },
+          x: { ticks: { font: { size: 12 }, autoSkip: true, maxRotation: 45 } },
           y: { ticks: { font: { size: 12 } } }
         }
       }
     });
+
+    (function renderCategoryTrend() {
+      const trend = categoryTrend || {};
+      const months = Object.keys(trend);
+      if (!months.length) return;
+      const categories = Array.from(new Set(
+        months.flatMap(month => Object.keys(trend[month] || {}))
+      ));
+      const palette = [
+        "#1f2a44", "#4a6fa5", "#9aa0a6", "#1a7f37",
+        "#cf222e", "#6f42c1", "#d97706", "#0f766e"
+      ];
+      const datasets = categories.map((category, index) => ({
+        label: category,
+        data: months.map(month => Number((trend[month] || {})[category] || 0) / 1e6),
+        borderColor: palette[index % palette.length],
+        backgroundColor: palette[index % palette.length] + "66",
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
+        borderWidth: 2
+      }));
+
+      new Chart(document.getElementById("categoryTrendChart"), {
+        type: "line",
+        data: { labels: months, datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          elements: { line: { fill: true } },
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { font: { size: 12 } }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              ticks: { font: { size: 12 }, autoSkip: true, maxRotation: 45 }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              title: { display: true, text: "$M", font: { size: 13 } },
+              ticks: {
+                font: { size: 12 },
+                callback: (value) => "$" + Number(value).toFixed(1) + "M"
+              }
+            }
+          }
+        }
+      });
+    })();
   if (c.segment_mix && c.segment_mix.length) {
     new Chart(document.getElementById("segmentChart"), {
       type: "bar",
