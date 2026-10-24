@@ -144,11 +144,11 @@
 
 <div class="charts-grid">
   <div class="chart-card span-2">
-    <h2>Billings Trend by Customer Segment (Trailing 12 Months)</h2>
+    <h2>Revenue Trend by Customer Segment (Trailing 12 Months)</h2>
     <div class="chart-box">
       <canvas id="segmentTrendChart"></canvas>
     </div>
-    <p class="chart-desc">Stacked billings by customer segment across the trailing 12 months — shows which segments are driving the revenue trend.</p>
+    <p class="chart-desc">Stacked General Ledger revenue by customer segment across the trailing 12 months — shows which segments are driving the revenue trend (allocated based on monthly billing mix).</p>
     <div class="chart-thread">
       <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-segment">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
@@ -169,7 +169,7 @@
       actual_by_category: {{ (actual_by_category or {}) | tojson }}
     };
     const categoryTrend = {{ (revenue_by_category_monthly or {}) | tojson }};
-    const segmentTrend = {{ (billings_by_segment_monthly or {}) | tojson }};
+    const segmentTrend = {{ (revenue_by_segment_monthly or {}) | tojson }};
     const segmentBridge = {
       target_total: {{ (target_total or 0) | tojson }},
       actual_total: {{ (actual_total or 0) | tojson }},

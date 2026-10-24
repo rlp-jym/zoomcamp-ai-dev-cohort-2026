@@ -408,6 +408,25 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         }
         for month in months_12
     }
+    # gl_revenue has no segment column (its customer_id is null), so allocate
+    # each month's GL total using that month's billing mix by segment.
+    revenue_by_segment_monthly: dict[str, dict[str, float]] = {}
+    for month in months_12:
+        monthly_billings = {
+            label: amounts.get(month, 0.0)
+            for label, amounts in segments_month.items()
+            if amounts.get(month, 0.0)
+        }
+        monthly_total = sum(monthly_billings.values())
+        if not monthly_total:
+            revenue_by_segment_monthly[month] = {}
+            continue
+        gl_total_month = gl_month.get(month, 0.0)
+        revenue_by_segment_monthly[month] = {
+            label: round(gl_total_month * amount / monthly_total, 2)
+            for label, amount in sorted(monthly_billings.items())
+        }
+    data["revenue_by_segment_monthly"] = revenue_by_segment_monthly
 
     data["charts"] = {
         # One chart carries actuals, billings and target: the General
