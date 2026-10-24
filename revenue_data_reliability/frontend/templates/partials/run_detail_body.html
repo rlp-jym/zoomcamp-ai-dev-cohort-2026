@@ -43,7 +43,8 @@
 <form method="post" action="/runs/{{ run.id }}/approve" style="margin:1rem 0;"
       data-approve-form
       hx-post="/runs/{{ run.id }}/approve"
-      hx-swap="none">
+      hx-target="this"
+      hx-swap="outerHTML">
   <button class="btn" type="submit"
           data-loading-label="Building Dashboard Cache…"
           {% if publish_blocked or persona.id != "manager" %}disabled{% endif %}>Approve Go-Live</button>

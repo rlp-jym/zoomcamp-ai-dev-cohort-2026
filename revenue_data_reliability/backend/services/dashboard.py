@@ -54,6 +54,7 @@ SEGMENT_COLORS = {
 _DASHBOARD_CACHE: dict = {}
 _DASHBOARD_CACHE_TTL = 5.0
 _DASHBOARD_REFRESHING: set = set()
+_DASHBOARD_BUILDING: set = set()
 _DASHBOARD_REFRESH_LOCK = threading.Lock()
 
 
@@ -655,6 +656,41 @@ def _background_refresh(scenario: str) -> None:
     finally:
         with _DASHBOARD_REFRESH_LOCK:
             _DASHBOARD_REFRESHING.discard(scenario)
+
+
+def start_dashboard_refresh(scenario: str = SCENARIO) -> bool:
+    """Kick off an S3-heavy cache rebuild without blocking the request."""
+    scenario = str(scenario)
+    with _DASHBOARD_REFRESH_LOCK:
+        if scenario in _DASHBOARD_BUILDING:
+            return False
+        _DASHBOARD_BUILDING.add(scenario)
+
+    def _job():
+        try:
+            refresh_dashboard_cache(scenario)
+        except Exception:
+            logger.exception("Dashboard cache rebuild failed for %s", scenario)
+        finally:
+            with _DASHBOARD_REFRESH_LOCK:
+                _DASHBOARD_BUILDING.discard(scenario)
+
+    threading.Thread(
+        target=_job,
+        name=f"dashboard-refresh-{scenario}",
+        daemon=True,
+    ).start()
+    return True
+
+
+def dashboard_cache_status(scenario: str = SCENARIO) -> str:
+    """Return ``building`` | ``ready`` | ``missing`` for the status poller."""
+    scenario = str(scenario)
+    with _DASHBOARD_REFRESH_LOCK:
+        if scenario in _DASHBOARD_BUILDING:
+            return "building"
+    data, _ = get_from_cache(scenario)
+    return "ready" if data is not None else "missing"
 
 
 def get_raw_vs_cleaned_delta(dataset_name: str) -> dict:

@@ -1,13 +1,11 @@
-"""OTEL SDK setup: auto-instrumentation + Postgres exporters + retention.
+"""OTEL SDK setup: FastAPI instrumentation + Postgres exporters + retention.
 
 Wired once at app construction (``setup_telemetry(app)``) so that:
 
-* psycopg is instrumented before the connection pool opens, so every
-  SQL statement is traced.
 * FastAPI (ASGI) is instrumented before the first request.
-* botocore/boto3 S3 calls are instrumented.
-* DuckDB has no auto-instrumentor; ``backend.storage.duckdb_client``
-  creates manual spans for each query.
+* Manual application spans (``pipeline.run``) remain available.
+* Database and object-store instrumentation is intentionally disabled to keep
+  memory bounded on Render's 512MB container.
 
  Logs raised via Python logging are exported through a ``LoggingHandler``
  so in-app messages appear as linked OTEL logs.
@@ -16,9 +14,7 @@ Wired once at app construction (``setup_telemetry(app)``) so that:
 import logging
 
 from opentelemetry import metrics, trace
-from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
@@ -85,10 +81,6 @@ def setup_telemetry(app) -> None:
         meter_provider=meter_provider,
         excluded_urls="health",
     )
-    # psycopg3 SQL spans (pool opens after this in the app lifespan).
-    PsycopgInstrumentor().instrument(tracer_provider=tracer_provider)
-    # boto3/botocore S3 spans (manifest verification, uploads).
-    BotocoreInstrumentor().instrument(tracer_provider=tracer_provider)
 
 
 def shutdown_telemetry(timeout_millis: float = 5000) -> None:

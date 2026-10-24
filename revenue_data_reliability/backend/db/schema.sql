@@ -287,7 +287,9 @@ CREATE INDEX IF NOT EXISTS idx_alerts_type_anchor ON alerts (alert_type, anchor_
 CREATE INDEX IF NOT EXISTS idx_agent_actions_trace ON agent_actions (trace_id);
 CREATE INDEX IF NOT EXISTS idx_agent_actions_anchor ON agent_actions (anchor_type, anchor_id);
 CREATE INDEX IF NOT EXISTS idx_otel_spans_trace ON otel_spans (trace_id);
+CREATE INDEX IF NOT EXISTS idx_otel_spans_trace_id ON otel_spans (trace_id);
 CREATE INDEX IF NOT EXISTS idx_otel_logs_trace ON otel_logs (trace_id);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_trace_id ON agent_actions (trace_id);
 CREATE INDEX IF NOT EXISTS idx_quarantines_run ON quarantines (run_id);
 CREATE INDEX IF NOT EXISTS idx_approvals_target ON approvals (target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_publications_run ON publications (run_id);

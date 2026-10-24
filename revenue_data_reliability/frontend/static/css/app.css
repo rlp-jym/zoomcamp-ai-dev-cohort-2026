@@ -71,7 +71,7 @@ h1 { margin-top: 0; }
 .badge-director { background: #3b4a7a; color: #fff; }
 .badge-orchestrator { background: #6b4a1f; color: #fff; }
 .badge-system { background: #e2e3e5; color: #41464b; }
-.trace-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; user-select: all; }
+.trace-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; user-select: all; display: inline-block; max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .trace-selected { background: #eef4ff; font-weight: 600; }
 .audit-details { max-width: 30rem; font-size: 0.82rem; color: #555; }
 .ts { color: #888; }

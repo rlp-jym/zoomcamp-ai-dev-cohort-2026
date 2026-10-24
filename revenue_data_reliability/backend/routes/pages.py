@@ -118,23 +118,43 @@ async def dashboard(request: Request):
     return resp
 
 
+def _cache_rebuild_html(dataset):
+    from urllib.parse import quote
+
+    query = quote(str(dataset or ""), safe="")
+    return HTMLResponse(
+        '<div class="banner banner-info">Cache rebuild started. This may take '
+        "10-15 seconds. "
+        f'<span hx-get="/dashboard/status?dataset={query}" hx-trigger="every 2s">'
+        "Waiting for data...</span></div>"
+    )
+
+
 @router.post("/dashboard/refresh")
 async def dashboard_refresh(request: Request):
-    """Recompute the dashboard cache in a background thread (S3 heavy)."""
-    import threading
+    """Kick off a background dashboard rebuild and return immediately."""
+    from backend.services import dashboard as dashboard_svc
+
+    dataset = _resolve_dataset(request, {})
+    dashboard_svc.start_dashboard_refresh(dataset)
+    return _cache_rebuild_html(dataset)
+
+
+@router.get("/dashboard/status")
+async def dashboard_status(request: Request):
+    """HTMX poller: refresh the page once the cache rebuild finishes."""
+    from urllib.parse import quote
 
     from backend.services import dashboard as dashboard_svc
 
     dataset = _resolve_dataset(request, {})
-
-    def _job():
-        try:
-            dashboard_svc.refresh_dashboard_cache(dataset)
-        except Exception:
-            logger.exception("Dashboard cache refresh failed for dataset %s", dataset)
-
-    threading.Thread(target=_job, daemon=True).start()
-    return RedirectResponse(url=f"/?dataset={dataset}", status_code=303)
+    if dashboard_svc.dashboard_cache_status(dataset) == "ready":
+        return Response(status_code=200, headers={"HX-Refresh": "true"})
+    query = quote(str(dataset or ""), safe="")
+    return HTMLResponse(
+        f'<span hx-get="/dashboard/status?dataset={query}" hx-trigger="every 2s">'
+        "Waiting for data...</span>"
+    )
 
 
 @router.get("/exceptions")
@@ -588,15 +608,8 @@ async def approve_run(request: Request, run_id: int):
 
     dataset_name = run.get("dataset") or run.get("scenario")
     if dataset_name:
-        try:
-            dashboard_svc.invalidate_dashboard_cache(dataset_name)
-            dashboard_svc.refresh_dashboard_cache(dataset_name)
-        except Exception:
-            logger.exception(
-                "Dashboard cache build failed for dataset %s after publishing run %s",
-                dataset_name,
-                run_id,
-            )
+        dashboard_svc.invalidate_dashboard_cache(dataset_name)
+        dashboard_svc.start_dashboard_refresh(dataset_name)
 
     if pub["created"]:
         content = (
@@ -623,9 +636,8 @@ async def approve_run(request: Request, run_id: int):
     )
     target = f"/runs/{run_id}"
     if request.headers.get("HX-Request") == "true":
-        # HTMX keeps the button in its loading state until this response
-        # arrives; HX-Redirect then performs a full navigation to the run.
-        return Response(status_code=200, headers={"HX-Redirect": target})
+        # Return the polling fragment; the page reloads once the cache is ready.
+        return _cache_rebuild_html(dataset_name or run.get("scenario"))
     return RedirectResponse(url=target, status_code=303)
 
 
