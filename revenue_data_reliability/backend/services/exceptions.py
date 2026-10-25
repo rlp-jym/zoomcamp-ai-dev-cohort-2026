@@ -252,6 +252,15 @@ def dismiss_all(run_id=None):
     return int((row or {}).get("n") or 0)
 
 
+def open_exceptions(run_id=None):
+    """Return every non-closed exception, unpaginated.
+
+    Used by the bulk actions so "all open" means the whole queue rather than
+    the first page of it.
+    """
+    return list_exceptions("open", limit=10000, run_id=run_id)
+
+
 def get_sampled_failures_for_exception(exc):
     """Return sampled failures for the rule that raised a validation exception."""
     if not exc or not exc.get("run_id"):

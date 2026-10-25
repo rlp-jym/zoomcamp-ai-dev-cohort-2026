@@ -512,6 +512,87 @@ def test_dashboard_has_no_initializing_banner(monkeypatch):
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
 
 
+def test_bulk_actions_visible_but_disabled_for_non_manager():
+    init_pool()
+    dataset = f"test_bulk_visible_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+        (dataset,),
+    )
+    run_id, trace_id = _make_run(scenario=dataset)
+    exc_id = _make_exception(run_id, trace_id)
+    try:
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "analyst"}, follow_redirects=False)
+        response = c.get(f"/exceptions?run_id={run_id}&status=open")
+        assert response.status_code == 200
+        assert "Dismiss all open (1)" in response.text
+        assert "Quarantine all open (1)" in response.text
+        assert "disabled>Dismiss all open" in response.text
+        assert "disabled>Quarantine all open" in response.text
+        assert "Requires Manager" in response.text
+    finally:
+        execute("DELETE FROM exceptions WHERE exception_id = %s", (exc_id,))
+        runs_svc.delete_run(run_id)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_quarantine_all_requires_manager():
+    init_pool()
+    c = TestClient(app)
+    c.post("/persona", data={"persona_id": "analyst"}, follow_redirects=False)
+    response = c.post("/exceptions/quarantine-all", follow_redirects=False)
+    assert response.status_code == 403
+
+
+def test_quarantine_all_scoped_to_run():
+    init_pool()
+    from backend.db.connection import fetch_all
+
+    dataset = f"test_quarantine_all_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+        (dataset,),
+    )
+    run_id, trace_id = _make_run(scenario=dataset)
+    other_run, other_trace = _make_run(scenario=dataset)
+    ids = []
+    try:
+        ids.append(_make_exception(run_id, trace_id))
+        ids.append(_make_exception(run_id, trace_id))
+        untouched = _make_exception(other_run, other_trace)
+        ids.append(untouched)
+
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+        response = c.post(
+            "/exceptions/quarantine-all", data={"run_id": run_id}, follow_redirects=False
+        )
+        assert response.status_code == 303
+
+        rows = fetch_all(
+            "SELECT exception_id, status FROM exceptions WHERE exception_id = ANY(%s)",
+            (ids,),
+        )
+        statuses = {row["exception_id"]: row["status"] for row in rows}
+        assert statuses[ids[0]] == "resolved"
+        assert statuses[ids[1]] == "resolved"
+        assert statuses[untouched] == "open"
+
+        quarantined = fetch_all(
+            "SELECT exception_id FROM quarantines WHERE exception_id = ANY(%s)",
+            (ids,),
+        )
+        quarantined_ids = {row["exception_id"] for row in quarantined}
+        assert quarantined_ids == {ids[0], ids[1]}
+    finally:
+        execute("DELETE FROM quarantines WHERE exception_id = ANY(%s)", (ids,))
+        execute("DELETE FROM exceptions WHERE exception_id = ANY(%s)", (ids,))
+        runs_svc.delete_run(run_id)
+        runs_svc.delete_run(other_run)
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
 def test_fixed_dataset_labels_are_positioned():
     from backend.templating import scenario_label
 

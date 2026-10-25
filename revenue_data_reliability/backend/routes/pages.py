@@ -91,6 +91,57 @@ def _ctx(request, **extra):
     return {**base, **extra}
 
 
+def _quarantine_and_resolve(exc, action, message, *, actor="manager"):
+    """Approve, quarantine and resolve one exception.
+
+    Shared by the single "Execute Fix" action and the bulk "Quarantine all"
+    action so both leave the same audit trail.
+    """
+    exc_id = exc["id"]
+    trace_id = exc.get("trace_id")
+
+    execute(
+        "UPDATE exceptions SET status = 'approved', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+    DEAgent().execute_quarantine(exc, trace_id)
+    execute(
+        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
+        (exc_id,),
+    )
+    execute(
+        "INSERT INTO agent_actions "
+        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+        "VALUES (%s, %s, 'exception', %s, %s, %s)",
+        (
+            actor,
+            action,
+            str(exc_id),
+            trace_id,
+            json.dumps(
+                {
+                    "exception_id": exc_id,
+                    "status": "resolved",
+                    "rule_id": exc.get("rule_id"),
+                }
+            ),
+        ),
+    )
+    messages.post_message(
+        "exception",
+        str(exc_id),
+        stub_data.get_persona(actor),
+        message,
+        trace_id=trace_id,
+        evidence={
+            "approved": True,
+            "resolved": True,
+            "approved_by": actor,
+            "status": "resolved",
+        },
+    )
+
+
 @router.get("/")
 async def dashboard(request: Request):
     """§19: real KPIs + charts from the published dataset.
@@ -262,54 +313,13 @@ async def approve_exception(request: Request, exc_id: int):
     if exc["status"] in ("resolved", "approved", "dismissed", "rejected"):
         raise HTTPException(status_code=400, detail="Exception is already closed.")
 
-    trace_id = exc.get("trace_id")
-
-    execute(
-        "UPDATE exceptions SET status = 'approved', updated_at = now() WHERE exception_id = %s",
-        (exc_id,),
-    )
-
-    de_agent = DEAgent()
-    de_agent.execute_quarantine(exc, trace_id)
-
-    execute(
-        "UPDATE exceptions SET status = 'resolved', updated_at = now() WHERE exception_id = %s",
-        (exc_id,),
-    )
-    execute(
-        "INSERT INTO agent_actions "
-        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
-        "VALUES (%s, %s, 'exception', %s, %s, %s)",
-        (
-            "manager",
-            "Exception Approved",
-            str(exc_id),
-            trace_id,
-            json.dumps(
-                {
-                    "exception_id": exc_id,
-                    "status": "resolved",
-                    "rule_id": exc.get("rule_id"),
-                }
-            ),
-        ),
-    )
-
-    messages.post_message(
-        "exception",
-        str(exc_id),
-        stub_data.get_persona("manager"),
+    _quarantine_and_resolve(
+        exc,
+        "Exception Approved",
         (
             f"Exception #{exc_id} approved by Manager; DE executed the quarantine. "
             "Status: resolved."
         ),
-        trace_id=trace_id,
-        evidence={
-            "approved": True,
-            "resolved": True,
-            "approved_by": "manager",
-            "status": "resolved",
-        },
     )
 
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
@@ -342,6 +352,59 @@ async def dismiss_all_exceptions(request: Request):
             json.dumps({"dismissed": dismissed, "run_id": run_id}),
         ),
     )
+    target = "/exceptions?status=open"
+    if run_id is not None:
+        target += f"&run_id={run_id}"
+    return RedirectResponse(url=target, status_code=303)
+
+
+@router.post("/exceptions/quarantine-all")
+async def quarantine_all_exceptions(request: Request):
+    """Manager executes the quarantine fix for every open issue in one action."""
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(
+            status_code=403, detail="Only the Manager can quarantine exceptions."
+        )
+
+    form = await request.form()
+    raw = form.get("run_id")
+    try:
+        run_id = int(raw) if raw not in (None, "") else None
+    except (TypeError, ValueError):
+        run_id = None
+
+    open_items = exc_svc.open_exceptions(run_id)
+    resolved = 0
+    for item in open_items:
+        exc = exc_svc.get_exception(item["id"])
+        if not exc:
+            continue
+        if exc["status"] in ("resolved", "approved", "dismissed", "rejected"):
+            continue
+        _quarantine_and_resolve(
+            exc,
+            "Exception Quarantined",
+            (
+                f"Exception #{exc['id']} resolved by Manager bulk action; "
+                "DE executed the quarantine. Status: resolved."
+            ),
+        )
+        resolved += 1
+
+    execute(
+        "INSERT INTO agent_actions "
+        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+        "VALUES (%s, %s, 'run', %s, %s, %s)",
+        (
+            "manager",
+            "Exceptions Quarantined",
+            str(run_id) if run_id is not None else "all",
+            None,
+            json.dumps({"quarantined": resolved, "run_id": run_id}),
+        ),
+    )
+
     target = "/exceptions?status=open"
     if run_id is not None:
         target += f"&run_id={run_id}"

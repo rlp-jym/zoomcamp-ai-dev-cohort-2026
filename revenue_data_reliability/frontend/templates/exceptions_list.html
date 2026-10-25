@@ -19,12 +19,24 @@
 {% if run_id %}
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
 {% endif %}
-{% if counts.open and persona.id == "manager" %}
-<form method="post" action="/exceptions/dismiss-all" style="margin-bottom:1rem;"
-      onsubmit="return confirm('Dismiss all {{ counts.open }} open issues? This cannot be undone.');">
-  {% if filtered_run_id %}<input type="hidden" name="run_id" value="{{ filtered_run_id }}">{% endif %}
-  <button type="submit" class="btn-danger">Dismiss all open ({{ counts.open }})</button>
-</form>
+{% if active_run_id or run_id %}
+<div class="bulk-actions" style="margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+  <form method="post" action="/exceptions/dismiss-all"
+        onsubmit="return confirm('Dismiss all {{ counts.open }} open issues? This cannot be undone.');">
+    {% if filtered_run_id %}<input type="hidden" name="run_id" value="{{ filtered_run_id }}">{% endif %}
+    <button type="submit" class="btn-danger" {% if persona.id != "manager" or not counts.open %}disabled{% endif %}>Dismiss all open ({{ counts.open }})</button>
+  </form>
+  <form method="post" action="/exceptions/quarantine-all"
+        onsubmit="return confirm('Quarantine the affected records for all {{ counts.open }} open issues? This cannot be undone.');">
+    {% if filtered_run_id %}<input type="hidden" name="run_id" value="{{ filtered_run_id }}">{% endif %}
+    <button type="submit" class="btn btn-approve" {% if persona.id != "manager" or not counts.open %}disabled{% endif %}>Quarantine all open ({{ counts.open }})</button>
+  </form>
+  {% if persona.id == "manager" %}
+    <span style="color:green;font-size:0.8rem;">&#10003; Verified Manager</span>
+  {% else %}
+    <span style="color:red;font-size:0.8rem;">Requires Manager</span>
+  {% endif %}
+</div>
 {% endif %}
 
 <table class="table">
