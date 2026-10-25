@@ -69,35 +69,6 @@
 </div>
 
 <div class="charts-grid">
-  <div class="chart-card">
-    <h2>Category Variance Bridge (Target to Actual)</h2>
-    <div class="chart-box">
-      <canvas id="varianceBridgeChart"></canvas>
-    </div>
-    <p class="chart-desc">Target-to-actual bridge by item category. Grey bars are the target and actual totals; green and red bars show each category's contribution to the variance.</p>
-    <div class="chart-thread">
-      {% set anchor_type = "analysis" %}
-      {% set anchor_id = "chart-variance-category--" ~ dataset %}
-      {% set messages = (chart_messages or {}).get("chart-variance-category", []) %}
-      {% include "partials/thread.html" %}
-    </div>
-  </div>
-  <div class="chart-card">
-    <h2>Customer Variance Bridge (Target to Actual)</h2>
-    <div class="chart-box">
-      <canvas id="segmentBridgeChart"></canvas>
-    </div>
-    <p class="chart-desc">Target-to-actual bridge by customer segment. Segment totals are allocated from the trailing billings mix.</p>
-    <div class="chart-thread">
-      {% set anchor_type = "analysis" %}
-      {% set anchor_id = "chart-customer-variance--" ~ dataset %}
-      {% set messages = (chart_messages or {}).get("chart-customer-variance", []) %}
-      {% include "partials/thread.html" %}
-    </div>
-  </div>
-</div>
-
-<div class="charts-grid">
   <div class="chart-card span-2">
     <h2>Month-over-Month Growth (Trailing 12 Months)</h2>
     <div class="chart-box">
@@ -146,7 +117,39 @@
 </div>
 
 <section style="margin-top:2rem;">
-  <h2>Concentration & Volatility</h2>
+  <h2>Variance Bridges (Target to Actual)</h2>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>By Category</h2>
+      <div class="chart-box">
+        <canvas id="varianceBridgeChart"></canvas>
+      </div>
+      <p class="chart-desc">Target-to-actual bridge by item category. Grey bars are the target and actual totals; green and red bars show each category's contribution to the variance.</p>
+      <div class="chart-thread">
+        {% set anchor_type = "analysis" %}
+        {% set anchor_id = "chart-variance-category--" ~ dataset %}
+        {% set messages = (chart_messages or {}).get("chart-variance-category", []) %}
+        {% include "partials/thread.html" %}
+      </div>
+    </div>
+    <div class="chart-card">
+      <h2>By Customer</h2>
+      <div class="chart-box">
+        <canvas id="segmentBridgeChart"></canvas>
+      </div>
+      <p class="chart-desc">Target-to-actual bridge by customer segment. Segment totals are allocated from the trailing billings mix.</p>
+      <div class="chart-thread">
+        {% set anchor_type = "analysis" %}
+        {% set anchor_id = "chart-customer-variance--" ~ dataset %}
+        {% set messages = (chart_messages or {}).get("chart-customer-variance", []) %}
+        {% include "partials/thread.html" %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="margin-top:2rem;">
+  <h2>Concentration &amp; Volatility</h2>
   <p class="chart-desc" style="margin-top:0.25rem;">Avg (%) shows the latest month's deviation from the 12-month average.</p>
   <div class="charts-grid">
     <div class="chart-card">
