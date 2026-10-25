@@ -359,11 +359,12 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Verification that generated seeds inject defects across all rule categories.
 
 ## 29. Pre-Submission Checklist (CI/CD Final State)
-> CI/CD is stable: all four workflows active; production deploy is manual via the
-> `production` environment. Branch rulesets stay off during build and are
-> re-enabled once at final submission.
+> CI/CD is stable: `test`, `deploy-staging`, and `deploy-prod` are active;
+> production deploy is manual via the `production` environment. Branch rulesets
+> stay off during build and are re-enabled once at final submission.
 
-- [x] All workflows active: `test`, `deploy-staging`, `deploy-prod`, `scenario-generate`.
+- [x] Active workflows: `test`, `deploy-staging`, `deploy-prod`.
+- [x] `scenario-generate` and stale `deploy-now` disabled manually.
 - [ ] Re-enable GitHub Rulesets for branch protection — final-submission toggle; keep off during build.
 
 ## 30. Dataset Scoping (Project File Model)

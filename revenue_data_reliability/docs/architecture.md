@@ -34,7 +34,7 @@ flowchart LR
 | `data/` generator | No | Historical fixture factory; produced the fixed seeds |
 | `run_generator.*` | No | Local orchestration; kept for reproducibility |
 | `upload.py` | No | Uploads Parquet to R2; used by the manual workflow |
-| `scenario-generate.yml` | No | Manual regenerate/upload workflow |
+| `scenario-generate.yml` | No | Manual workflow; disabled in GitHub Actions |
 
 ## Pipeline
 

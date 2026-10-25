@@ -375,7 +375,7 @@ and fixes the issue" while keeping data-changing actions human-approved.
 | `test.yml` | PRs, all pushes | Lint, unit, integration |
 | `deploy-staging.yml` | Push to `staging` | Deploy to staging |
 | `deploy-prod.yml` | Push to `main` | Manual approval via GitHub Environments, then deploy |
-| `scenario-generate.yml` | `workflow_dispatch` | Run generator, upload to R2, POST to app webhook |
+| `scenario-generate.yml` | `workflow_dispatch` | Disabled; offline generator retained for reproducibility |
 
 - Integration tests use Postgres service container
 - `main` requires green tests + manual approval to deploy

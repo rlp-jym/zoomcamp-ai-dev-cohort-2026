@@ -170,7 +170,7 @@ CI runs lint plus the full suite against a Postgres service container.
 | `test.yml` | PRs and pushes | Lint + tests (Postgres service) |
 | `deploy-staging.yml` | Push to `staging` | Tests, then Render deploy |
 | `deploy-prod.yml` | Push to `main` | Manual approval, then Render deploy |
-| `scenario-generate.yml` | Manual | Generate dataset, upload to R2, register via webhook |
+| `scenario-generate.yml` | Manual | Disabled; offline generator retained for reproducibility |
 
 See [docs/deployment.md](docs/deployment.md).
 

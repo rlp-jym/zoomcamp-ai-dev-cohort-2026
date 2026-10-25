@@ -22,7 +22,7 @@ block remains until the unused Render DBs are backed up and removed. See
 | `test.yml` | PR / push to `develop`, `staging`, `main` | Ruff + pytest against Postgres |
 | `deploy-staging.yml` | Push to `staging` | Tests, then Render deploy hook |
 | `deploy-prod.yml` | Push to `main` | `production` approval, then Render deploy hook |
-| `scenario-generate.yml` | Manual | Generate, upload to R2, register webhook |
+| `scenario-generate.yml` | Manual | Disabled; offline generator retained for reproducibility |
 
 ## Branch Protection
 
@@ -31,6 +31,7 @@ block remains until the unused Render DBs are backed up and removed. See
 | GitHub rulesets | Off during build; re-enable once at final submission |
 | Production deploy | Manual approval via the `production` environment |
 | Direct pushes | Allowed on `develop` and `staging` during build |
+| Disabled workflows | `deploy-now` (stale), `scenario-generate` (manual) |
 
 ## Rollback
 
