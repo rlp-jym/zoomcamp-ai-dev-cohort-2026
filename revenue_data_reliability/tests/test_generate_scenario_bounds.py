@@ -21,13 +21,15 @@ def test_generate_rejects_unknown_seeds(seed):
 
 
 @pytest.mark.parametrize(
-    ("seed", "expected_name", "expected_prefix"),
+    ("seed", "expected_name", "expected_prefix", "expected_years"),
     [
-        (101, "generated_seed101_y5", "scenarios/seed_101/"),
-        (103, "generated_seed103_y5", "scenarios/seed_103/"),
+        (101, "generated_seed101_y1", "scenarios/seed_101/", 1),
+        (103, "generated_seed103_y5", "scenarios/seed_103/", 5),
     ],
 )
-def test_generate_registers_pre_generated_folder(seed, expected_name, expected_prefix):
+def test_generate_registers_pre_generated_folder(
+    seed, expected_name, expected_prefix, expected_years
+):
     try:
         response = client.post(
             "/api/generate-scenario",
@@ -41,6 +43,6 @@ def test_generate_registers_pre_generated_folder(seed, expected_name, expected_p
         )
         assert row["seed"] == seed
         assert row["s3_prefix"] == expected_prefix
-        assert row["years_to_backtrack"] == 5
+        assert row["years_to_backtrack"] == expected_years
     finally:
         execute("DELETE FROM datasets WHERE name = %s", (expected_name,))
