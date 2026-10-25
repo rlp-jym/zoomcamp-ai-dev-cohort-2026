@@ -85,6 +85,7 @@ def list_traces(limit: int = 25) -> list[dict]:
                         ORDER BY r.run_id DESC LIMIT 1), 'system')
                    WHEN s.name ILIKE '%%controller%%' THEN 'controller'
                    ELSE COALESCE(
+                       s.attributes->>'persona_id',
                        (SELECT a.persona_id FROM approvals a
                         WHERE a.trace_id = s.trace_id
                         ORDER BY a.created_at DESC NULLS LAST LIMIT 1),

@@ -12,6 +12,7 @@ Wired once at app construction (``setup_telemetry(app)``) so that:
 """
 
 import logging
+from http.cookies import SimpleCookie
 
 from opentelemetry import metrics, trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -41,6 +42,24 @@ def _build_resource() -> Resource:
         "service.version": "0.1.0",
     }
     return Resource.create(base).merge(OTELResourceDetector().detect())
+
+
+def _server_request_hook(span, scope) -> None:
+    """Attach the persona cookie to each inbound HTTP span."""
+    if span is None or not span.is_recording():
+        return
+    headers = dict(scope.get("headers") or [])
+    raw_cookie = headers.get(b"cookie", b"").decode("latin-1")
+    if not raw_cookie:
+        return
+    cookies = SimpleCookie()
+    try:
+        cookies.load(raw_cookie)
+    except Exception:
+        return
+    morsel = cookies.get(settings.persona_cookie)
+    if morsel and morsel.value:
+        span.set_attribute("persona_id", morsel.value)
 
 
 def setup_telemetry(app) -> None:
@@ -80,6 +99,7 @@ def setup_telemetry(app) -> None:
         tracer_provider=tracer_provider,
         meter_provider=meter_provider,
         excluded_urls="health",
+        server_request_hook=_server_request_hook,
     )
 
 

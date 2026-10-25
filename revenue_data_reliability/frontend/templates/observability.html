@@ -34,7 +34,7 @@
 {% if traces %}
 <table class="table" id="traces-table">
   <thead>
-    <tr><th>Trace ID</th><th>Context</th><th>Actor</th><th>Action</th><th data-sort="started" style="cursor:pointer" title="Sort by start time">Started</th><th>Ended</th><th data-sort="duration" style="cursor:pointer" title="Sort by duration">Duration</th><th>Status</th><th>Spans</th></tr>
+    <tr><th>Trace ID</th><th>Context</th><th>Actor</th><th>Action</th><th data-sort="started" style="cursor:pointer" title="Sort by start time">Started</th><th data-sort="duration" style="cursor:pointer" title="Sort by duration">Duration</th><th>Status</th><th>Spans</th></tr>
   </thead>
   <tbody>
     {% for t in traces %}
@@ -49,7 +49,6 @@
       </td>
       <td>{{ t.action }}</td>
       <td>{{ t.started_at }}</td>
-      <td>{{ t.ended_at }}</td>
       <td>{{ t.duration }}</td>
       <td><span class="span-status {{ t.status }}">{{ t.status | capitalize }}</span></td>
       <td>{{ t.spans }}</td>
