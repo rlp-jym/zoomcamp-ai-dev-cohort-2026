@@ -12,8 +12,10 @@ App: http://localhost:8000  (health: /health)
 Postgres: localhost:5432 (user postgres / pass postgres / db rlp)
 
 ## Render (staging/prod)
-`render.yaml` defines a Docker web service + managed Postgres. Set the
-sync:false env vars in the Render dashboard (R2_*, GROQ_API_KEY, etc.).
+`render.yaml` defines the Docker web services. The live database is Neon via
+`DATABASE_URL: sync: false`; the legacy managed-Postgres block remains until it
+is backed up and removed. Set the sync:false env vars in the Render dashboard
+(R2_*, GROQ_API_KEY, etc.).
 
 ## Required secrets / env vars
 - DATABASE_URL

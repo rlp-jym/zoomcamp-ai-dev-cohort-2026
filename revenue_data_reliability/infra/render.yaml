@@ -10,9 +10,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: rlp-db-staging
-          property: connectionString
+        sync: false   # Neon; value set in the Render dashboard
       - key: APP_ENV
         value: staging
       - key: OTEL_METRIC_INTERVAL_SECONDS
@@ -41,9 +39,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: rlp-db-prod
-          property: connectionString
+        sync: false   # Neon; value set in the Render dashboard
       - key: APP_ENV
         value: prod
       - key: R2_ENDPOINT_URL
@@ -59,6 +55,8 @@ services:
       - key: WEBHOOK_TOKEN
         generateValue: true
 
+# Legacy Render Postgres. The live services use Neon via DATABASE_URL above.
+# Keep until the unused databases are confirmed empty and backed up, then remove.
 databases:
   - name: rlp-db-staging
     plan: free

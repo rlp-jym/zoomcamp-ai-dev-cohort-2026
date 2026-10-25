@@ -9,9 +9,10 @@
 | Production | `main` | `revenue-platform-prod` | Neon via `DATABASE_URL` |
 
 Confirmed in the Render dashboard: both services have a `DATABASE_URL` starting
-with `postgresql://neondb_owner…`. `infra/render.yaml` still declares Render
-Postgres (`rlp-db-staging` / `rlp-db-prod`); reconcile that blueprint in Phase 2.
-See [`../infra/NEON.md`](../infra/NEON.md).
+with `postgresql://neondb_owner…`. `infra/render.yaml` now uses
+`DATABASE_URL: sync: false`; the legacy `databases:` block remains until the
+unused Render DBs are backed up and removed. See
+[`../infra/NEON.md`](../infra/NEON.md).
 
 ## CI/CD
 

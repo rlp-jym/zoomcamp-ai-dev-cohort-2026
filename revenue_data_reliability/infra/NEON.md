@@ -1,9 +1,9 @@
 # Neon Database Setup
 
 > Confirmed in the Render dashboard: both staging and production use a Neon
-> `DATABASE_URL` (`postgresql://neondb_owner…`). `infra/render.yaml` still
-> declares Render Postgres (`rlp-db-staging` / `rlp-db-prod`); reconcile that
-> blueprint in Phase 2.
+> `DATABASE_URL` (`postgresql://neondb_owner…`). `infra/render.yaml` now uses
+> `DATABASE_URL: sync: false`; the legacy `databases:` block remains until the
+> unused Render DBs are backed up and removed.
 
 ## Staging and Production Databases
 

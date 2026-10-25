@@ -470,7 +470,7 @@ differs.
 | Area | Spec | As Built | Reason |
 |---|---|---|---|
 | Instrumentation | FastAPI, psycopg3, boto3, DuckDB | FastAPI only | Telemetry volume on the free Postgres tier |
-| Database | Neon free tier | Neon confirmed in Render dashboard; `render.yaml` still declares Render Postgres | Blueprint drift; reconcile in Phase 2 |
+| Database | Neon free tier | Neon confirmed in Render dashboard; `render.yaml` uses `DATABASE_URL: sync: false` | Legacy `databases:` block pending removal |
 | Baseline | `baseline_run` published on boot | Retired; generated datasets are first-class | Dataset scoping |
 | Scenarios | `/scenarios` in nav | Route exists; nav hidden | Low demo value |
 | Controller | Executes none | Revalidation run on `STALE_PUBLISHED` | Narrow autonomy; no publication |
