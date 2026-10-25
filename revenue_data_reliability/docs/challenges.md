@@ -53,3 +53,4 @@ made after the original build tracker, and the commits that carry them.
 | Header scrolled away | Sticky topbar, wrap on narrow screens | `e35be5c` |
 | Audit/Observability looked dataset-scoped | Mark both app-wide; hide dataset selector | `87b0eaa` |
 | Persona actions looked unavailable | Show actions to all; disable with the required persona label | `093cbc4`, `78ec3d3` |
+| Segment drift was dashboard-only | Added the `VAL_SEGMENT_DRIFT` rule (12th rule) | `b618ea3` |

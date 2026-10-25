@@ -27,7 +27,7 @@ app does not invoke it at runtime.
 | # | Page (URL) | Persona | Action | Expected |
 |---|---|---|---|---|
 | 1 | Validation (`/runs`) | FP&A Analyst | Load Dataset → Seed 1 (Neutral) → Load | Dataset row appears |
-| 2 | Validation (`/runs`) | FP&A Analyst | Validate | 11 rules run; progress completes |
+| 2 | Validation (`/runs`) | FP&A Analyst | Validate | 12 rules run; progress completes |
 | 3 | Validation (`/runs/{id}`) | FP&A Analyst | Review results | Rule table + publication block |
 | 4 | Data Issues (`/exceptions`) | FP&A Analyst / FP&A Manager | Review open issues | Period, severity, thread |
 | 5 | Validation (`/runs/{id}`) | FP&A Manager | Approve Go-Live | Publication created; dashboard unlocks |

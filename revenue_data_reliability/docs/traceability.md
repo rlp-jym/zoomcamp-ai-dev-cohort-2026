@@ -27,6 +27,7 @@
 | Dataset-scoped threads and opaque charts | `f242f16`, `a2aecf5` |
 | 12-month window and Render stability | `dbad70e`, `0fb328b`, `9bea1c9` |
 | Seed design | `6f769c5`, `eb87b04` |
+| Segment drift rule | `b618ea3` |
 | Controller boot run | `61547b2` |
 | Sticky header | `e35be5c` |
 | Audit and Observability scope | `87b0eaa` |

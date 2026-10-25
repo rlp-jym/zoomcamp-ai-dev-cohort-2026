@@ -18,7 +18,7 @@ the published state on a schedule.
 | # | Page (URL) | Persona | Action | Expected |
 |---|---|---|---|---|
 | 1 | Validation (`/runs`) | FP&A Analyst | Load Dataset → **Seed 1 (Neutral)** → Load | Dataset appears |
-| 2 | Validation (`/runs`) | FP&A Analyst | **Validate** | 11 rules run |
+| 2 | Validation (`/runs`) | FP&A Analyst | **Validate** | 12 rules run |
 | 3 | Validation (`/runs/{id}`) | FP&A Analyst | Review results | Rule table + publication block |
 | 4 | Data Issues (`/exceptions`) | FP&A Analyst / FP&A Manager | Review open issues | Queue with period and severity |
 | 5 | Validation (`/runs/{id}`) | FP&A Manager | **Approve Go-Live** | Publication created |
@@ -40,7 +40,7 @@ data inside FastAPI. If go-live is blocked, clear the open issues on Data Issues
 
 | Area | Implementation |
 |---|---|
-| Validation | 11 DuckDB rules over Parquet on R2 |
+| Validation | 12 DuckDB rules over Parquet on R2 |
 | Reconciliation | Billings vs GL at `(period, account_id, item_category)` |
 | Data Issues | One per affected month per failed rule; latest period stays open |
 | Agents | Pipeline Orchestrator, Data Quality, Data Engineer, Financial Impact Agent, Controller |
@@ -65,7 +65,7 @@ See [docs/operating-model.md](docs/operating-model.md).
 | Layer | Covers |
 |---|---|
 | Course core | Full-stack app, persistent Postgres, anchored discussion threads, agent team, observability, deployment |
-| Domain extension | 11 validation rules, billings-vs-GL reconciliation, publication gates, persona responsibilities, Controller verification |
+| Domain extension | 12 validation rules, billings-vs-GL reconciliation, publication gates, persona responsibilities, Controller verification |
 
 The discussion thread is the core interaction; the pipeline exists to give it
 something worth discussing.
@@ -88,7 +88,7 @@ flowchart LR
 | Agent | Writes | Executes |
 |---|---|---|
 | Pipeline Orchestrator | Run start/finish | Pipeline |
-| Data Quality | Validation summary | 11 rules |
+| Data Quality | Validation summary | 12 rules |
 | Data Engineer | Remediation proposal | Quarantine after approval |
 | Financial Impact Agent | Impact narrative | None |
 | Controller | Alerts, triage, escalation | Revalidation on stale publication |
@@ -144,7 +144,7 @@ CI runs lint plus the full suite against a Postgres service container.
 | FP&A Manager (`manager`) | Human | Approves go-live and remediation |
 | Director of FP&A (`director`) | Human | Receives critical escalations; can reset demo data |
 | Pipeline Orchestrator (`orchestrator`) | Agent | Runs the pipeline; posts start/finish |
-| Data Quality (`dq`) | Agent | Runs the 11 rules; posts the validation summary |
+| Data Quality (`dq`) | Agent | Runs the 12 rules; posts the validation summary |
 | Data Engineer (`de`) | Agent | Proposes remediation; executes quarantine after approval |
 | Financial Impact Agent (`fa`) | Agent | Quantifies the financial impact of each issue |
 | Controller (`controller`) | Agent | Verifies published state; opens alerts; escalates |

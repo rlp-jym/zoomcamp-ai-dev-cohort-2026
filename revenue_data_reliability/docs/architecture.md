@@ -47,7 +47,7 @@ sequenceDiagram
   participant FA as Financial Impact Agent
   participant M as FP&A Manager
   A->>O: Validate dataset
-  O->>DQ: Run 11 rules
+  O->>DQ: Run 12 rules
   DQ-->>O: Results
   O->>O: Reconcile billings vs GL
   O->>DE: Propose remediation
@@ -63,7 +63,7 @@ sequenceDiagram
 | Agent | Input | Output | Executes |
 |---|---|---|---|
 | Pipeline Orchestrator | Run request | Start/finish messages | Pipeline |
-| Data Quality | Run data | Validation summary | 11 rules |
+| Data Quality | Run data | Validation summary | 12 rules |
 | Data Engineer | Open data issues | Remediation proposal | Quarantine after approval |
 | Financial Impact Agent | Data issue | Financial impact narrative | None |
 | Controller | Published state | Alerts, triage, escalation | Revalidation on stale publication |

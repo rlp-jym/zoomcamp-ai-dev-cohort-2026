@@ -131,7 +131,7 @@ Analyst clicks "New Scenario" → app calls GitHub Action (workflow_dispatch)
 
 Analyst clicks "Run Pipeline" on a scenario
     → Orchestrator posts "run started"
-    → DQ runs 11 validation rules → posts summary
+    → DQ runs 12 validation rules → posts summary
     → Reconciliation runs
     → Exceptions created (one per failed rule / material recon gap)
     → DE posts remediation proposal on each exception
@@ -183,7 +183,7 @@ background).
 
 ---
 
-## 8. Validation rules (11)
+## 8. Validation rules (12)
 
 Each rule: `rule_id`, `description`, `severity`, `sql` (DuckDB over Parquet),
 `expected_detection_rule`. Results stored in `validations`:
@@ -202,6 +202,7 @@ Each rule: `rule_id`, `description`, `severity`, `sql` (DuckDB over Parquet),
 | `VAL_FK_RETURN_SHIPMENT` | `phantom_return` |
 | `VAL_AR_INVOICE_1TO1` | invariant |
 | `VAL_ORDER_LINE_UNIQUE` | invariant |
+| `VAL_SEGMENT_DRIFT` | `segment_drift` |
 
 ---
 
