@@ -69,3 +69,13 @@ def test_scenarios_tab_is_hidden_from_navigation():
 
     dashboard = (TEMPLATES_DIR / "dashboard.html").read_text(encoding="utf-8")
     assert "Start a scenario analysis" not in dashboard
+
+
+def test_topbar_is_sticky():
+    from backend.config import STATIC_DIR
+
+    css = (STATIC_DIR / "css" / "app.css").read_text(encoding="utf-8")
+    topbar = css.split(".topbar {", 1)[1].split("}", 1)[0]
+    assert "position: sticky" in topbar
+    assert "top: 0" in topbar
+    assert "flex-wrap: wrap" in topbar
