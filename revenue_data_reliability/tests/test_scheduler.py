@@ -104,6 +104,16 @@ def test_chart_threads_are_scoped_per_dataset(monkeypatch):
     assert "chart-growth--generated_seed101_y1" not in captured["ids"]
 
 
+def test_dashboard_thread_anchors_are_concatenated():
+    from backend.config import TEMPLATES_DIR
+
+    html = (TEMPLATES_DIR / "dashboard.html").read_text(encoding="utf-8")
+    # Jinja does not interpolate {{ }} inside a set string literal; the anchor
+    # must be concatenated or every dataset shares one literal anchor.
+    assert 'anchor_id = "chart-revenue-plan--" ~ dataset' in html
+    assert '"--{{ dataset }}"' not in html
+
+
 def test_observability_charts_layout():
     from backend.config import TEMPLATES_DIR
 
