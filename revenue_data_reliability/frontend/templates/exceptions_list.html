@@ -19,6 +19,13 @@
 {% if run_id %}
 <p class="page-description">Filtered to issues from Run #{{ run_id }}.</p>
 {% endif %}
+{% if counts.open and persona.id == "manager" %}
+<form method="post" action="/exceptions/dismiss-all" style="margin-bottom:1rem;"
+      onsubmit="return confirm('Dismiss all {{ counts.open }} open issues? This cannot be undone.');">
+  {% if filtered_run_id %}<input type="hidden" name="run_id" value="{{ filtered_run_id }}">{% endif %}
+  <button type="submit" class="btn-danger">Dismiss all open ({{ counts.open }})</button>
+</form>
+{% endif %}
 
 <table class="table">
   <thead>

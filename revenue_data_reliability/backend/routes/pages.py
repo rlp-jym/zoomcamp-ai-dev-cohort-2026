@@ -315,6 +315,39 @@ async def approve_exception(request: Request, exc_id: int):
     return RedirectResponse(url=f"/exceptions/{exc_id}", status_code=303)
 
 
+@router.post("/exceptions/dismiss-all")
+async def dismiss_all_exceptions(request: Request):
+    """Manager closes every open issue for the current filter in one action."""
+    persona = _current_persona(request)
+    if persona["id"] != "manager":
+        raise HTTPException(status_code=403, detail="Only the Manager can dismiss exceptions.")
+
+    form = await request.form()
+    raw = form.get("run_id")
+    try:
+        run_id = int(raw) if raw not in (None, "") else None
+    except (TypeError, ValueError):
+        run_id = None
+
+    dismissed = exc_svc.dismiss_all(run_id)
+    execute(
+        "INSERT INTO agent_actions "
+        "(agent_id, action, anchor_type, anchor_id, trace_id, payload) "
+        "VALUES (%s, %s, 'run', %s, %s, %s)",
+        (
+            "manager",
+            "Exceptions Dismissed",
+            str(run_id) if run_id is not None else "all",
+            None,
+            json.dumps({"dismissed": dismissed, "run_id": run_id}),
+        ),
+    )
+    target = "/exceptions?status=open"
+    if run_id is not None:
+        target += f"&run_id={run_id}"
+    return RedirectResponse(url=target, status_code=303)
+
+
 @router.post("/exceptions/{exc_id}/dismiss")
 async def dismiss_exception(request: Request, exc_id: int):
     """Manager dismisses an open issue as a false positive."""
@@ -408,6 +441,15 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
 
     datasets = dataset_scale.attach_scale_info(scen_svc.list_datasets())
     runs = runs_svc.list_runs(dataset)
+    from backend.templating import scenario_label
+
+    pre_generated = []
+    for seed in scen_svc.available_seeds():
+        entry = scen_svc.pre_generated_dataset(seed)
+        if entry:
+            pre_generated.append(
+                {"seed": seed, "label": scenario_label(entry["name"])}
+            )
     return templates.TemplateResponse(
         request,
         "runs_list.html",
@@ -415,6 +457,7 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
              runs=runs,
              latest_run_id=runs_svc2.resolve_active_run(dataset),
              datasets=datasets,
+             pre_generated=pre_generated,
              reset_status=reset, busy=busy,
              allow_reset=(
                  os.getenv("ALLOW_IN_APP_RESET", "1") == "1"

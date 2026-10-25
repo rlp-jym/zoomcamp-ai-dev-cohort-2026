@@ -440,22 +440,34 @@ def get_dashboard_data(scenario: str = SCENARIO, conn=None) -> dict:
     target_total = sum(target_by_category.values())
     actual_total = sum(actual_by_category.values())
 
-    # Generated GL and budget rows do not carry a usable segment grain
-    # (GL.customer_id is null and the budget keeps a large unassigned
-    # remainder). Allocate both totals across segments using the trailing
-    # billings mix, which is the only reliable segment-level signal.
+    # Plan is struck from the opening months' mix; actuals keep the current
+    # mix. Segments that grew show positive variance and segments that shrank
+    # show negative, so the bridge is not single-direction.
     segment_billings = {
         label: sum(amount for month, amount in by_month.items() if month in month_set)
         for label, by_month in segments_month.items()
     }
+    opening_months = set(months_12[:3]) if months_12 else set()
+    opening_billings = {
+        label: sum(
+            amount for month, amount in by_month.items() if month in opening_months
+        )
+        for label, by_month in segments_month.items()
+    }
     total_segment_billings = sum(segment_billings.values())
+    total_opening_billings = sum(opening_billings.values())
     target_by_segment: dict[str, float] = {}
     actual_by_segment: dict[str, float] = {}
+    if total_opening_billings:
+        for label, amount in sorted(opening_billings.items()):
+            target_by_segment[label] = round(
+                target_total * (amount / total_opening_billings), 2
+            )
     if total_segment_billings:
         for label, amount in sorted(segment_billings.items()):
-            share = amount / total_segment_billings
-            target_by_segment[label] = round(target_total * share, 2)
-            actual_by_segment[label] = round(actual_total * share, 2)
+            actual_by_segment[label] = round(
+                actual_total * (amount / total_segment_billings), 2
+            )
     revenue_by_category_monthly: dict[str, dict[str, float]] = {
         month: {} for month in months_12
     }

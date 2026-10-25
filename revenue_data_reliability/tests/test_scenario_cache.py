@@ -151,8 +151,8 @@ def test_dataset_picker_lists_pre_generated_seeds():
     assert "Load Dataset" in template
     assert 'hx-post="/api/generate-dataset"' in template
     assert 'name="seed"' in template
-    for seed in ("101", "102", "103"):
-        assert f'value="{seed}"' in template
+    assert "{% for option in pre_generated %}" in template
+    assert "{{ option.label }}" in template
 
 
 def test_resolve_data_scenario_uses_dataset_s3_prefix(monkeypatch):

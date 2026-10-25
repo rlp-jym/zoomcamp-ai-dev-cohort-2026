@@ -228,6 +228,30 @@ def exception_counts(run_id=None):
     return {"open": r["open_n"], "resolved": r["resolved_n"], "total": r["total"]}
 
 
+def dismiss_all(run_id=None):
+    """Dismiss every open or awaiting exception, optionally scoped to a run.
+
+    Returns the number of rows that changed status. Used by the Data Issues
+    "Dismiss all" action so a reviewer can clear a scenario in one click.
+    """
+    try:
+        run_id = int(run_id) if run_id not in (None, "") else None
+    except (TypeError, ValueError):
+        run_id = None
+    sql = (
+        "WITH updated AS ("
+        " UPDATE exceptions SET status = 'dismissed', updated_at = now()"
+        " WHERE status IN ('open', 'awaiting_approval')"
+    )
+    params = []
+    if run_id is not None:
+        sql += " AND run_id = %s"
+        params.append(run_id)
+    sql += " RETURNING exception_id) SELECT COUNT(*) AS n FROM updated"
+    row = fetch_one(sql, tuple(params))
+    return int((row or {}).get("n") or 0)
+
+
 def get_sampled_failures_for_exception(exc):
     """Return sampled failures for the rule that raised a validation exception."""
     if not exc or not exc.get("run_id"):

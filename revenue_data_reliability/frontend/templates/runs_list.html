@@ -17,16 +17,13 @@
 
 <section class="card" style="margin-bottom:1.5rem;">
   <h2>Load Dataset</h2>
-  <p>
-    Select a pre-generated dataset to load into the environment. Available seeds:
-    <strong>101, 102, 103</strong>.
-  </p>
+  <p>Select a pre-generated dataset to load into the environment.</p>
   <form hx-post="/api/generate-dataset" hx-target="#generate-result" hx-swap="innerHTML">
-    <label>Seed:
+    <label>Dataset:
       <select name="seed">
-        <option value="101" selected>101</option>
-        <option value="102">102</option>
-        <option value="103">103</option>
+        {% for option in pre_generated %}
+        <option value="{{ option.seed }}" {% if loop.first %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
       </select>
     </label>
     <button type="submit" class="btn-primary" {% if persona.id != "analyst" %}disabled{% endif %}>Load</button>
