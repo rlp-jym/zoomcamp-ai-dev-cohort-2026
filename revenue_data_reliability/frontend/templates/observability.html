@@ -5,7 +5,7 @@
 {% endblock %}
 {% block content %}
 <h1>Observability</h1>
-<p class="page-description">Operational telemetry — request latency, span volume by service, and a trace waterfall. All telemetry is exported in-app to Postgres.</p>
+<p class="page-description">Operational telemetry - request latency, span volume by service, and a trace waterfall. App-wide across all datasets; telemetry is exported in-app to Postgres.</p>
 <p class="empty">
   {{ summary.span_count if summary else 0 }} spans across
   {{ summary.trace_count if summary else 0 }} traces,

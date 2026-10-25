@@ -931,7 +931,7 @@ async def audit(request: Request, trace_id: str | None = None):
     return templates.TemplateResponse(
         request,
         "audit.html",
-        _ctx(request, events=events, trace_id=trace_id),
+        _ctx(request, events=events, trace_id=trace_id, hide_dataset_selector=True),
     )
 
 
@@ -963,6 +963,7 @@ async def observability(request: Request, trace_id: str | None = None):
             latency=latency,
             services=services,
             metrics=metrics,
+            hide_dataset_selector=True,
         ),
     )
 
