@@ -5,6 +5,8 @@ timeline:
   # The end month is derived at run time: the last completed month before
   # today. n_months is only used when --years-to-backtrack is not provided.
   n_months: 60
+  # Actual volume trajectory: 0 is flat, positive grows, negative declines.
+  trend_per_month: 0.02
   phases:
     - {name: growth,  months: 24, driver: customer_adds}
     - {name: plateau, months: 18, driver: none}
@@ -37,13 +39,11 @@ scale:
     - smb
   customer_segment_weights: [0.15, 0.30, 0.55]
   gl_category_bias_spread: 0.004
-  budget_growth_target_by_year:
-    2021: 1.00
-    2022: 1.08
-    2023: 1.05
-    2024: 1.05
-    2025: 1.02
-    2026: 1.00
+
+budget:
+  # Plan total as a multiple of the actual billings in the window.
+  # <1 makes the dataset beat plan, >1 makes it miss plan.
+  target_ratio: 1.0
 
 dimension_drift:
   sku_retirements: 2

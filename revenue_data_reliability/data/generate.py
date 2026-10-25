@@ -31,10 +31,16 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--years-to-backtrack", "--years_to_backtrack", dest="years_to_backtrack", type=int, default=None)
+    parser.add_argument("--budget-ratio", "--budget_ratio", dest="budget_ratio", type=float, default=None)
+    parser.add_argument("--trend-per-month", "--trend_per_month", dest="trend_per_month", type=float, default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
     if args.seed is not None:
         cfg["seed"] = args.seed
+    if args.budget_ratio is not None:
+        cfg.setdefault("budget", {})["target_ratio"] = args.budget_ratio
+    if args.trend_per_month is not None:
+        cfg["timeline"]["trend_per_month"] = args.trend_per_month
     y = args.years_to_backtrack
     if y is None:
         env_y = os.getenv("YEARS_TO_BACKTRACK")

@@ -27,13 +27,7 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
     categories = scale["item_category_names"]
     if len(categories) != int(scale["item_categories"]):
         raise ValueError("item_category_names length must equal item_categories")
-    targets = scale["budget_growth_target_by_year"]
-    # validate years
-    years = sorted({int(p.split("-")[0]) for p in months})
-    for y in years:
-        if str(y) not in {str(k) for k in targets} and y not in targets:
-            raise ValueError(f"missing budget_growth_target_by_year for year {y}")
-    # trailing-12M billings per month (overall)
+
     invoices = tx.get("invoices", pd.DataFrame())
     lines = tx.get("invoice_lines", pd.DataFrame())
     returns = tx.get("returns", pd.DataFrame())
@@ -61,47 +55,17 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
             if p in monthly_billings:
                 monthly_billings[p] -= float(v)
 
-    year_billings = {}
-    for y in years:
-        ys = [p for p in months if int(p.split("-")[0]) == y]
-        year_billings[y] = sum(monthly_billings[p] for p in ys)
+    # ---- one trailing-window target ---------------------------------------
+    # The plan is a single trailing figure for the whole window, spread across
+    # the months by seasonality. Splitting it by calendar year produced a
+    # cliff: the first year's target was annualised from a partial year, and
+    # the next year inherited that partial sum as its "trailing" base.
+    target_ratio = float((cfg.get("budget") or {}).get("target_ratio", 1.0))
+    if target_ratio <= 0:
+        raise ValueError("budget.target_ratio must be positive")
 
-    # trailing 12M for a year
-    def trailing_billings(y: int) -> float:
-        if (y - 1) in year_billings:
-            return year_billings[y - 1]
-        # first year: month-1 actuals * 12
-        first_period = months[0]
-        return monthly_billings.get(first_period, 0.0) * 12
-
-    # prior-year gl revenue by (account, category)
-    gl = gl.copy() if gl is not None else pd.DataFrame()
-    if not gl.empty:
-        gl["year"] = gl["period"].str[:4].astype(int)
-
-    def pair_trailing(y: int) -> pd.Series:
-        if (y - 1) in years and not gl.empty:
-            sub = gl[gl["year"] == (y - 1)]
-        elif not gl.empty:
-            sub = gl[gl["period"] == months[0]]
-        else:
-            sub = pd.DataFrame()
-        if sub.empty:
-            # uniform
-            idx = pd.MultiIndex.from_product([accounts, categories], names=["account_id", "item_category"])
-            return pd.Series(1.0, index=idx)
-        s = sub.groupby(["account_id", "item_category"])["recognized_revenue_amt"].sum()
-        if (y - 1) not in years:
-            s = s * 12
-        # ensure all pairs
-        full_idx = pd.MultiIndex.from_product([accounts, categories], names=["account_id", "item_category"])
-        s = s.reindex(full_idx, fill_value=0.0)
-        if s.sum() == 0:
-            s = pd.Series(1.0, index=full_idx)
-        return s
-
+    # ---- allocation shares -------------------------------------------------
     top_custs = _top_customers(tx, 10)
-    # customer billings shares
     cust_billings = {}
     if not invoices.empty and not lines.empty:
         merged = lines.merge(invoices[["invoice_id", "customer_id"]], on="invoice_id", how="left")
@@ -110,53 +74,47 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
         total_bill = cb.sum() if cb.sum() else 1.0
         cust_billings = {int(c): float(v) / float(total_bill) for c, v in cb.items()}
     top_shares = [cust_billings.get(c, 0.0) for c in top_custs]
-    sum(top_shares)
 
-    # monthly pair totals
-    # annual base per year
-    annual_base = {}
-    for y in years:
-        tb = trailing_billings(y)
-        target = targets[y] if y in targets else targets[str(y)]
-        annual_base[y] = tb * float(target)
+    gl_frame = gl.copy() if gl is not None else pd.DataFrame()
+    full_idx = pd.MultiIndex.from_product(
+        [accounts, categories], names=["account_id", "item_category"]
+    )
+    if not gl_frame.empty:
+        pair_totals = gl_frame.groupby(["account_id", "item_category"])[
+            "recognized_revenue_amt"
+        ].sum()
+    else:
+        pair_totals = pd.Series(dtype=float)
+    pair_totals = pair_totals.reindex(full_idx, fill_value=0.0)
+    # The dashboard compares the plan against recognised GL revenue, so the
+    # plan total is derived from the same measure. Fall back to billings only
+    # when the GL frame is empty.
+    gl_total = float(pair_totals.sum())
+    if gl_total <= 0:
+        pair_totals = pd.Series(1.0, index=full_idx)
+        gl_total = float(sum(monthly_billings.values()))
+    target_total = gl_total * target_ratio
+    pair_share = pair_totals / float(pair_totals.sum())
 
-    # pair annual budget
-    pair_annual = {}  # (y, a, c) -> amount
-    for y in years:
-        pt = pair_trailing(y)
-        pt_total = float(pt.sum()) if float(pt.sum()) != 0 else 1.0
-        for a in accounts:
-            for c in categories:
-                share = float(pt.get((a, c), 0.0)) / pt_total
-                pair_annual[(y, a, c)] = annual_base[y] * share
-
-    # monthly weights per year
-    month_weight = {}
-    for y in years:
-        ys = [p for p in months if int(p.split("-")[0]) == y]
-        ws = [_seasonal_multiplier(p, seasonality) for p in ys]
-        wsum = sum(ws) if sum(ws) else 1.0
-        for p, w in zip(ys, ws, strict=False):
-            month_weight[p] = w / wsum
+    weights = {p: _seasonal_multiplier(p, seasonality) for p in months}
+    weight_sum = sum(weights.values()) or 1.0
 
     rows = []
     bid = 1
     for period in months:
         y = int(period.split("-")[0])
-        _parse_ym_local(period)
+        month_target = target_total * (weights[period] / weight_sum)
+        load_date = date(y, 1, 1)
         for a in accounts:
             for c in categories:
-                monthly_pair_total = pair_annual[(y, a, c)] * month_weight[period]
-                # top customers
+                monthly_pair_total = month_target * float(pair_share.get((a, c), 0.0))
                 top_amounts = []
                 for cust, sh in zip(top_custs, top_shares, strict=False):
                     amt = monthly_pair_total * sh
                     top_amounts.append((cust, amt))
-                # round top amounts
                 rounded_top = [(cust, round(amt, 2)) for cust, amt in top_amounts]
                 top_sum_rounded = sum(a for _, a in rounded_top)
                 remainder = round(monthly_pair_total - top_sum_rounded, 2)
-                load_date = date(y, 1, 1)
                 for cust, amt in rounded_top:
                     rows.append({
                         "budget_id": bid,
@@ -184,11 +142,6 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
     df = pd.DataFrame(rows)
     df["customer_id"] = df["customer_id"].astype("Int64")
     return df
-
-
-def _parse_ym_local(s: str):
-    y, m = s.split("-")
-    return int(y), int(m)
 
 
 def _period_date(s: str) -> date:

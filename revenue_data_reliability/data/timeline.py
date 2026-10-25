@@ -79,6 +79,7 @@ def monthly_order_counts(cfg: dict) -> list[int]:
     base = float(scale["orders_per_month_base"])
     phases = tl["phases"]
     seasonality = tl["seasonality"]
+    trend = float(tl.get("trend_per_month", 0.0))
     months = month_list(tl["start_month"], int(tl["n_months"]))
     decline_start = None
     for p, start, _end in _phase_boundaries(phases):
@@ -91,7 +92,11 @@ def monthly_order_counts(cfg: dict) -> list[int]:
         seasonal = _seasonal_multiplier(period, seasonality)
         name = phase["name"]
         if name == "growth":
-            val = base * (1 + 0.02 * i) * seasonal
+            # trend_per_month drives the actual trajectory: 0 is flat,
+            # positive grows, negative declines. Clamped so a long window
+            # cannot produce non-positive volumes.
+            factor = max(0.2, 1.0 + trend * i)
+            val = base * factor * seasonal
         elif name == "plateau":
             val = base * 1.28 * seasonal
         elif name == "decline":
