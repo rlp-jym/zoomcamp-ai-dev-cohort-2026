@@ -59,11 +59,11 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Define columns, PKs, FKs, and indexes for discussion threads and trace lookup.
 - [x] `discussions` and `messages` tables include `anchor_type` (enum: `run` | `exception` | `analysis`) and `anchor_id` columns with indexes for thread lookup.
 - [x] Add `backend/db/seed.py` to seed 8 personas (`analyst`, `manager`, `director`, `orchestrator`, `de`, `dq`, `fa`, `controller`).
-- [x] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`.
+- [x] Seed 11 validation rules with `rule_id`, `description`, `severity`, `sql`, `expected_detection_rule`. (11 at the time; 12 now — `VAL_SEGMENT_DRIFT` added later.)
 - [x] Add DB connection module (psycopg3) with pooling and raw SQL helpers.
 - [x] Apply schema on boot; run seeds idempotently.
 - [x] Implement backfill: if `scenarios` empty, trigger GitHub Action to generate `baseline_run` (seed=9) and wait for webhook.
-**Done when:** All tables exist, 8 personas and 11 rules are seeded, and backfill triggers and completes on an empty DB.
+**Done when:** All tables exist, 8 personas and 11 rules are seeded, and backfill triggers and completes on an empty DB. (11 rules at the time; 12 now. Backfill was later removed — the app loads pre-generated datasets.)
 
 ## 3. Storage (R2 + DuckDB)
 - [x] Implement R2 client (boto3, S3-compatible) from env.
@@ -117,9 +117,9 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Run status tracking and trace correlation.
 **Done when:** Clicking Run Pipeline creates a run row, posts orchestrator messages to the run thread, and returns a run detail page.
 
-## 9. Validation rules (11)
+## 9. Validation rules (11 at the time; 12 now)
 > Depends on §8 scaffold. After implementing rules, wire them into the Orchestrator pipeline built in §8.
-- [x] Implement rule loader from `rules` table. (all 11 rules)
+- [x] Implement rule loader from `rules` table. (all 11 rules at the time; 12 now)
 - [x] Implement DuckDB SQL execution over Parquet.
 - [x] `VAL_FK_ITEM_EXISTS` (orphaned_item_id).
 - [x] `VAL_DUPLICATE_INVOICE_LINE` (duplicate_invoice_line).
@@ -132,10 +132,10 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] `VAL_FK_RETURN_SHIPMENT` (phantom_return).
 - [x] `VAL_AR_INVOICE_1TO1` (invariant).
 - [x] `VAL_ORDER_LINE_UNIQUE` (invariant).
-- [x] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON). (all 11 rules)
+- [x] Store results in `validations` (`run_id`, `rule_id`, `status`, `summary_count`, `sampled_failures` JSON). (all 11 rules at the time; 12 now)
 - [x] Group failed-rule exceptions by `period` (one exception per affected month).
 - [x] DQ posts validation summary to run thread.
-**Done when:** All 11 rules execute against a scenario, results are stored in `validations`, and DQ posts a summary to the run thread.
+**Done when:** All 11 rules execute against a scenario, results are stored in `validations`, and DQ posts a summary to the run thread. (11 at the time; 12 now — `VAL_SEGMENT_DRIFT` added later.)
 
 ## 10. Reconciliation
 - [x] Implement reconciliation at grain `(run_id, period, account_id, item_category)` + top-N customers.

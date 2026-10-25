@@ -45,6 +45,26 @@ If go-live is blocked, clear the open issues on Data Issues (`/exceptions`) firs
 | Audit (`/audit`) | Agent actions, approvals, publications (app-wide) |
 | Observability (`/observability`) | Traces, span tree, linked logs, metrics (app-wide) |
 
+## Verified Behavior — Controller and Alerts
+
+The Controller sweeps every 15 minutes, plus once 90 seconds after boot. On the
+first sweep after the published dataset crosses its freshness SLA
+(`CONTROLLER_STALE_HOURS`, default 24 h) it acts without human input.
+
+| # | Where to look | What appears |
+|---|---|---|
+| 1 | Run thread for the published run | Controller triage note naming `STALE_PUBLISHED`, the age, and the threshold |
+| 2 | Audit (`/audit`) | `alert_raised`, `alert_triage`, and `autonomous_re_run` rows sharing one trace ID |
+| 3 | Validation (`/runs`) | New run with `triggered_by = controller`, pipeline completed |
+
+Critical types (`SOURCE_HASH_MISMATCH`, `PUBLISHED_RECORD_FAILS_REVALIDATION`,
+`RECON_DRIFT`) also post a Director escalation on the same thread. The `alerts`
+table holds the finding; there is no separate Alerts page in the UI.
+
+Revalidation only: the Controller refreshes validation for the affected dataset
+and never republishes. Publication stays human-gated by design, so the alert row
+is retained as the finding's audit record rather than auto-closed.
+
 ## Personas
 
 | Persona (ID) | Try |

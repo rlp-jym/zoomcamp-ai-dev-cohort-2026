@@ -154,7 +154,7 @@ CI runs lint plus the full suite against a Postgres service container.
 | Doc | Purpose |
 |---|---|
 | [docs/spec.md](docs/spec.md) | Locked architecture and scope |
-| [docs/tasks.md](docs/tasks.md) | Public task tracker |
+| [docs/tasks.md](docs/tasks.md) | Public task tracker; acceptance criteria per section |
 | [docs/definitions.md](docs/definitions.md) | Metric definitions and materiality |
 | [docs/operating-model.md](docs/operating-model.md) | Timeliness/accuracy trade-off |
 | [docs/demo.md](docs/demo.md) | End-user walkthrough |
@@ -162,6 +162,9 @@ CI runs lint plus the full suite against a Postgres service container.
 | [docs/deployment.md](docs/deployment.md) | Environments, CI/CD, rollback |
 | [docs/challenges.md](docs/challenges.md) | Engineering challenges and workarounds |
 | [docs/traceability.md](docs/traceability.md) | Rubric and build evidence map |
+
+Task sections carry "Done when" acceptance criteria. The checkbox history and the
+commit history are the evidence that the agent team worked through them.
 
 ## CI/CD
 
