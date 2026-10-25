@@ -948,6 +948,7 @@ async def observability(request: Request, trace_id: str | None = None):
     summary = obs_svc.telemetry_summary()
     latency = obs_svc.latency_series()
     services = obs_svc.spans_by_service()
+    metrics = obs_svc.metrics_series()
     return templates.TemplateResponse(
         request,
         "observability.html",
@@ -961,6 +962,7 @@ async def observability(request: Request, trace_id: str | None = None):
             summary=summary,
             latency=latency,
             services=services,
+            metrics=metrics,
         ),
     )
 

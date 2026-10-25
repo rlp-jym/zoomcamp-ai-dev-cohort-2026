@@ -26,7 +26,12 @@
     <div class="chart-box">
       <canvas id="serviceChart"></canvas>
     </div>
-    <p class="chart-desc">Total time spent in each subsystem. A large PostgreSQL slice indicates database query lag.</p>
+    <p class="chart-desc">Total time spent in each subsystem. Only FastAPI is instrumented, so most of this is request time.</p>
+  </div>
+  <div class="chart-card">
+    <h2>Concurrent Requests (metrics, 24h)</h2>
+    <div class="chart-box"><canvas id="metricsChart"></canvas></div>
+    <p class="chart-desc">Exported from otel_metrics every 5 minutes. Max concurrent requests per hour — shows load, not latency.</p>
   </div>
 </div>
 
@@ -66,6 +71,7 @@
 <div class="chart-box" style="height: {{ [expanded_spans|length * 28 + 100, 320]|max }}px;">
   <canvas id="traceGanttChart"></canvas>
 </div>
+<p class="chart-desc">Bars under ~2 px are widened so short spans stay visible; hover for the true duration.</p>
 {% endif %}
 <h3>Span tree</h3>
 <ul class="span-tree">
@@ -97,6 +103,7 @@
   (function () {
     const latency = {{ latency | tojson }};
     const services = {{ services | tojson }};
+    const metrics = {{ metrics | tojson }};
     const spans = {{ expanded_spans | tojson }};
     const palette = [
       "#1f2a44", "#4a6fa5", "#9aa0a6", "#1a7f37",
@@ -161,7 +168,46 @@
       });
     }
 
+    if (metrics.labels.length) {
+      new Chart(document.getElementById("metricsChart"), {
+        type: "line",
+        data: {
+          labels: metrics.labels,
+          datasets: [
+            {
+              label: "avg", data: metrics.avg,
+              borderColor: "#1f2a44", backgroundColor: "rgba(31,42,68,0.12)",
+              tension: 0.25, pointRadius: 2
+            },
+            {
+              label: "max", data: metrics.max,
+              borderColor: "#cf222e", backgroundColor: "rgba(207,34,46,0.12)",
+              tension: 0.25, pointRadius: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { position: "bottom", labels: { font: { size: 12 } } }
+          },
+          scales: {
+            x: {
+              ticks: { font: { size: 11 }, autoSkip: true, maxRotation: 45 }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "requests", font: { size: 12 } },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
     if (spans.length && document.getElementById("traceGanttChart")) {
+      const traceTotal = Math.max(...spans.map(s => s.offset_ms + s.duration_ms), 1);
+      const minWidth = traceTotal * 0.002;
       const ganttServices = Array.from(new Set(spans.map(span => span.service)));
       const serviceColor = {};
       ganttServices.forEach((service, index) => {
@@ -175,7 +221,7 @@
           datasets: [{
             label: "Span duration",
             data: spans.map(
-              span => [span.offset_ms, span.offset_ms + span.duration_ms]
+              span => [span.offset_ms, span.offset_ms + Math.max(span.duration_ms, minWidth)]
             ),
             backgroundColor: colors,
             borderColor: colors,

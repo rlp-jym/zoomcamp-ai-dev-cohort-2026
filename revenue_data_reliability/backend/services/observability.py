@@ -299,6 +299,28 @@ def get_trace_logs(trace_id: str) -> list[dict]:
     return out
 
 
+def metrics_series(hours: int = 24) -> dict:
+    """Concurrent-request gauge from otel_metrics (24h window)."""
+    rows = fetch_all(
+        """
+        SELECT date_trunc('hour', recorded_at) AS bucket,
+               AVG(value) AS avg_active,
+               MAX(value) AS max_active
+        FROM otel_metrics
+        WHERE name = 'http.server.active_requests'
+          AND recorded_at >= now() - (%s * interval '1 hour')
+        GROUP BY 1
+        ORDER BY 1
+        """,
+        (hours,),
+    )
+    return {
+        "labels": [r["bucket"].strftime("%H:00") for r in rows if r["bucket"]],
+        "avg": [round(float(r["avg_active"] or 0), 2) for r in rows],
+        "max": [round(float(r["max_active"] or 0), 2) for r in rows],
+    }
+
+
 def telemetry_summary() -> dict:
     """Counts and retention window for the page header."""
     counts = fetch_one(

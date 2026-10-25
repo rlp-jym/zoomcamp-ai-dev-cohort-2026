@@ -69,6 +69,13 @@ class PostgresSpanExporter(SpanExporter):
         for span in spans:
             try:
                 attrs = dict(span.attributes or {})
+                # Volume control: ASGI emits one send span per response body
+                # chunk, which dwarfs real spans in otel_spans. Keep the
+                # response-start span, drop the body sends.
+                if (span.name or "").endswith(" http send") and attrs.get(
+                    "asgi.event.type"
+                ) == "http.response.body":
+                    continue
                 # Scope + resource context, but never config values.
                 if span.instrumentation_scope:
                     attrs["otel.scope.name"] = span.instrumentation_scope.name
