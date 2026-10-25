@@ -1043,6 +1043,7 @@ async def generate_dataset(request: Request):
             f"({dataset['s3_prefix']})."
         )
         accept = request.headers.get("accept", "")
+        headers = {"HX-Trigger": "datasets-changed"}
         if "application/json" in accept:
             return JSONResponse(
                 {
@@ -1051,9 +1052,12 @@ async def generate_dataset(request: Request):
                     "dataset": dataset["name"],
                     "seed": seed,
                     "s3_prefix": dataset["s3_prefix"],
-                }
+                },
+                headers=headers,
             )
-        return HTMLResponse(f'<div class="banner banner-ok">{msg}</div>')
+        return HTMLResponse(
+            f'<div class="banner banner-ok">{msg}</div>', headers=headers
+        )
     except Exception as exc:
         err_msg = f"Failed to register dataset: {exc}"
         accept = request.headers.get("accept", "")
@@ -1206,6 +1210,22 @@ async def delete_message_endpoint(request: Request, message_id: int):
 
     msg_svc.delete_message(message_id)
     return HTMLResponse("")
+
+
+@router.get("/api/dataset-selector")
+async def dataset_selector_partial(request: Request):
+    """Header dataset dropdown, refreshed when the dataset list changes."""
+    from backend.services import scenarios as scen_svc
+
+    return templates.TemplateResponse(
+        request,
+        "partials/dataset_selector.html",
+        {
+            "request": request,
+            "datasets": scen_svc.list_datasets(),
+            "dataset": _resolve_dataset(request, {}),
+        },
+    )
 
 
 @router.get("/api/datasets")

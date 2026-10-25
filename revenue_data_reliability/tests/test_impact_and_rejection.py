@@ -593,6 +593,71 @@ def test_quarantine_all_scoped_to_run():
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
 
 
+def test_dataset_selector_partial_reflects_registered_datasets():
+    init_pool()
+    dataset = f"test_selector_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+        (dataset,),
+    )
+    try:
+        c = TestClient(app)
+        response = c.get(f"/api/dataset-selector?dataset={dataset}")
+        assert response.status_code == 200
+        assert 'id="dataset-selector"' in response.text
+        assert f'value="{dataset}"' in response.text
+        # The active dataset is the selected option.
+        assert f'value="{dataset}" selected' in response.text
+    finally:
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_loading_a_dataset_triggers_selector_refresh():
+    init_pool()
+    from backend.services import scenarios as scen_svc
+
+    name = scen_svc.pre_generated_dataset(101)["name"]
+    existed = scen_svc.get_dataset(name) is not None
+    try:
+        c = TestClient(app)
+        c.post("/persona", data={"persona_id": "analyst"}, follow_redirects=False)
+        response = c.post("/api/generate-dataset", data={"seed": "101"})
+        assert response.status_code == 200
+        assert response.headers.get("HX-Trigger") == "datasets-changed"
+        assert "banner-ok" in response.text
+    finally:
+        if not existed:
+            scen_svc.delete_dataset(name)
+
+
+def test_deleting_a_dataset_triggers_selector_refresh():
+    init_pool()
+    dataset = f"test_delete_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+        (dataset,),
+    )
+    c = TestClient(app)
+    response = c.delete(f"/api/datasets/{dataset}", headers={"HX-Request": "true"})
+    assert response.status_code == 200
+    assert response.text == ""
+    assert response.headers.get("HX-Trigger") == "datasets-changed"
+
+    # Non-HTMX callers still get the JSON contract.
+    dataset = f"test_delete_{uuid.uuid4().hex[:8]}"
+    execute(
+        "INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)",
+        (dataset,),
+    )
+    try:
+        response = c.delete(f"/api/datasets/{dataset}")
+        assert response.status_code == 200
+        assert response.json()["status"] == "deleted"
+        assert response.headers.get("HX-Trigger") == "datasets-changed"
+    finally:
+        execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
 def test_fixed_dataset_labels_are_positioned():
     from backend.templating import scenario_label
 

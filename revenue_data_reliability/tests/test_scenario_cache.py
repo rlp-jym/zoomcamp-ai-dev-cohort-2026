@@ -155,6 +155,22 @@ def test_dataset_picker_lists_pre_generated_seeds():
     assert "{{ option.label }}" in template
 
 
+def test_header_includes_dataset_selector_partial():
+    from backend.config import TEMPLATES_DIR
+
+    base = (TEMPLATES_DIR / "base.html").read_text(encoding="utf-8")
+    assert '{% include "partials/dataset_selector.html" %}' in base
+
+    partial = (TEMPLATES_DIR / "partials" / "dataset_selector.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'hx-get="/api/dataset-selector"' in partial
+    assert 'hx-trigger="datasets-changed from:body"' in partial
+    assert 'hx-swap="outerHTML"' in partial
+    # Selection still follows the active dataset, it is not hard-coded.
+    assert "s.name == dataset" in partial
+
+
 def test_resolve_data_scenario_uses_dataset_s3_prefix(monkeypatch):
     from backend.db import connection
     from backend.storage import s3_client

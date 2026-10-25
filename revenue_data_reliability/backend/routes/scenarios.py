@@ -20,11 +20,20 @@ def _verify_token(request: Request, payload: dict):
 
 @router.delete("/api/datasets/{dataset_name}")
 @router.delete("/api/scenarios/{dataset_name}")
-async def delete_dataset(dataset_name: str):
-    from backend.services import scenarios as scen_svc
+async def delete_dataset(request: Request, dataset_name: str):
+    from fastapi.responses import HTMLResponse
 
     scen_svc.delete_dataset(dataset_name)
-    return JSONResponse({"status": "deleted", "dataset": dataset_name})
+    # Tell the header dataset selector to re-fetch so a deleted dataset does
+    # not linger in the dropdown.
+    headers = {"HX-Trigger": "datasets-changed"}
+    if request.headers.get("HX-Request") == "true":
+        # The delete button swaps its table row; return no body so the row
+        # disappears instead of being replaced by a JSON blob.
+        return HTMLResponse("", headers=headers)
+    return JSONResponse(
+        {"status": "deleted", "dataset": dataset_name}, headers=headers
+    )
 
 
 @router.post("/api/datasets/register")
