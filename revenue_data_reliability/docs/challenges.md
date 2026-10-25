@@ -27,7 +27,7 @@ using two threads made the warm-cache run faster, but it was not stable on the
 
 This yields roughly a 35-45 second run on Render. That is the stable maximum for
 this container size and is acceptable for the demo; the progress bar gives the
-reviewer feedback while the pipeline runs.
+user feedback while the pipeline runs.
 
 **Do not raise these values without increasing the Render plan.** More memory or
 threads may make local benchmarking faster, but they make the deployed app

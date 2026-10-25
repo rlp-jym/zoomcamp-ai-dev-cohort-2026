@@ -45,7 +45,7 @@ Structure your response as **one paragraph, 2–4 sentences**:
 - **Use only the provided values.** Do not invent numbers, percentages, or
   denominators that are not in the context.
 - **Do not recommend actions.** Remediation proposals belong to the DE agent.
-- **Do not reference rules or playbook steps.** Those are defined in `SPEC.md`
+- **Do not reference rules or playbook steps.** Those are defined in the locked spec (`docs/spec.md`)
   and are out of scope for this skill.
 - If `affected_amount` is `None`, state that the financial impact cannot yet
   be quantified and suggest that the DE agent investigate.

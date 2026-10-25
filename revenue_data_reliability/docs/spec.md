@@ -1,5 +1,4 @@
-```markdown
-# SPEC.md — Revenue Data Reliability Platform
+# Spec — Revenue Data Reliability Platform
 
 Status: locked. All architectural decisions are recorded here. Coding agents
 must not deviate without an explicit update to this file.
@@ -85,10 +84,17 @@ Seeded at boot. No authentication. Header selector sets the acting persona.
 ```
 revenue_data_reliability/
 ├── AGENTS.md
-├── SPEC.md
-├── definitions.md
-├── TASKS.md
 ├── README.md
+├── docs/
+│   ├── spec.md
+│   ├── tasks.md
+│   ├── definitions.md
+│   ├── operating-model.md
+│   ├── demo.md
+│   ├── architecture.md
+│   ├── deployment.md
+│   ├── challenges.md
+│   └── backlog.md
 ├── frontend/
 │   ├── templates/
 │   └── static/
@@ -110,7 +116,9 @@ revenue_data_reliability/
 │   └── db/
 ├── data/                # generator + runs (existing)
 ├── infra/               # Docker, Render config
-└── observability/       # OTEL exporter, dashboards
+├── observability/       # OTEL exporter, dashboards
+├── tests/               # unit + integration
+└── src/                 # uv_build package root
 ```
 
 ---
@@ -279,7 +287,7 @@ Each `SKILL.md` contains:
   content from the same context object. The `SKILL.md` and the template
   must stay in sync; a mismatch is a bug.
 - A skill cannot introduce a new remediation step, a new alert type, or a
-  new rule. Those live in `SPEC.md` only.
+  new rule. Those live in `spec.md` only.
 
 **Loader:** one function `load_skill(name) -> str` reads
 `backend/skills/<name>/SKILL.md`. No framework, no registry.
@@ -405,9 +413,9 @@ and fixes the issue" while keeping data-changing actions human-approved.
 
 ## 18. Success criteria
 
-- Reviewer visits URL, sees populated dashboard with `baseline_run` published
-- Reviewer navigates `/exceptions`, `/runs`, `/audit`, `/observability` without setup
-- Reviewer selects a persona in header and can post in a thread
+- End user visits the URL, loads a seed, and sees a populated dashboard
+- End user navigates `/exceptions`, `/runs`, `/audit`, `/observability` without setup
+- End user selects a persona in the header and can post in a thread
 - Analyst persona can trigger "New Scenario"; new scenario appears in `/scenarios`
 - Analyst persona can "Run Pipeline"; thread shows Orchestrator, DQ, DE, FA posts
 - Manager persona can approve in run thread; published pointer updates
@@ -423,8 +431,8 @@ and fixes the issue" while keeping data-changing actions human-approved.
 - [ ] Generator updated to emit `budget` table (reference-only)
 - [ ] `baseline_run` regenerated with seed=9 (16 tables)
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated
-- [ ] `definitions.md` written (revenue, billings, DSO, fill rate, materiality)
-- [ ] Root `README.md` updated with project overview + link to this SPEC
+- [ ] `docs/definitions.md` written (revenue, billings, DSO, fill rate, materiality)
+- [ ] Root `README.md` updated with project overview + link to `docs/spec.md`
 - [ ] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior
 
 ---
@@ -449,4 +457,3 @@ If listed here, do not build it.
 - WebSocket live updates (HTMX polling is sufficient)
 - Skills that compute or decide anything (skills are prose-only)
 - Skill framework, registry, or discovery beyond `load_skill(name)`
-```

@@ -1,28 +1,28 @@
-# TASKS.md — Revenue Data Reliability Platform
+# Tasks — Revenue Data Reliability Platform
 
-Project path: repository root (`revenue_data_reliability/`). Tracks the application build
-against `SPEC.md` (locked). Check boxes as work completes. Do not build
-anything listed in `SPEC.md §20 (Explicit non-goals)`.
+Project path: `revenue_data_reliability/`. Tracks the application build against
+[`spec.md`](spec.md) (locked). Check boxes as work completes. Do not build
+anything listed in `spec.md` §20 (Explicit non-goals).
 
-> This file is the public task tracker, hosted in the project's GitHub
-> repository. Commit history is the evidence that agents used this
-> tracker: each commit message references a task section (e.g.,
-> `§9: implement VAL_FK_ITEM_EXISTS`).
+> Historical build tracker. Current user-facing behavior is documented in
+> [`../README.md`](../README.md) and [`demo.md`](demo.md).
 >
-> Project-level acceptance criteria live in `SPEC.md §18`.
-> Section-level "Done when" criteria are listed at the end of §2, §5, §8,
-> §9, §13, §18, §19, and §23.
+> Project-level acceptance criteria live in `spec.md` §18. Section-level
+> "Done when" criteria are listed at the end of §2, §5, §8, §9, §13, §18,
+> §19, and §23.
+>
+> Traceability: commit history plus the checkbox history in this file.
 
-## 0. Prerequisites before build (`SPEC.md §19`)
+## 0. Prerequisites before build (`spec.md §19`)
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [x] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
 - [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
 - [x] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
-- [x] Root `README.md` updated with project overview + link to `SPEC.md`.
+- [x] Root `README.md` updated with project overview + link to `docs/spec.md`.
 
 ## 1. Repository scaffolding
-- [x] Create directory structure from `SPEC.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
+- [x] Create directory structure from `spec.md §4` (`frontend/templates`, `frontend/static`, `backend/routes`, `backend/services`, `backend/teams`, `backend/skills`, `backend/db`, `infra`, `observability`).
 - [x] Add `backend/__init__.py` and package layout (or flat modules) per locked layout.
 - [x] Add `.env.example` listing `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`.
 - [x] Add backend dependency manifest (FastAPI, Jinja2, HTMX assets, DuckDB, psycopg3, APScheduler, opentelemetry-sdk, boto3, groq client) — update root `pyproject.toml` or add `backend/pyproject.toml`.
@@ -282,13 +282,13 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [x] Ensure `definitions.md` present.
 - [x] Document OTEL deviation (no external Grafana).
 - [x] Document persona switch and demo flow.
-- [x] Confirm spec filename is `SPEC.md` on disk and referenced as `SPEC.md` in `README.md` and `AGENTS.md`.
-- [x] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so reviewers understand template edits are expected.
-- [x] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `SPEC.md`
-- [x] Update root `AGENTS.md` "Quick links" to include `SPEC.md`, `definitions.md`, `TASKS.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
+- [x] Confirm spec lives at `docs/spec.md` and is referenced from `README.md` and `AGENTS.md`.
+- [x] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so users understand template edits are expected.
+- [x] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `docs/spec.md`
+- [x] Update root `AGENTS.md` "Quick links" to include `docs/spec.md`, `docs/definitions.md`, `docs/tasks.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
 
-## 25. Success criteria verification (`SPEC.md §18`)
-- [x] Reviewer sees populated dashboard with `baseline_run` published.
+## 25. Success criteria verification (`spec.md §18`)
+- [x] User sees a populated dashboard after loading and publishing a seed.
 - [x] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
 - [x] Persona selection + posting in thread works.
 - [ ] Analyst triggers "New Scenario"; appears in `/scenarios`.
@@ -298,8 +298,8 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 - [ ] `/observability` shows trace spanning web request → pipeline → agent action.
 - [x] CI runs tests on PR; `main` requires approval.
 - [ ] Every agent action has `agent_actions` row and shared `trace_id`.
-- [ ] No file in the repo references the legacy plural spec filename; all spec references use `SPEC.md`.
-- [x] Root `AGENTS.md` links to `SPEC.md`, `definitions.md`, `TASKS.md`, and `backend/skills/`
+- [ ] No file in the repo references the legacy plural spec filename; all spec references use `spec.md`.
+- [x] Root `AGENTS.md` links to `docs/spec.md`, `docs/definitions.md`, `docs/tasks.md`, and `backend/skills/`
 
 ## 26. Reliability fixes — pipeline and agents
 - [x] Pipeline runs off the request thread; a single-run lock returns `/runs?busy=1` instead of double-starting.
@@ -362,7 +362,7 @@ anything listed in `SPEC.md §20 (Explicit non-goals)`.
 
 ## 30. Dataset Scoping (Project File Model)
 
-One dataset = one `scenarios` row. The app is scoped to a single active dataset at a time via a selector in the header (cookie `scenario`, query param `?scenario=`). The active run is derived as the latest completed run for that dataset; datasets with no successful validation render an empty state instead of borrowing another dataset's data. This keeps a reviewer's "project file" (dataset + its validation issues, threads, dashboard) coherent across pages.
+One dataset = one `scenarios` row. The app is scoped to a single active dataset at a time via a selector in the header (cookie `scenario`, query param `?scenario=`). The active run is derived as the latest completed run for that dataset; datasets with no successful validation render an empty state instead of borrowing another dataset's data. This keeps a user's "project file" (dataset + its validation issues, threads, dashboard) coherent across pages.
 
 - [x] Selector plumbing: dropdown in base layout, cookie persistence, query-param override, default to most recently completed run's scenario.
 - [x] Active run resolution: `resolve_active_run(scenario_name)` derived query (no `scenarios.active_run_id`).
@@ -371,7 +371,7 @@ One dataset = one `scenarios` row. The app is scoped to a single active dataset 
 - [x] Edge cases: deleted/invalid dataset falls back to default; active run id + last-validated timestamp shown next to selector.
 
 ## Non-goals guardrail
-Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
+Do not implement anything in `spec.md §20`. If unsure, add to non-goals first.
 ## 31. Dashboard Feature Enhancements (Future Roadmap)
 - [x] **31.1 Variance Bridge (Waterfall Chart):** Replace/augment the category variance bar chart with a waterfall bridging Target to Actuals (Volume, Price, FX).
 - [x] **31.2 Raw vs. Cleaned Data Delta:** Show the financial impact of the data quality quarantine on the dashboard.
@@ -385,4 +385,4 @@ Do not implement anything in `SPEC.md §20`. If unsure, add to non-goals first.
 - [x] **32.3 Observability Charts:** Add Request Latency and Spans-by-Service charts.
 - [x] **32.4 Trace Waterfall:** Replace the plain-text span tree with a visual Gantt/Waterfall chart (using Chart.js horizontal bars) to show span duration and overlap.
 - [x] **32.5 Payload Readability:** Format JSON payloads into human-readable strings.
-- [ ] **32.6 Controller Context:** Document in the README that the Controller agent runs as an asynchronous guardrail (post-publish) and does not block the FP&A workflow.
+- [x] **32.6 Controller Context:** Documented in `README.md` and `docs/operating-model.md` that the Controller runs as an asynchronous guardrail (post-publish) and does not block the FP&A workflow.
