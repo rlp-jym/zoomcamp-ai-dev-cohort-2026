@@ -658,6 +658,71 @@ def test_deleting_a_dataset_triggers_selector_refresh():
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
 
 
+def test_danger_zone_visible_but_disabled_for_non_director():
+    init_pool()
+    c = TestClient(app)
+
+    c.post("/persona", data={"persona_id": "analyst"}, follow_redirects=False)
+    response = c.get("/runs")
+    assert response.status_code == 200
+    assert "Danger zone" in response.text
+    assert "Requires Director" in response.text
+    assert "disabled>Reset demo data" in response.text
+
+    c.post("/persona", data={"persona_id": "manager"}, follow_redirects=False)
+    response = c.get("/runs")
+    assert "Danger zone" in response.text
+    assert "Requires Director" in response.text
+    assert "disabled>Reset demo data" in response.text
+
+    c.post("/persona", data={"persona_id": "director"}, follow_redirects=False)
+    response = c.get("/runs")
+    assert "Verified Director" in response.text
+    assert "disabled>Reset demo data" not in response.text
+
+
+def test_reset_requires_director():
+    init_pool()
+    c = TestClient(app)
+    for persona_id in ("analyst", "manager", "de"):
+        c.post("/persona", data={"persona_id": persona_id}, follow_redirects=False)
+        response = c.post(
+            "/runs/reset", data={"confirm": "RESET"}, follow_redirects=False
+        )
+        assert response.status_code == 403, persona_id
+
+
+def test_reset_runs_as_director(monkeypatch):
+    init_pool()
+    from types import SimpleNamespace
+
+    from backend.routes import pages as pages_mod
+    from backend.services import dashboard as dashboard_svc
+
+    calls = {}
+
+    def fake_reset():
+        calls["reset"] = True
+        return SimpleNamespace(
+            runs_deleted=1, datasets_deleted=2, publications_deleted=3
+        )
+
+    monkeypatch.setattr(pages_mod, "reset_preserve_baseline", fake_reset)
+    monkeypatch.setattr(pages_mod, "fetch_one", lambda *a, **k: None)
+    monkeypatch.setattr(pages_mod, "execute", lambda *a, **k: None)
+    monkeypatch.setattr(
+        dashboard_svc, "invalidate_dashboard_cache", lambda *a, **k: None
+    )
+    monkeypatch.setattr(dashboard_svc, "refresh_dashboard_cache", lambda *a, **k: None)
+
+    c = TestClient(app)
+    c.post("/persona", data={"persona_id": "director"}, follow_redirects=False)
+    response = c.post("/runs/reset", data={"confirm": "RESET"}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/runs?reset=ok"
+    assert calls.get("reset") is True
+
+
 def test_fixed_dataset_labels_are_positioned():
     from backend.templating import scenario_label
 

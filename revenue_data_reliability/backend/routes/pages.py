@@ -37,6 +37,11 @@ def _current_persona(request: Request):
     return stub_data.get_persona(pid)
 
 
+def _can_reset(persona):
+    """Destructive demo reset belongs to the Director, not the Manager."""
+    return persona["id"] == "director"
+
+
 def _resolve_dataset(request, extra):
     if "dataset" in extra and extra.get("dataset") is not None:
         return extra.get("dataset")
@@ -522,16 +527,14 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
              datasets=datasets,
              pre_generated=pre_generated,
              reset_status=reset, busy=busy,
-             allow_reset=(
-                 os.getenv("ALLOW_IN_APP_RESET", "1") == "1"
-                 and persona["id"] == "manager"
-             )),
+             reset_enabled=os.getenv("ALLOW_IN_APP_RESET", "1") == "1",
+             can_reset=_can_reset(persona)),
     )
 
 
 @router.post("/runs/reset")
 async def reset_runs(request: Request):
-    """Reset non-baseline demo data (Manager-only, env-gated).
+    """Reset non-baseline demo data (Director-only, env-gated).
 
     Preserves personas, rules, and the baseline fixture. Truncates the
     ephemeral tables and deletes non-baseline runs/publications/scenarios.
@@ -545,8 +548,8 @@ async def reset_runs(request: Request):
         raise HTTPException(status_code=400, detail="Type RESET to confirm.")
 
     persona = _current_persona(request)
-    if persona["id"] != "manager":
-        raise HTTPException(status_code=403, detail="Only the Manager can reset data.")
+    if not _can_reset(persona):
+        raise HTTPException(status_code=403, detail="Only the Director can reset data.")
 
     # Guard against truncating under a live pipeline: only a *recent* running
     # run blocks the reset. Older 'running' rows are orphans (crashed
