@@ -632,7 +632,7 @@ def _minimal_cache(scenario: str, error: str | None = None) -> dict:
         "alert_count": 0,
         "kpis": [],
         "charts": {},
-        "chart_messages": _chart_messages(),
+        "chart_messages": _chart_messages(scenario),
         "attainment": None,
         "cache_empty": True,
         "target_total": 0.0,
@@ -889,12 +889,23 @@ def get_raw_vs_cleaned_delta(dataset_name: str, conn=None) -> dict:
         return empty
 
 
-def _chart_messages() -> dict:
+def chart_thread_id(anchor: str, scenario: str) -> str:
+    """Dataset-scoped chart thread anchor, e.g. ``chart-growth--seed_101``.
+
+    Chart discussions belong to one dataset; a global anchor made every
+    loaded dataset share the same thread. ``--`` keeps the value valid as an
+    HTML element id so HTMX can target ``#thread-analysis-<anchor>``.
+    """
+    return f"{anchor}--{scenario}"
+
+
+def _chart_messages(scenario: str) -> dict:
     """Live analysis-thread messages for every dashboard chart card."""
+    scoped = {aid: chart_thread_id(aid, scenario) for aid in CHART_THREAD_IDS}
     msgs_by_thread = msg_svc.get_messages_for_threads(
-        "analysis", list(CHART_THREAD_IDS)
+        "analysis", list(scoped.values())
     )
-    return {aid: msgs_by_thread.get(aid, []) for aid in CHART_THREAD_IDS}
+    return {aid: msgs_by_thread.get(scoped[aid], []) for aid in CHART_THREAD_IDS}
 
 
 def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
@@ -926,7 +937,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
             "alert_count": alerts_svc.open_alert_count(),
             "kpis": [],
             "charts": {},
-            "chart_messages": _chart_messages(),
+            "chart_messages": _chart_messages(scenario),
             "cache_fresh_at": None,
             "cache_empty": True,
         }
@@ -939,7 +950,7 @@ def get_dashboard_data_cached(scenario: str = SCENARIO) -> dict:
     data["alerts"] = alerts
     data["alert_count"] = alert_count
     # Chart discussion threads (one per chart card).
-    data["chart_messages"] = _chart_messages()
+    data["chart_messages"] = _chart_messages(scenario)
     data["kpi_cache"] = {
         "refreshed_at": refreshed_at.strftime("%Y-%m-%d %I:%M:%S %p") if refreshed_at else "",
     }

@@ -80,6 +80,30 @@ def test_scenarios_tab_is_hidden_from_navigation():
     assert "Start a scenario analysis" not in dashboard
 
 
+def test_chart_threads_are_scoped_per_dataset(monkeypatch):
+    from backend.services import dashboard as dash
+
+    captured = {}
+
+    def fake(anchor_type, ids):
+        captured["type"] = anchor_type
+        captured["ids"] = list(ids)
+        return {}
+
+    monkeypatch.setattr(dash.msg_svc, "get_messages_for_threads", fake)
+    out = dash._chart_messages("generated_seed101_y1")
+
+    assert captured["type"] == "analysis"
+    assert "chart-growth--generated_seed101_y1" in captured["ids"]
+    assert all(i.endswith("--generated_seed101_y1") for i in captured["ids"])
+    assert out["chart-growth"] == []
+
+    # A different dataset resolves to a different thread id.
+    dash._chart_messages("generated_seed102_y1")
+    assert "chart-growth--generated_seed102_y1" in captured["ids"]
+    assert "chart-growth--generated_seed101_y1" not in captured["ids"]
+
+
 def test_observability_charts_layout():
     from backend.config import TEMPLATES_DIR
 

@@ -232,7 +232,7 @@ def dismiss_all(run_id=None):
     """Dismiss every open or awaiting exception, optionally scoped to a run.
 
     Returns the number of rows that changed status. Used by the Data Issues
-    "Dismiss all" action so a reviewer can clear a scenario in one click.
+    "Dismiss all" action so an end user can clear a scenario in one click.
     """
     try:
         run_id = int(run_id) if run_id not in (None, "") else None
