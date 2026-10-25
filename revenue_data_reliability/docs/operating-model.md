@@ -51,4 +51,4 @@ escalates drift, while publication stays FP&A Manager-gated.
 | Go-live | FP&A Manager | Publication row + dashboard pointer |
 | Remediation | FP&A Manager | Data Engineer executes quarantine or re-run |
 | Critical escalation | Director of FP&A | Informed on the anchor thread |
-| Demo reset | Director of FP&A | Deletes non-baseline data |
+| Demo reset | Director of FP&A | Deletes non-baseline data; preserves audit and telemetry |

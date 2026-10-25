@@ -536,8 +536,9 @@ async def runs_list(request: Request, reset: str | None = None, busy: str | None
 async def reset_runs(request: Request):
     """Reset non-baseline demo data (Director-only, env-gated).
 
-    Preserves personas, rules, and the baseline fixture. Truncates the
-    ephemeral tables and deletes non-baseline runs/publications/scenarios.
+    Preserves personas, rules, the baseline fixture, audit, and telemetry.
+    Truncates dataset-scoped tables and deletes non-baseline
+    runs/publications/scenarios.
     """
     if os.getenv("ALLOW_IN_APP_RESET", "1") != "1":
         raise HTTPException(status_code=403, detail="In-app reset disabled.")

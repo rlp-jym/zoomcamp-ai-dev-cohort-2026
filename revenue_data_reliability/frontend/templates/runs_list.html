@@ -7,7 +7,7 @@
 {% endif %}
 <p class="page-description">Catalog of validation runs — status, timing, and publication state. Click a run ID for validation results and details.</p>
 {% if reset_status == "ok" %}
-<div class="banner banner-ok">Demo data reset. Baseline fixture preserved.</div>
+<div class="banner banner-ok">Dataset reset. Baseline fixture, audit, and telemetry preserved.</div>
 {% elif reset_status %}
 <div class="banner banner-error">Reset encountered an issue.</div>
 {% endif %}
@@ -69,8 +69,8 @@
 {% if reset_enabled %}
 <section class="danger-zone">
   <h2>Danger zone</h2>
-  <p>Reset demo data. Preserves personas, rules, and the baseline fixture.
-     Deletes all other runs, publications, and datasets.</p>
+  <p>Reset demo data. Preserves personas, rules, the baseline fixture, audit,
+     and telemetry. Deletes all other runs, publications, datasets, and threads.</p>
   <form method="post" action="/runs/reset"
         onsubmit="return confirm('Reset all demo data? This cannot be undone.');">
     <label for="confirm">Type RESET to confirm:</label>

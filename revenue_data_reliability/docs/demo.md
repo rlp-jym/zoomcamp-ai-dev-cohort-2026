@@ -65,6 +65,9 @@ Revalidation only: the Controller refreshes validation for the affected dataset
 and never republishes. Publication stays human-gated by design, so the alert row
 is retained as the finding's audit record rather than auto-closed.
 
+The Director's demo reset on Validation (`/runs`) clears dataset state only.
+Audit (`/audit`) and Observability (`/observability`) survive it.
+
 ## Personas
 
 | Persona (ID) | Try |

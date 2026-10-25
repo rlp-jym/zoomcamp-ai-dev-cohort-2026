@@ -1,10 +1,35 @@
-"""In-app data reset utilities (preserve baseline fixture)."""
+"""In-app data reset utilities (preserve baseline fixture).
+
+Reset is dataset-scoped: it clears validations, reconciliations, exceptions,
+quarantines, and the dashboard cache. Audit records (``agent_actions``,
+``approvals``, ``alerts``) and telemetry (``otel_*``) are append-only and
+survive a reset.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from backend.db import execute, fetch_one
 from backend.db.fixture import ensure_baseline_fixture
+
+# Dataset-scoped tables cleared on reset.
+RESET_TRUNCATE_TABLES = (
+    "validations",
+    "reconciliations",
+    "exceptions",
+    "quarantines",
+    "dashboard_cache",
+)
+
+# Append-only tables that must survive a reset.
+RESET_PRESERVED_TABLES = (
+    "agent_actions",
+    "approvals",
+    "alerts",
+    "otel_spans",
+    "otel_logs",
+    "otel_metrics",
+)
 
 
 @dataclass
@@ -18,13 +43,12 @@ class ResetSummary:
 
 
 def reset_preserve_baseline() -> ResetSummary:
-    """Reset non-baseline data while preserving personas, rules, and baseline fixture."""
+    """Reset dataset-scoped data; preserve personas, rules, baseline, audit, telemetry."""
     row = fetch_one("SELECT run_id FROM runs WHERE dataset_name='baseline_run' ORDER BY run_id LIMIT 1")
     baseline_run_id = row["run_id"] if row else None
 
     execute(
-        "TRUNCATE TABLE validations, reconciliations, exceptions, quarantines, approvals, "
-        "alerts, agent_actions, otel_spans, otel_logs, otel_metrics, dashboard_cache CASCADE"
+        "TRUNCATE TABLE " + ", ".join(RESET_TRUNCATE_TABLES) + " CASCADE"
     )
 
     messages_deleted = _delete_messages_non_baseline()
