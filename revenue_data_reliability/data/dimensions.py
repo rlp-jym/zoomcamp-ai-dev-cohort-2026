@@ -214,7 +214,7 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
     conc = cfg.get("concentration") or {}
     whale_count = int(conc.get("customer_whales", 0) or 0)
     whale_segment = conc.get("customer_whale_segment")
-    whale_activity = conc.get("customer_whale_activity")
+    whale_activities = conc.get("customer_whale_activities") or []
     # Long-standing accounts only: the last ids are opened in the final growth
     # months, so they would never accumulate revenue across the window.
     whale_idx = (
@@ -242,9 +242,9 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
     churn_dates = [month_to_date(int(x)) if x is not None else None for x in churn_months]
     payment = rng.choice(["net30", "net60", "prepay"], size=n_customers)
     activity = rng.choice(["high", "med", "low"], size=n_customers)
-    if whale_activity:
-        for i in whale_idx:
-            activity[i] = whale_activity
+    if whale_activities:
+        for pos, i in enumerate(whale_idx):
+            activity[i] = whale_activities[pos % len(whale_activities)]
     return pd.DataFrame({
         "customer_id": ids,
         "master_account_number": [f"MA{i:06d}" for i in ids],

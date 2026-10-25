@@ -51,7 +51,9 @@ concentration:
   customer_whales: 5
   customer_whale_share: 0.45
   customer_whale_segment: enterprise
-  customer_whale_activity: high
+  # Spread the cohort across tiers so the segment occupies several of the
+  # top rows rather than one.
+  customer_whale_activities: [high, med, low]
   # Item mix leans into one category and one ABC class, so Top 5 Products
   # concentrates in a single group.
   item_focus_category: Industrial
