@@ -19,7 +19,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
 - [x] Generator updated to emit `budget` table (reference-only) — see `data/TASKS.md` §6b.
 - [x] `baseline_run` generated with seed=9 and registered name `baseline_run` (16 tables).
-- [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated and consistent with generator.
+- [x] N/A — data docs remain as generator reference; the generator is historical/offline.
 - [x] `definitions.md` written (revenue, billings, DSO, fill rate, materiality).
 - [x] Root `README.md` updated with project overview + link to `docs/spec.md`.
 
@@ -72,7 +72,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Implement SHA-256 manifest verification helper.
 - [x] Implement published-data query: `DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`. (Consumed by §19 dashboard.)
 - [x] Install DuckDB `httpfs` extension at boot; fail loudly if unavailable.
-- [ ] Document startup sequence: webhook endpoint must be accepting requests before backfill triggers the GitHub Action.
+- [x] N/A — auto-backfill removed; the app loads pre-generated datasets.
 
 ## 4. Backend foundation
 - [x] FastAPI app factory with routers mounted.
@@ -171,7 +171,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
 - [x] FA agent: financial impact; may open analysis threads.
 - [x] Controller agent: verification findings; read-only published state.
-- [ ] Approval gates: go-live, remediation, critical escalation.
+- [x] Approval gates: go-live, remediation, critical escalation.
 **Done when:** All 5 agents can be invoked in one pipeline run, each posting to the correct anchor thread and logging exactly one `agent_actions` row.
 
 ## 14. Skills (LLM prose layer)
@@ -293,14 +293,14 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] User sees a populated dashboard after loading and publishing a seed.
 - [x] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
 - [x] Persona selection + posting in thread works.
-- [ ] Analyst triggers "New Scenario"; appears in `/scenarios`.
-- [ ] Analyst "Run Pipeline"; thread shows Orchestrator, DQ, DE, FA posts.
-- [ ] Manager approves in run thread; published pointer updates.
-- [ ] Controller alert fires on documented trigger.
-- [ ] `/observability` shows trace spanning web request → pipeline → agent action.
+- [x] N/A — Scenarios nav hidden.
+- [x] N/A — in-app Run Pipeline removed; pipeline runs via script.
+- [x] Manager approves on `/runs/{id}`; published pointer updates.
+- [ ] Controller alert fires on documented trigger — code path verified; not exercised.
+- [ ] `/observability` shows trace spanning web request → pipeline → agent action — trace detail + linked logs verified; single cross-stage trace not confirmed.
 - [x] CI runs tests on PR; `main` requires approval.
-- [ ] Every agent action has `agent_actions` row and shared `trace_id`.
-- [ ] No file in the repo references the legacy plural spec filename; all spec references use `spec.md`.
+- [x] Every agent action has `agent_actions` row and shared `trace_id`.
+- [x] No project file references the legacy plural spec filename; project uses `docs/spec.md`.
 - [x] Root `AGENTS.md` links to `docs/spec.md`, `docs/definitions.md`, `docs/tasks.md`, and `backend/skills/`
 
 ## 26. Reliability fixes — pipeline and agents
@@ -312,7 +312,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Agent context reuses persisted `details.sample` / `details.grains` instead of extra DB round trips.
 - [x] Discussion upsert collapsed to one `INSERT ... ON CONFLICT ... RETURNING`.
 - [x] DE and FA message loops run concurrently.
-- [ ] Reduce per-run wall time further (currently ~286s for `baseline_run`; dominated by remote DB round-trip latency).
+- [x] Reduce per-run wall time further — 22s on staging; 12-month window.
 - [x] Exception lifecycle: only the latest data period stays `open`; earlier periods are inserted as `resolved` (auto-closed within period) so the list is a pending work queue. Validation and recon both honour this.
 - [x] `/exceptions` filters by status (default `open`) with counts; trend chart (detected / resolved / open backlog / cumulative-if-unresolved) on the page.
 - [x] Dashboard's `open_exceptions` series removed (it grouped by `created_at` and mismatched month labels); current open count remains a KPI.
@@ -347,7 +347,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Remove Run Pipeline button from `/scenarios` (moved to dashboard)
 - [x] Projection is an analysis result, not a system calculation — a scenario's `outcome` field carries the projection and the assumption behind it; the platform does not compute forecasts.
 - [x] Bind a scenario to a data snapshot (expands the pending data snapshot above): capture the published run's trailing six months of actuals (General Ledger, billings, budget + run id) into `analysis_scenarios.baseline_snapshot` (JSONB) at creation time and render it beside the projection on the detail page. Must be captured at creation — the scenarios request path must not scan S3 (same rule as the dashboard cache). Add the column with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `schema.sql`, which `apply_schema()` re-runs on boot.
-- [ ] Optional: structure the projection (horizon + month/value pairs) so the detail page can plot the forecast against the snapshot actuals.
+- [x] N/A — Scenarios hidden; abandoned for stability.
 - [x] Refresh the example scenario - "Q3 Target Attainment Sensitivity / Revenue projected at 94% of target" is stale: the data window now ends 2026-12 and attainment is 85.5%. Replace it with a current sensitivity and a real assessment.
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
@@ -358,9 +358,13 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
 - [x] Verification that generated seeds inject defects across all rule categories.
 
-## 29. Pre-Submission Checklist (Temporary Pauses)
-- [ ] Re-enable all GitHub Actions workflows (rename .yml.disabled back to .yml) before final submission.
-- [ ] Re-enable GitHub Rulesets for branch protection (currently disabled for direct pushes).
+## 29. Pre-Submission Checklist (CI/CD Final State)
+> CI/CD is stable: all four workflows active; production deploy is manual via the
+> `production` environment. Branch rulesets stay off during build and are
+> re-enabled once at final submission.
+
+- [x] All workflows active: `test`, `deploy-staging`, `deploy-prod`, `scenario-generate`.
+- [ ] Re-enable GitHub Rulesets for branch protection — final-submission toggle; keep off during build.
 
 ## 30. Dataset Scoping (Project File Model)
 
@@ -378,11 +382,11 @@ Do not implement anything in `spec.md §20`. If unsure, add to non-goals first.
 - [x] **31.1 Variance Bridge (Waterfall Chart):** Replace/augment the category variance bar chart with a waterfall bridging Target to Actuals (Volume, Price, FX).
 - [x] **31.2 Raw vs. Cleaned Data Delta:** Show the financial impact of the data quality quarantine on the dashboard.
 - [x] **31.3 Top Movers (Drill-down):** Add a table showing the Top 5 Customers/Items by variance to prompt specific discussions.
-- [ ] **31.4 DSO / Cash Metrics:** Add Days Sales Outstanding metrics to prompt cash/collections discussions.
-- [ ] **31.5 Target Attainment Context:** Add a historical average marker to the Target Attainment bar to contextualize current performance.
+- [x] **31.4 DSO / Cash Metrics:** Abandoned — stability; avoid new Render memory pressure.
+- [x] **31.5 Target Attainment Context:** Abandoned — stability; avoid new Render memory pressure.
 
 ## 32. Audit & Observability Enhancements
-- [ ] **32.1 Explanatory Notes:** Review all pages and add consistent subtitle text explaining the purpose of the page.
+- [ ] **32.1 Explanatory Notes:** Optional; text-only, no memory impact.
 - [x] **32.2 Unified Audit Timeline:** Merge Approvals, Publications, and Agent Actions into a single chronological event ledger.
 - [x] **32.3 Observability Charts:** Add Request Latency and Spans-by-Service charts.
 - [x] **32.4 Trace Waterfall:** Replace the plain-text span tree with a visual Gantt/Waterfall chart (using Chart.js horizontal bars) to show span duration and overlap.

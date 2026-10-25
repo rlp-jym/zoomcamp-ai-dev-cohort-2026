@@ -23,6 +23,14 @@ unused Render DBs are backed up and removed. See
 | `deploy-prod.yml` | Push to `main` | `production` approval, then Render deploy hook |
 | `scenario-generate.yml` | Manual | Generate, upload to R2, register webhook |
 
+## Branch Protection
+
+| Control | State |
+|---|---|
+| GitHub rulesets | Off during build; re-enable once at final submission |
+| Production deploy | Manual approval via the `production` environment |
+| Direct pushes | Allowed on `develop` and `staging` during build |
+
 ## Rollback
 
 | Situation | Action |
