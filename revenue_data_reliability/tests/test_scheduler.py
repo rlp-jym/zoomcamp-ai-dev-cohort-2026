@@ -71,6 +71,20 @@ def test_scenarios_tab_is_hidden_from_navigation():
     assert "Start a scenario analysis" not in dashboard
 
 
+def test_observability_charts_layout():
+    from backend.config import TEMPLATES_DIR
+
+    html = (TEMPLATES_DIR / "observability.html").read_text(encoding="utf-8")
+    # Two line charts share the 2-column grid; the service chart spans both.
+    assert html.index("latencyChart") < html.index("metricsChart") < html.index("serviceChart")
+    assert 'class="chart-card span-2"' in html
+    # Service breakdown is a horizontal stacked bar, not a pie.
+    assert 'type: "pie"' not in html
+    assert 'type: "bar"' in html
+    assert 'indexAxis: "y"' in html
+    assert "stacked: true" in html
+
+
 def test_topbar_is_sticky():
     from backend.config import STATIC_DIR
 
