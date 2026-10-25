@@ -31,6 +31,45 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
     item_ids = items["item_id"].to_numpy()
     price_map = dict(zip(items["item_id"], items["catalog_unit_price"], strict=False))
 
+    # ---- concentration and mix drift ------------------------------------
+    conc = cfg.get("concentration") or {}
+    var = cfg.get("variance") or {}
+    whale_count = int(conc.get("customer_whales", 0) or 0)
+    whale_share = float(conc.get("customer_whale_share", 0.0) or 0.0)
+    whale_ids = {
+        int(v)
+        for v in range(
+            int(cfg["dimension_drift"]["segment_remaps"]) + 1,
+            int(cfg["dimension_drift"]["segment_remaps"]) + 1 + whale_count,
+        )
+    } if whale_count > 0 else set()
+    segment_of = dict(zip(customers["customer_id"], customers["segment"], strict=False))
+    seg_trend = {k: float(v) for k, v in (var.get("segment_trend") or {}).items()}
+
+    focus_category = conc.get("item_focus_category")
+    focus_share = float(conc.get("item_focus_share", 0.0) or 0.0)
+    cat_trend = {k: float(v) for k, v in (var.get("category_trend") or {}).items()}
+    item_category = dict(zip(items["item_id"], items["category"], strict=False))
+    item_cats = np.array(
+        [item_category.get(int(i), "") for i in item_ids], dtype=object
+    )
+    n_other_categories = max(len(set(item_cats.tolist())) - 1, 1)
+    if focus_category and focus_share > 0:
+        base_item_w = np.where(
+            item_cats == focus_category,
+            focus_share,
+            (1.0 - focus_share) / n_other_categories,
+        )
+        if cat_trend:
+            trend_vec = np.array(
+                [cat_trend.get(c, 0.0) for c in item_cats], dtype=float
+            )
+        else:
+            trend_vec = np.zeros(len(item_cats), dtype=float)
+    else:
+        base_item_w = None
+        trend_vec = None
+
     counters = {
         "order": 0, "order_line": 0, "shipment": 0, "shipment_line": 0,
         "invoice": 0, "invoice_line": 0, "ar": 0, "backorder": 0, "return": 0,
@@ -48,7 +87,34 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
         if len(active_ids) == 0:
             active_ids = customers["customer_id"].to_numpy()
 
-        cust_choice = rng.choice(active_ids, size=n)
+        if whale_ids or seg_trend:
+            weights = np.ones(len(active_ids), dtype=float)
+            if whale_ids:
+                is_whale = np.array(
+                    [int(c) in whale_ids for c in active_ids], dtype=bool
+                )
+                n_whales = int(is_whale.sum())
+                if n_whales > 0:
+                    weights[is_whale] = whale_share / n_whales
+                    weights[~is_whale] = (1.0 - whale_share) / max(
+                        len(active_ids) - n_whales, 1
+                    )
+            if seg_trend:
+                seg_factor = np.array(
+                    [
+                        seg_trend.get(segment_of.get(int(c)), 0.0)
+                        for c in active_ids
+                    ],
+                    dtype=float,
+                )
+                weights *= np.clip(1.0 + seg_factor * mi, 0.05, None)
+            total = weights.sum()
+            if total > 0:
+                cust_choice = rng.choice(active_ids, size=n, p=weights / total)
+            else:
+                cust_choice = rng.choice(active_ids, size=n)
+        else:
+            cust_choice = rng.choice(active_ids, size=n)
         dc_choice = rng.choice(dcs["dc_id"].to_numpy(), size=n)
         days = rng.integers(1, 29, size=n)
         order_dates = [date(y, m, int(d)) for d in days]
@@ -70,6 +136,16 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
         order_id_rep = np.repeat(order_ids, line_counts)
         n_total_lines = int(line_counts.sum())
         item_choice = rng.choice(item_ids, size=n_total_lines)
+        if base_item_w is not None:
+            month_w = base_item_w * np.clip(1.0 + trend_vec * mi, 0.05, None)
+            total_w = month_w.sum()
+            if total_w > 0:
+                item_w = month_w / total_w
+                item_choice = rng.choice(item_ids, size=n_total_lines, p=item_w)
+            else:
+                item_w = None
+        else:
+            item_w = None
         qty_ordered = rng.integers(1, 10, size=n_total_lines)
 
         ol_ids = np.arange(counters["order_line"] + 1, counters["order_line"] + n_total_lines + 1)
@@ -92,7 +168,13 @@ def generate_transactions(cfg: dict, rng: np.random.Generator, dims: dict) -> di
             else:
                 seen.add(key)
         if dup_mask.any():
-            ol_df.loc[dup_mask, "item_id"] = rng.choice(item_ids, size=int(dup_mask.sum()))
+            n_dup = int(dup_mask.sum())
+            if item_w is not None:
+                ol_df.loc[dup_mask, "item_id"] = rng.choice(
+                    item_ids, size=n_dup, p=item_w
+                )
+            else:
+                ol_df.loc[dup_mask, "item_id"] = rng.choice(item_ids, size=n_dup)
         ol_df["unit_price"] = ol_df["item_id"].map(price_map)
         ol_df["extended_price"] = ol_df["qty_ordered"] * ol_df["unit_price"]
         ol_list.append(ol_df)

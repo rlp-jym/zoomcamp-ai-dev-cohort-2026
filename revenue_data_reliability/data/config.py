@@ -6,7 +6,7 @@ import yaml
 
 REQUIRED_KEYS = [
     "name", "seed", "timeline", "scale", "dimension_drift", "defects",
-    "reconciliation", "output",
+    "reconciliation", "output", "concentration", "variance",
 ]
 
 

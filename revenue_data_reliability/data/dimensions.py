@@ -62,7 +62,8 @@ def make_distribution_centers(n: int, rng: np.random.Generator, drift: dict | No
 
 
 def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame,
-               drift: dict | None = None) -> pd.DataFrame:
+               drift: dict | None = None,
+               concentration: dict | None = None) -> pd.DataFrame:
     ids = np.arange(1, n + 1)
     cats = rng.choice(["Electronics", "Industrial", "Office", "Safety", "Misc"], size=n)
     subcats = rng.choice(["A", "B", "C"], size=n)
@@ -87,6 +88,18 @@ def make_items(n: int, rng: np.random.Generator, manufacturers: pd.DataFrame,
     if n >= 2:
         cats[0] = "RemappedCat"
         cats[1] = "RemappedCat"
+    conc = concentration or {}
+    focus_category = conc.get("item_focus_category")
+    focus_abc = conc.get("item_focus_abc")
+    abc_share = float(conc.get("item_abc_a_share", 0.0) or 0.0)
+    if focus_category and focus_abc and abc_share > 0:
+        # Concentrate the focus category into one ABC class so the Top 5
+        # Products table lands inside a single group.
+        idx = np.where(cats == focus_category)[0]
+        if idx.size:
+            promote = rng.random(idx.size) < abc_share
+            abc = np.array(abc)
+            abc[idx[promote]] = focus_abc
     return pd.DataFrame({
         "item_id": ids,
         "item_sku": sku,
@@ -197,6 +210,21 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
     n_remaps = int(cfg["dimension_drift"]["segment_remaps"])
     for i in range(min(n_remaps, n_customers)):
         segments[i] = "remapped_segment"
+
+    conc = cfg.get("concentration") or {}
+    whale_count = int(conc.get("customer_whales", 0) or 0)
+    whale_segment = conc.get("customer_whale_segment")
+    whale_activity = conc.get("customer_whale_activity")
+    # Long-standing accounts only: the last ids are opened in the final growth
+    # months, so they would never accumulate revenue across the window.
+    whale_idx = (
+        np.arange(n_remaps, n_remaps + whale_count)
+        if whale_count > 0 else np.array([], dtype=int)
+    )
+    whale_idx = whale_idx[whale_idx < n_customers]
+    if whale_segment:
+        for i in whale_idx:
+            segments[i] = whale_segment
     regions = rng.choice(["North", "South", "East", "West"], size=n_customers)
     dc_ids = rng.choice(dcs["dc_id"].to_numpy(), size=n_customers)
     statuses = np.where(churn_months == None, "active", "churned")  # noqa: E711
@@ -212,14 +240,19 @@ def make_customers(cfg: dict, rng: np.random.Generator, dcs: pd.DataFrame) -> pd
 
     open_dates = [month_to_date(int(x)) for x in open_months]
     churn_dates = [month_to_date(int(x)) if x is not None else None for x in churn_months]
+    payment = rng.choice(["net30", "net60", "prepay"], size=n_customers)
+    activity = rng.choice(["high", "med", "low"], size=n_customers)
+    if whale_activity:
+        for i in whale_idx:
+            activity[i] = whale_activity
     return pd.DataFrame({
         "customer_id": ids,
         "master_account_number": [f"MA{i:06d}" for i in ids],
         "sub_account_number": [f"SA{i:06d}" for i in ids],
         "customer_name": [f"Customer {i}" for i in ids],
         "segment": segments,
-        "payment_behavior": rng.choice(["net30", "net60", "prepay"], size=n_customers),
-        "activity_tier": rng.choice(["high", "med", "low"], size=n_customers),
+        "payment_behavior": payment,
+        "activity_tier": activity,
         "address_line1": [f"Addr {i}" for i in ids],
         "city": [f"City {i}" for i in ids],
         "state": rng.choice(["CA", "TX", "NY", "FL", "IL"], size=n_customers),
@@ -248,7 +281,10 @@ def generate_dimensions(cfg: dict, rng: np.random.Generator) -> dict:
     drift = cfg.get("dimension_drift", {})
     manufacturers = make_manufacturers(int(scale["manufacturers"]), rng)
     dcs = make_distribution_centers(int(scale["distribution_centers"]), rng, drift)
-    items = make_items(int(scale["items"]), rng, manufacturers, drift)
+    items = make_items(
+        int(scale["items"]), rng, manufacturers, drift,
+        concentration=cfg.get("concentration"),
+    )
     customers = make_customers(cfg, rng, dcs)
     return {
         "manufacturers": manufacturers,

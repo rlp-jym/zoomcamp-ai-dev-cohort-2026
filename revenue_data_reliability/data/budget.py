@@ -63,6 +63,10 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
     target_ratio = float((cfg.get("budget") or {}).get("target_ratio", 1.0))
     if target_ratio <= 0:
         raise ValueError("budget.target_ratio must be positive")
+    variance = cfg.get("variance") or {}
+    category_shift = {
+        str(k): float(v) for k, v in (variance.get("category_plan_shift") or {}).items()
+    }
 
     # ---- allocation shares -------------------------------------------------
     top_custs = _top_customers(tx, 10)
@@ -94,6 +98,16 @@ def generate_budget(cfg: dict, rng: np.random.Generator, tx: dict, dims: dict, g
         pair_totals = pd.Series(1.0, index=full_idx)
         gl_total = float(sum(monthly_billings.values()))
     target_total = gl_total * target_ratio
+    # The plan mix differs from actual by the configured shift, so the category
+    # bridge produces both positive and negative contributions.
+    if category_shift:
+        multipliers = pd.Series(
+            [category_shift.get(cat, 1.0) for (_, cat) in pair_totals.index],
+            index=pair_totals.index,
+        )
+        shifted = pair_totals * multipliers
+        if float(shifted.sum()) > 0:
+            pair_totals = shifted
     pair_share = pair_totals / float(pair_totals.sum())
 
     weights = {p: _seasonal_multiplier(p, seasonality) for p in months}

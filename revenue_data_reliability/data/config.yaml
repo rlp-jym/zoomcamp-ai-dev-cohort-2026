@@ -45,6 +45,44 @@ budget:
   # <1 makes the dataset beat plan, >1 makes it miss plan.
   target_ratio: 1.0
 
+concentration:
+  # A small cohort of key accounts takes a large share of orders, so the
+  # Top 5 Clients table shows real concentration instead of noise.
+  customer_whales: 5
+  customer_whale_share: 0.45
+  customer_whale_segment: enterprise
+  customer_whale_activity: high
+  # Item mix leans into one category and one ABC class, so Top 5 Products
+  # concentrates in a single group.
+  item_focus_category: Industrial
+  item_focus_share: 0.50
+  item_focus_abc: A
+  item_abc_a_share: 0.60
+
+variance:
+  # Plan mix factors. <1 means the group was under-budgeted and tends to beat
+  # plan; >1 means it was over-budgeted and tends to miss.
+  category_plan_shift:
+    Electronics: 0.95
+    Industrial: 0.90
+    Office: 1.05
+    Safety: 1.10
+    Misc: 1.15
+  # Per-month drift of the actual category mix.
+  category_trend:
+    Electronics: 0.020
+    Industrial: 0.012
+    Office: -0.010
+    Safety: 0.006
+    Misc: -0.018
+  # Per-month drift of the actual segment mix. The dashboard strikes the plan
+  # from the opening months, so this drift is what makes the segment bridge
+  # show both positive and negative bars.
+  segment_trend:
+    enterprise: 0.020
+    midmarket: 0.004
+    smb: -0.015
+
 dimension_drift:
   sku_retirements: 2
   sku_renames: 2
