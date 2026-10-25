@@ -11,6 +11,13 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # Make persona list available in all templates without per-route plumbing.
 templates.env.globals["PERSONAS"] = stub_data.PERSONAS
 
+# Fixed demo datasets. Their positioning is baked into the generated files.
+FIXED_DATASETS = {
+    "generated_seed101_y1": "Seed 1 (Neutral)",
+    "generated_seed102_y1": "Seed 2 (Bullish)",
+    "generated_seed103_y1": "Seed 3 (Bearish)",
+}
+
 
 def scenario_label(name):
     """Turn a raw scenario slug into a human-readable dataset label."""
@@ -18,6 +25,8 @@ def scenario_label(name):
         return ""
     if name == "baseline_run":
         return "Baseline Run"
+    if name in FIXED_DATASETS:
+        return FIXED_DATASETS[name]
     match = re.match(r"^(?:generated_)?seed(\d+)_y(\d+)$", name)
     if match:
         return f"Seed {match.group(1)} (Year {match.group(2)})"

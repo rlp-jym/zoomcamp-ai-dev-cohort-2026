@@ -25,10 +25,6 @@
 {% if kpi_cache and kpi_cache.refreshed_at %}
 <div class="kpi-cache-note">
   Last updated: {{ kpi_cache.refreshed_at }}
-  <form method="post" action="/dashboard/refresh" style="display:inline"
-        hx-post="/dashboard/refresh" hx-target="this" hx-swap="outerHTML">
-    <button type="submit" style="padding:1px 8px;font-size:11px">refresh now</button>
-  </form>
 </div>
 {% endif %}
 

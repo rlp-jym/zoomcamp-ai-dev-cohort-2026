@@ -510,3 +510,67 @@ def test_dashboard_has_no_initializing_banner(monkeypatch):
         assert "Refresh KPIs now" not in response.text
     finally:
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
+
+
+def test_fixed_dataset_labels_are_positioned():
+    from backend.templating import scenario_label
+
+    assert scenario_label("generated_seed101_y1") == "Seed 1 (Neutral)"
+    assert scenario_label("generated_seed102_y1") == "Seed 2 (Bullish)"
+    assert scenario_label("generated_seed103_y1") == "Seed 3 (Bearish)"
+    assert scenario_label("generated_seed5_y5") == "Seed 5 (Year 5)"
+
+
+def test_dashboard_status_redirects_to_dashboard_when_ready(monkeypatch):
+    from backend.services import dashboard as dashboard_svc
+
+    monkeypatch.setattr(dashboard_svc, "dashboard_cache_status", lambda name: "ready")
+    c = TestClient(app)
+    response = c.get(
+        "/dashboard/status?dataset=generated_seed101_y1",
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert response.headers["hx-redirect"] == "/?scenario=generated_seed101_y1"
+
+
+def test_dashboard_status_polls_while_cache_builds(monkeypatch):
+    from backend.services import dashboard as dashboard_svc
+
+    monkeypatch.setattr(dashboard_svc, "dashboard_cache_status", lambda name: "missing")
+    c = TestClient(app)
+    response = c.get(
+        "/dashboard/status?dataset=generated_seed101_y1",
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "hx-redirect" not in response.headers
+    assert "/dashboard/status?dataset=generated_seed101_y1" in response.text
+
+
+def test_dashboard_has_no_refresh_toggle(monkeypatch):
+    from backend.services import dashboard as dashboard_svc
+
+    monkeypatch.setattr(
+        dashboard_svc,
+        "get_dashboard_data_cached",
+        lambda name: {
+            "dataset": name,
+            "dataset_name": name,
+            "scenario": name,
+            "published_run": 1,
+            "available": True,
+            "alerts": [],
+            "alert_count": 0,
+            "kpis": [],
+            "charts": {},
+            "chart_messages": {},
+            "cache_empty": False,
+            "kpi_cache": {"refreshed_at": "2026-10-25 03:00"},
+        },
+    )
+    c = TestClient(app)
+    response = c.get("/?scenario=generated_seed101_y1")
+    assert response.status_code == 200
+    assert "refresh now" not in response.text
+    assert "Last updated" in response.text

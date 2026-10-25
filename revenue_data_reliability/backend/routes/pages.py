@@ -148,9 +148,12 @@ async def dashboard_status(request: Request):
     from backend.services import dashboard as dashboard_svc
 
     dataset = _resolve_dataset(request, {})
-    if dashboard_svc.dashboard_cache_status(dataset) == "ready":
-        return Response(status_code=200, headers={"HX-Refresh": "true"})
     query = quote(str(dataset or ""), safe="")
+    if dashboard_svc.dashboard_cache_status(dataset) == "ready":
+        # The publish flow polls this endpoint; land on the dashboard rather
+        # than reloading the run page.
+        target = f"/?scenario={query}" if query else "/"
+        return Response(status_code=200, headers={"HX-Redirect": target})
     return HTMLResponse(
         f'<span hx-get="/dashboard/status?dataset={query}" hx-trigger="every 2s">'
         "Waiting for data...</span>"

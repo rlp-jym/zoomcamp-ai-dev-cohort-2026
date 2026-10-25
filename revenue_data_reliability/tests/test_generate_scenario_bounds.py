@@ -24,7 +24,7 @@ def test_generate_rejects_unknown_seeds(seed):
     ("seed", "expected_name", "expected_prefix", "expected_years"),
     [
         (101, "generated_seed101_y1", "scenarios/seed_101/", 1),
-        (103, "generated_seed103_y5", "scenarios/seed_103/", 5),
+        (103, "generated_seed103_y1", "scenarios/seed_103/", 1),
     ],
 )
 def test_generate_registers_pre_generated_folder(
