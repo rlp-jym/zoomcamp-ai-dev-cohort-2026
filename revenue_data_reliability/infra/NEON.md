@@ -1,7 +1,8 @@
 # Neon Database Setup
 
 > Confirmed in the Render dashboard: both staging and production use a Neon
-> `DATABASE_URL` (`postgresql://neondb_owner…`). `infra/render.yaml` now uses
+> `DATABASE_URL` (`postgresql://neondb_owner…`). Env vars are managed manually;
+> Blueprint sync is optional/paid. `infra/render.yaml` is a reference and uses
 > `DATABASE_URL: sync: false`; the legacy `databases:` block remains until the
 > unused Render DBs are backed up and removed.
 

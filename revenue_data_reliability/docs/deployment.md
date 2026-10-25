@@ -9,9 +9,10 @@
 | Production | `main` | `revenue-platform-prod` | Neon via `DATABASE_URL` |
 
 Confirmed in the Render dashboard: both services have a `DATABASE_URL` starting
-with `postgresql://neondb_owner…`. `infra/render.yaml` now uses
-`DATABASE_URL: sync: false`; the legacy `databases:` block remains until the
-unused Render DBs are backed up and removed. See
+with `postgresql://neondb_owner…`. Env vars are managed manually; Render
+Blueprint sync is optional/paid, so `infra/render.yaml` is a reference only.
+`DATABASE_URL: sync: false` keeps the manual value; the legacy `databases:`
+block remains until the unused Render DBs are backed up and removed. See
 [`../infra/NEON.md`](../infra/NEON.md).
 
 ## CI/CD
