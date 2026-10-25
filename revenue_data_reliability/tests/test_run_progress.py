@@ -62,7 +62,9 @@ def test_run_row_completed_stops_polling():
     }
     html = templates.get_template("partials/run_row.html").render(run=run)
     assert '<tr id="run-row-8">' in html
-    assert "hx-get" not in html
+    # Polling stops for a finished run; the detail loader may still use hx-get.
+    assert 'hx-get="/runs/8/status"' not in html
+    assert 'hx-trigger="every 2s"' not in html
     assert "width:100%" in html
     assert "12s" in html
     assert 'hx-delete="/runs/8"' in html
@@ -105,7 +107,8 @@ def test_status_endpoint_returns_row_and_stops_when_completed():
         done = client.get(f"/runs/{run_id}/status")
         assert done.status_code == 200
         assert f'<tr id="run-row-{run_id}">' in done.text
-        assert "hx-get" not in done.text
+        assert f'hx-get="/runs/{run_id}/status"' not in done.text
+        assert 'hx-trigger="every 2s"' not in done.text
         assert "width:100%" in done.text
         assert "7s" in done.text
     finally:

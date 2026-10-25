@@ -144,13 +144,15 @@ def test_validation_rule_sql_reads_local_cache(monkeypatch, cache_root):
     assert "s3://" not in sql
 
 
-def test_years_form_bounds_are_rendered():
+def test_dataset_picker_lists_pre_generated_seeds():
     from backend.config import TEMPLATES_DIR
 
     template = (TEMPLATES_DIR / "runs_list.html").read_text(encoding="utf-8")
-    assert 'name="years_to_backtrack"' in template
-    assert 'min="1"' in template
-    assert 'max="5"' in template
+    assert "Load Dataset" in template
+    assert 'hx-post="/api/generate-dataset"' in template
+    assert 'name="seed"' in template
+    for seed in ("101", "102", "103"):
+        assert f'value="{seed}"' in template
 
 
 def test_resolve_data_scenario_uses_dataset_s3_prefix(monkeypatch):

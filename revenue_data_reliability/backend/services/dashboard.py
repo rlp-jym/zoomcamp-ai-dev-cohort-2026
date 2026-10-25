@@ -199,9 +199,16 @@ def _top_movers(rows: list[dict], divisor: int = 12) -> list[dict]:
     return out
 
 
-def get_dashboard_data(scenario: str = SCENARIO) -> dict:
-    """All dashboard payload: open-exceptions stat, 3 charts, attainment card, alert badge."""
-    from backend.storage.duckdb_client import query_rows
+def get_dashboard_data(scenario: str = SCENARIO, conn=None) -> dict:
+    """All dashboard payload: open-exceptions stat, 3 charts, attainment card, alert badge.
+
+    ``conn`` lets the cache build reuse a single DuckDB session for every
+    query, so httpfs/S3 setup happens once per build instead of once per query.
+    """
+    from backend.storage.duckdb_client import query_dicts_on, query_rows
+
+    def rows(sql: str):
+        return query_dicts_on(conn, sql) if conn is not None else query_rows(sql)
 
     q = pub_svc.get_published_data_query(scenario)
     data = {
@@ -232,7 +239,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     )
 
     # ---- one materialized scan of the published invoice lines -------------
-    rows_a = query_rows(f"""
+    rows_a = rows(f"""
         WITH inv AS (
             SELECT invoice_id, customer_id,
                    strftime(invoice_date, '%Y-%m') AS ym
@@ -293,7 +300,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     # version per (period, account_id, item_category) counts as current GL.
     gl_month = {
         r["period"]: float(r["amt"])
-        for r in query_rows(
+        for r in rows(
             f"""
             SELECT period, SUM(recognized_revenue_amt) AS amt
             FROM (
@@ -312,7 +319,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     }
     budget_month = {
         r["ym"]: float(r["amt"])
-        for r in query_rows(f"""
+        for r in rows(f"""
             SELECT strftime(CAST(period AS DATE), '%Y-%m') AS ym,
                    SUM(budget_revenue_amt) AS amt
             FROM read_parquet('{_uri(scenario, "budget")}')
@@ -344,7 +351,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
     if months_12:
         month_sql = ", ".join(f"'{month}'" for month in months_12)
         latest_sql = f"'{months_12[-1]}'"
-        product_rows = query_rows(f"""
+        product_rows = rows(f"""
             WITH inv AS (
                 SELECT invoice_id, customer_id,
                        strftime(invoice_date, '%Y-%m') AS ym
@@ -366,7 +373,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
             WHERE inv.ym IN ({month_sql})
             GROUP BY 1, 2
         """)
-        client_rows = query_rows(f"""
+        client_rows = rows(f"""
             WITH inv AS (
                 SELECT invoice_id, customer_id,
                        strftime(invoice_date, '%Y-%m') AS ym
@@ -395,7 +402,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
 
     # ---- target vs actual bridge (trailing chart window) -------------------
     # New cache keys only: the existing billings/variance keys stay intact.
-    gl_category_rows = query_rows(f"""
+    gl_category_rows = rows(f"""
         SELECT period, item_category, SUM(recognized_revenue_amt) AS amt
         FROM (
             SELECT period, account_id, item_category, recognized_revenue_amt,
@@ -409,7 +416,7 @@ def get_dashboard_data(scenario: str = SCENARIO) -> dict:
         WHERE rn = 1
         GROUP BY 1, 2
     """)
-    budget_category_rows = query_rows(f"""
+    budget_category_rows = rows(f"""
         SELECT strftime(CAST(period AS DATE), '%Y-%m') AS period,
                item_category, SUM(budget_revenue_amt) AS amt
         FROM read_parquet('{_uri(scenario, "budget")}')
@@ -675,7 +682,21 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
             return "empty"
         logger.info("Dashboard cache: published run found for %s", scenario)
         try:
-            data = get_dashboard_data(scenario)
+            from backend.storage.duckdb_client import open_connection
+
+            conn = open_connection()
+            try:
+                data = get_dashboard_data(scenario, conn=conn)
+                if data.get("available"):
+                    logger.info(
+                        "Dashboard cache: payload built for %s; computing impact",
+                        scenario,
+                    )
+                    data["data_quality_impact"] = get_raw_vs_cleaned_delta(
+                        scenario, conn=conn
+                    )
+            finally:
+                conn.close()
         except Exception as exc:
             logger.exception("Dashboard cache refresh failed for %s", scenario)
             _store_cache(scenario, _minimal_cache(scenario, str(exc)))
@@ -684,8 +705,6 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
             logger.info("Dashboard: no published dataset — cache left empty.")
             _store_cache(scenario, _minimal_cache(scenario))
             return "empty"
-        logger.info("Dashboard cache: payload built for %s; computing impact", scenario)
-        data["data_quality_impact"] = get_raw_vs_cleaned_delta(scenario)
         logger.info("Dashboard cache: writing payload for %s", scenario)
         _store_cache(scenario, data)
         logger.info("Dashboard cache build completed for %s", scenario)
@@ -808,7 +827,7 @@ def dashboard_cache_status(scenario: str = SCENARIO) -> str:
     return "ready" if data is not None else "missing"
 
 
-def get_raw_vs_cleaned_delta(dataset_name: str) -> dict:
+def get_raw_vs_cleaned_delta(dataset_name: str, conn=None) -> dict:
     """Compare raw invoice-line billings with the published (cleaned) view.
 
     Read-only: runs one DuckDB aggregate over the dataset's Parquet invoice
@@ -826,13 +845,16 @@ def get_raw_vs_cleaned_delta(dataset_name: str) -> dict:
         query = pub_svc.get_published_data_query(dataset_name)
         if not query:
             return empty
-        from backend.storage.duckdb_client import query_rows
+        from backend.storage.duckdb_client import query_dicts_on, query_rows
 
-        raw_rows = query_rows(
+        def rows(sql: str):
+            return query_dicts_on(conn, sql) if conn is not None else query_rows(sql)
+
+        raw_rows = rows(
             "SELECT COALESCE(SUM(line_subtotal), 0) AS amt, COUNT(*) AS n "
             f"FROM read_parquet('{_uri(dataset_name, 'invoice_lines')}')"
         )
-        cleaned_rows = query_rows(
+        cleaned_rows = rows(
             "SELECT COALESCE(SUM(line_subtotal), 0) AS amt, COUNT(*) AS n "
             f"FROM ({query['sql']}) cleaned"
         )

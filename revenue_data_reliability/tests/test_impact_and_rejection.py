@@ -427,8 +427,8 @@ def test_publish_refreshes_dashboard_cache(monkeypatch):
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
 
 
-def test_htmx_publish_waits_for_cache_and_redirects(monkeypatch):
-    """HTMX keeps the button disabled until the synchronous cache build ends."""
+def test_htmx_publish_returns_cache_polling_fragment(monkeypatch):
+    """HTMX gets a polling fragment; the cache build runs off the request."""
     init_pool()
     dataset = f"test_publish_htmx_{uuid.uuid4().hex[:8]}"
     execute("INSERT INTO datasets (name, status, seed, table_count) VALUES (%s, 'ready', 9, 16)", (dataset,))
@@ -444,8 +444,8 @@ def test_htmx_publish_waits_for_cache_and_redirects(monkeypatch):
         )
         monkeypatch.setattr(
             dashboard_svc,
-            "refresh_dashboard_cache",
-            lambda name: calls.append(("refresh", name)) or "updated",
+            "start_dashboard_refresh",
+            lambda name: calls.append(("refresh", name)) or True,
         )
 
         c = TestClient(app)
@@ -460,9 +460,11 @@ def test_htmx_publish_waits_for_cache_and_redirects(monkeypatch):
             follow_redirects=False,
         )
         assert response.status_code == 200
-        assert response.headers["hx-redirect"] == f"/runs/{run_id}"
+        assert "Cache rebuild started" in response.text
+        assert f"/dashboard/status?dataset={dataset}" in response.text
+        assert "hx-redirect" not in response.headers
         assert ("invalidate", dataset) in calls
-        assert calls[-1] == ("refresh", dataset)
+        assert ("refresh", dataset) in calls
     finally:
         runs_svc.delete_run(run_id)
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))
@@ -505,6 +507,6 @@ def test_dashboard_has_no_initializing_banner(monkeypatch):
         response = c.get(f"/?scenario={dataset}")
         assert response.status_code == 200
         assert "Initializing dashboard data" not in response.text
-        assert "Refresh KPIs now" in response.text
+        assert "Refresh KPIs now" not in response.text
     finally:
         execute("DELETE FROM datasets WHERE name = %s", (dataset,))

@@ -42,6 +42,10 @@ def test_pipeline_happy_path():
     run = runs_svc.get_run(run_id)
     assert run["status"] == "completed"
 
+    # The pipeline re-aligns runs.trace_id with the OTEL root span, so read it
+    # back instead of assuming the id used at insert time.
+    trace_id = run["trace_id"]
+
     from backend.db.connection import fetch_all
 
     actions = fetch_all("SELECT agent_id FROM agent_actions WHERE trace_id = %s", (trace_id,))

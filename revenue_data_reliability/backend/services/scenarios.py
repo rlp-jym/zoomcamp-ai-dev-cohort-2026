@@ -9,7 +9,7 @@ from backend.storage.s3_client import list_scenario_keys
 # Offline-generated datasets. The FastAPI app never runs data/generate.py;
 # it only registers these folders and points the dataset at its S3 prefix.
 PRE_GENERATED_SEEDS = {
-    101: {"prefix": "scenarios/seed_101/", "years": 5},
+    101: {"prefix": "scenarios/seed_101/", "years": 1},
     102: {"prefix": "scenarios/seed_102/", "years": 5},
     103: {"prefix": "scenarios/seed_103/", "years": 5},
 }
