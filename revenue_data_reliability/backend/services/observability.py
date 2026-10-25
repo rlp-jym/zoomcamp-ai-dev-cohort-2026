@@ -27,6 +27,16 @@ def _fmt_duration(start, end) -> str:
     return f"{delta:.2f}s"
 
 
+def _fmt_display_dt(value) -> str:
+    """Format a timestamp as ``Oct 24, 2026, 4:03 PM``."""
+    if value is None:
+        return "—"
+    if isinstance(value, datetime):
+        hour = value.strftime("%I:%M %p").lstrip("0")
+        return f"{value.strftime('%b')} {value.day}, {value.year}, {hour}"
+    return str(value)
+
+
 def _trace_context(name: str) -> str:
     mapping = {
         "pipeline.run": "Pipeline Run",
@@ -63,10 +73,33 @@ def list_traces(limit: int = 25) -> list[dict]:
     """
     rows = fetch_all(
         """
-        SELECT s.trace_id, s.name, s.start_time, s.end_time,
+        SELECT s.trace_id, s.name, s.start_time,
+               s.start_time + (COALESCE(s.duration_ms, 0) * interval '1 millisecond') AS ended_at,
                s.duration_ms, s.status, s.attributes,
                (SELECT COUNT(*) FROM otel_spans c
-                WHERE c.trace_id = s.trace_id) AS span_count
+                WHERE c.trace_id = s.trace_id) AS span_count,
+               CASE
+                   WHEN s.name = 'pipeline.run' THEN COALESCE(
+                       (SELECT r.triggered_by FROM runs r
+                        WHERE r.trace_id = s.trace_id
+                        ORDER BY r.run_id DESC LIMIT 1), 'system')
+                   WHEN s.name ILIKE '%%controller%%' THEN 'controller'
+                   ELSE COALESCE(
+                       (SELECT a.persona_id FROM approvals a
+                        WHERE a.trace_id = s.trace_id
+                        ORDER BY a.created_at DESC NULLS LAST LIMIT 1),
+                       (SELECT aa.agent_id FROM agent_actions aa
+                        WHERE aa.trace_id = s.trace_id
+                        ORDER BY aa.created_at DESC NULLS LAST LIMIT 1),
+                       (SELECT m.persona_id FROM messages m
+                        WHERE m.trace_id = s.trace_id
+                        ORDER BY m.created_at DESC NULLS LAST LIMIT 1),
+                       (SELECT r.triggered_by FROM runs r
+                        WHERE r.trace_id = s.trace_id
+                        ORDER BY r.run_id DESC LIMIT 1),
+                       'system'
+                   )
+               END AS actor
         FROM otel_spans s
         WHERE s.parent_span_id IS NULL
           AND COALESCE(s.name, '') NOT LIKE '%%/static%%'
@@ -87,11 +120,14 @@ def list_traces(limit: int = 25) -> list[dict]:
                 "name": r["name"],
                 "context": _trace_context(r["name"]),
                 "action": _trace_action(r["name"], r["attributes"]),
-                "duration": _fmt_duration(r["start_time"], r["end_time"]),
+                "duration": _fmt_duration(r["start_time"], r["ended_at"]),
                 "duration_ms": round(float(r["duration_ms"] or 0.0), 2),
                 "status": "error" if r["status"] == "ERROR" else "ok",
                 "spans": r["span_count"],
-                "started_at": _fmt_dt(r["start_time"]),
+                "actor": r["actor"] or "system",
+                "started_at": _fmt_display_dt(r["start_time"]),
+                "started_sort": _fmt_dt(r["start_time"]),
+                "ended_at": _fmt_display_dt(r["ended_at"]),
             }
         )
     return out

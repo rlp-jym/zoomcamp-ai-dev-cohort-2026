@@ -34,16 +34,22 @@
 {% if traces %}
 <table class="table" id="traces-table">
   <thead>
-    <tr><th>Trace ID</th><th>Context</th><th>Action</th><th data-sort="started" style="cursor:pointer" title="Sort by start time">Started</th><th data-sort="duration" style="cursor:pointer" title="Sort by duration">Duration</th><th>Status</th><th>Spans</th></tr>
+    <tr><th>Trace ID</th><th>Context</th><th>Actor</th><th>Action</th><th data-sort="started" style="cursor:pointer" title="Sort by start time">Started</th><th>Ended</th><th data-sort="duration" style="cursor:pointer" title="Sort by duration">Duration</th><th>Status</th><th>Spans</th></tr>
   </thead>
   <tbody>
     {% for t in traces %}
     <tr{% if t.trace_id == expanded_trace %} class="trace-selected"{% endif %}
-        data-started="{{ t.started_at }}" data-duration="{{ t.duration_ms }}">
+        data-started="{{ t.started_sort }}" data-duration="{{ t.duration_ms }}">
       <td><a href="/observability?trace_id={{ t.trace_id }}">{{ t.trace_id }}</a></td>
       <td>{{ t.context }}</td>
+      <td>
+        {% set actor_id = t.actor or 'system' %}
+        {% set badge_actor = 'fia' if actor_id == 'fa' else actor_id %}
+        <span class="badge badge-{{ badge_actor }}">{{ (t.actor | persona_label) or "System" }}</span>
+      </td>
       <td>{{ t.action }}</td>
       <td>{{ t.started_at }}</td>
+      <td>{{ t.ended_at }}</td>
       <td>{{ t.duration }}</td>
       <td><span class="span-status {{ t.status }}">{{ t.status | capitalize }}</span></td>
       <td>{{ t.spans }}</td>
