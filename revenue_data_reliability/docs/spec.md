@@ -470,10 +470,12 @@ differs.
 | Area | Spec | As Built | Reason |
 |---|---|---|---|
 | Instrumentation | FastAPI, psycopg3, boto3, DuckDB | FastAPI only | Telemetry volume on the free Postgres tier |
-| Database | Neon free tier | Neon via `DATABASE_URL`; `render.yaml` still declares Render Postgres | Blueprint drift; reconcile in Phase 2 |
+| Database | Neon free tier | Neon confirmed in Render dashboard; `render.yaml` still declares Render Postgres | Blueprint drift; reconcile in Phase 2 |
 | Baseline | `baseline_run` published on boot | Retired; generated datasets are first-class | Dataset scoping |
 | Scenarios | `/scenarios` in nav | Route exists; nav hidden | Low demo value |
 | Controller | Executes none | Revalidation run on `STALE_PUBLISHED` | Narrow autonomy; no publication |
 | Navigation | 6 routes | 5 routes: Dashboard, Validation, Data Issues, Audit, Observability | Scenarios hidden |
 | UI labels | Runs, Exceptions | Validation (`/runs`), Data Issues (`/exceptions`) | User-facing rename; URLs unchanged |
 | Seed loading | In-app generation | Three pre-generated datasets (101/102/103) | Render 512 MB cannot generate in-process |
+| Seed window | 5 years | 12 months | 5-year scans caused Render 502s |
+| Generator | Runtime component | Offline fixture factory | Historical; app reads R2 only |

@@ -4,7 +4,8 @@
 From the project root (`revenue_data_reliability/`):
 
 ```bash
-docker compose -f infra/docker-compose.yml up --build
+cp .env.example .env   # optional; R2/Groq credentials
+docker compose up --build
 ```
 
 App: http://localhost:8000  (health: /health)

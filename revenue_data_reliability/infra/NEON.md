@@ -1,8 +1,9 @@
 # Neon Database Setup
 
-> As-built: the staging and production Render services are configured to use a
-> Neon `DATABASE_URL`. `infra/render.yaml` still declares Render Postgres
-> (`rlp-db-staging` / `rlp-db-prod`); reconcile that blueprint in Phase 2.
+> Confirmed in the Render dashboard: both staging and production use a Neon
+> `DATABASE_URL` (`postgresql://neondb_owner…`). `infra/render.yaml` still
+> declares Render Postgres (`rlp-db-staging` / `rlp-db-prod`); reconcile that
+> blueprint in Phase 2.
 
 ## Staging and Production Databases
 
@@ -19,7 +20,7 @@ string (with `?sslmode=require`). The app calls `init_pool()` on boot and runs
 
 ## Local Development
 
-Use the Postgres service from `infra/docker-compose.yml` (database `rlp`,
+Use the Postgres service from `docker-compose.yml` (database `rlp`,
 user `postgres`). Or point `DATABASE_URL` at a Neon dev database.
 
 ## Schema Initialization

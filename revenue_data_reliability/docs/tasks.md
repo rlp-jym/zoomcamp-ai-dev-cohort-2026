@@ -13,6 +13,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 >
 > Traceability: commit history plus the checkbox history in this file.
 > Post-tracker changes and workarounds: see [`challenges.md`](challenges.md#workarounds).
+> Rubric traceability: see [`traceability.md`](traceability.md).
 
 ## 0. Prerequisites before build (`spec.md §19`)
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.
@@ -258,7 +259,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Neon DB setup docs (staging/prod DBs).
 - [x] R2 bucket/prefix and lifecycle policy docs.
 - [x] Secrets documentation.
-- [x] `infra/docker-compose.yml` runs app + Postgres via `docker compose up`
+- [x] `docker-compose.yml` runs app + Postgres via `docker compose up`
 - [x] `README.md` documents `docker compose up` as the local single command
 
 ## 23. Testing

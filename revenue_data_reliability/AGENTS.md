@@ -21,4 +21,4 @@ Revenue Data Reliability Platform. Synthetic test fixtures are produced by `data
 - Agent skill definitions: `backend/skills/`
 - Generator docs: `data/README.md`
 - Generator agent rules: `data/AGENTS.md`
-- Orchestrator: `run_generator.bat` / `run_generator.py`
+- Generator (offline, historical): `run_generator.bat` / `run_generator.py`

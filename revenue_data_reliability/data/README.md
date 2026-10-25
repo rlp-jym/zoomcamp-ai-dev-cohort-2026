@@ -1,5 +1,8 @@
 # Synthetic Revenue Dataset Generator
 
+> Status: historical/offline. The FastAPI app does not invoke this generator;
+> it only registers the three pre-generated datasets in R2.
+
 Config-driven, seeded, reproducible synthetic revenue dataset used as test
 fixtures for the Revenue Data Reliability Platform.
 

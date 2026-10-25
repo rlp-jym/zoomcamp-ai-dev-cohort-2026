@@ -10,5 +10,6 @@
 | [architecture.md](architecture.md) | Request flow, agents, data stores |
 | [deployment.md](deployment.md) | Environments, CI/CD, rollback, limits |
 | [challenges.md](challenges.md) | Engineering challenges and workarounds |
+| [traceability.md](traceability.md) | Rubric and build evidence map |
 
 **Reading order:** [../README.md](../README.md) → [demo.md](demo.md) → [spec.md](spec.md) → [operating-model.md](operating-model.md) → [architecture.md](architecture.md) → [deployment.md](deployment.md).

@@ -41,7 +41,7 @@ made after the original build tracker, and the commits that carry them.
 | Challenge | Workaround | Evidence |
 |---|---|---|
 | Render 512 MB OOM / 502s | 12-month window, DuckDB `200MB` / 1 thread, local Parquet cache, batched rules | `dbad70e`, `b1fe627`, `0fb328b` |
-| Dataset size drove publish failures | Cap seeds at 12 months; validate only the trailing window | `9bea1c9`, `dbad70e` |
+| 5-year dataset caused Render 502s | Cut to a 12-month window; validate only the trailing window | `9bea1c9`, `dbad70e` |
 | Telemetry grew past the free Postgres tier | Metric interval 60s → 300s, drop body-send spans, 30-day retention, add metrics panel | `7c2c9e4`, `90dd64d` |
 | Chart threads bled across datasets | Dataset-scoped anchors: `chart-*--<dataset>` | `f242f16`, `a2aecf5` |
 | Stacked areas blended into one color | Opaque fills with matching borders | `a2aecf5` |

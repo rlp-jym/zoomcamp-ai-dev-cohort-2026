@@ -101,7 +101,7 @@ See [docs/architecture.md](docs/architecture.md).
 |---|---|
 | `backend/` | FastAPI app, routes, services, agents, skills, DB |
 | `frontend/` | Jinja templates, HTMX, CSS |
-| `data/` | Synthetic generator + fixtures (own AGENTS.md) |
+| `data/` | Offline generator + fixtures (historical; not used at runtime) |
 | `infra/` | Dockerfile, Render blueprint, provider docs |
 | `observability/` | OTEL setup + Postgres exporter |
 | `tests/` | Unit + integration tests |
@@ -111,11 +111,13 @@ See [docs/architecture.md](docs/architecture.md).
 ## Run Locally
 
 ```bash
-cp .env.example .env          # Windows: Copy-Item .env.example .env
-docker compose -f infra/docker-compose.yml up --build
+cp .env.example .env          # optional; Windows: Copy-Item .env.example .env
+docker compose up --build
 ```
 
 App: http://localhost:8000 · Health: `/health` · Postgres: `localhost:5432`.
+`.env` supplies R2 and Groq credentials; without it the app starts with local
+Postgres and empty storage.
 
 Without Docker (with Postgres running):
 
@@ -159,6 +161,7 @@ CI runs lint plus the full suite against a Postgres service container.
 | [docs/architecture.md](docs/architecture.md) | System flow and agents |
 | [docs/deployment.md](docs/deployment.md) | Environments, CI/CD, rollback |
 | [docs/challenges.md](docs/challenges.md) | Engineering challenges and workarounds |
+| [docs/traceability.md](docs/traceability.md) | Rubric and build evidence map |
 
 ## CI/CD
 

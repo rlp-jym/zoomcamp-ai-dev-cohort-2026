@@ -1,0 +1,23 @@
+# Local environments and secrets
+.venv
+.env
+.git
+.gitignore
+
+# Caches and local scratch
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.tmp
+.ipynb_checkpoints
+
+# Not needed at runtime
+data
+tests
+docs
+docker-compose.yml
+CRITERIA (new).md
+CRITERIA (old).md
+final_touches.md
+*.parquet

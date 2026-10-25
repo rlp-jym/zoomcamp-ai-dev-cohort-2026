@@ -8,8 +8,8 @@
 | Staging | `staging` | `revenue-platform-staging` | Neon via `DATABASE_URL` |
 | Production | `main` | `revenue-platform-prod` | Neon via `DATABASE_URL` |
 
-The services are configured to use a Neon connection string; confirm the
-`DATABASE_URL` on each Render service. `infra/render.yaml` still declares Render
+Confirmed in the Render dashboard: both services have a `DATABASE_URL` starting
+with `postgresql://neondb_owner…`. `infra/render.yaml` still declares Render
 Postgres (`rlp-db-staging` / `rlp-db-prod`); reconcile that blueprint in Phase 2.
 See [`../infra/NEON.md`](../infra/NEON.md).
 
@@ -34,8 +34,8 @@ See [`../infra/NEON.md`](../infra/NEON.md).
 ## Local Run
 
 ```bash
-cp .env.example .env          # Windows: Copy-Item .env.example .env
-docker compose -f infra/docker-compose.yml up --build
+cp .env.example .env          # optional; Windows: Copy-Item .env.example .env
+docker compose up --build
 ```
 
 App: http://localhost:8000 · Health: `/health` · Postgres: `localhost:5432`.

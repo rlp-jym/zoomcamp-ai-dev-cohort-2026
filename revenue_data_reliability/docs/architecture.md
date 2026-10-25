@@ -25,6 +25,17 @@ flowchart LR
 | R2 | `scenarios/<dataset>/*.parquet` + manifest |
 | Local disk | Cached Parquet for the 12-month window |
 
+## Runtime and Offline
+
+| Component | Runtime? | Role |
+|---|---|---|
+| FastAPI | Yes | Serves the app |
+| R2 `scenarios/seed_*` | Yes | Read by validation and dashboard |
+| `data/` generator | No | Historical fixture factory; produced the fixed seeds |
+| `run_generator.*` | No | Local orchestration; kept for reproducibility |
+| `upload.py` | No | Uploads Parquet to R2; used by the manual workflow |
+| `scenario-generate.yml` | No | Manual regenerate/upload workflow |
+
 ## Pipeline
 
 ```mermaid

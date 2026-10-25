@@ -6,9 +6,10 @@ so this file is discovered, or symlink to root.
 Scope: everything under `data/` only. Do not touch files outside `data/`.
 
 ## Purpose
+Historical/offline fixture factory for the Revenue Data Reliability Platform.
+The FastAPI app does not invoke it; it reads the pre-generated datasets from R2.
 Generate a config-driven, seeded, reproducible synthetic revenue dataset
-(15 Parquet tables + defects.json + manifest.json) used as test fixtures
-for a later Revenue Data Reliability Platform.
+(15 Parquet tables + defects.json + manifest.json).
 
 ## Hard constraints
 - Single entry point: `python data/generate.py --config data/config.yaml`.

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
@@ -19,7 +17,7 @@ services:
 
   app:
     build:
-      context: ..
+      context: .
       dockerfile: infra/Dockerfile
     depends_on:
       db:
@@ -29,7 +27,8 @@ services:
       APP_ENV: dev
       WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:-dev-webhook-token}
     env_file:
-      - ../.env
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
 
