@@ -68,6 +68,8 @@ def target_label(target_type, target_id) -> str:
         return f"Issue #{target_id}"
     if target_type == "dataset":
         return f"Dataset {target_id}"
+    if target_type == "system":
+        return "Demo Data"
     return f"{str(target_type).replace('_', ' ').title()} #{target_id}"
 
 

@@ -42,6 +42,16 @@ def _can_reset(persona):
     return persona["id"] == "director"
 
 
+def _active_trace_id() -> str:
+    """Trace ID of the current HTTP span, or a fresh one outside a trace."""
+    from opentelemetry import trace as otel_trace
+
+    ctx = otel_trace.get_current_span().get_span_context()
+    if ctx and ctx.is_valid:
+        return format(ctx.trace_id, "032x")
+    return uuid.uuid4().hex
+
+
 def _resolve_dataset(request, extra):
     if "dataset" in extra and extra.get("dataset") is not None:
         return extra.get("dataset")
@@ -562,10 +572,23 @@ async def reset_runs(request: Request):
     if running:
         raise HTTPException(status_code=409, detail="Cannot reset while a run is running.")
 
+    trace_id = _active_trace_id()
+    execute(
+        "INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id, payload, created_at) "
+        "VALUES (%s, %s, %s, %s, %s, %s, now())",
+        (
+            "director",
+            "reset_requested",
+            "system",
+            "reset",
+            trace_id,
+            json.dumps({"requested_by": persona["id"]}),
+        ),
+    )
+
     with _reset_lock:
         summary = reset_preserve_baseline()
 
-    trace_id = uuid.uuid4().hex
     execute(
         "INSERT INTO agent_actions (agent_id, action, anchor_type, anchor_id, trace_id, payload, created_at) "
         "VALUES (%s, %s, %s, %s, %s, %s, now())",

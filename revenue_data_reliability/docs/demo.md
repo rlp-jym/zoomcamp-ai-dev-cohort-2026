@@ -66,7 +66,9 @@ and never republishes. Publication stays human-gated by design, so the alert row
 is retained as the finding's audit record rather than auto-closed.
 
 The Director's demo reset on Validation (`/runs`) clears dataset state only.
-Audit (`/audit`) and Observability (`/observability`) survive it.
+Audit (`/audit`) and Observability (`/observability`) survive it. The reset
+appears as two linked rows sharing one trace ID: Director of FP&A
+`Reset Requested`, then Pipeline Orchestrator completion.
 
 ## Personas
 

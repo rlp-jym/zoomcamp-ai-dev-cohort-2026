@@ -709,7 +709,14 @@ def test_reset_runs_as_director(monkeypatch):
 
     monkeypatch.setattr(pages_mod, "reset_preserve_baseline", fake_reset)
     monkeypatch.setattr(pages_mod, "fetch_one", lambda *a, **k: None)
-    monkeypatch.setattr(pages_mod, "execute", lambda *a, **k: None)
+    recorded = []
+
+    def fake_execute(sql, params=None, **kwargs):
+        if "INSERT INTO agent_actions" in sql:
+            recorded.append(params)
+        return None
+
+    monkeypatch.setattr(pages_mod, "execute", fake_execute)
     monkeypatch.setattr(
         dashboard_svc, "invalidate_dashboard_cache", lambda *a, **k: None
     )
@@ -721,6 +728,12 @@ def test_reset_runs_as_director(monkeypatch):
     assert response.status_code == 303
     assert response.headers["location"] == "/runs?reset=ok"
     assert calls.get("reset") is True
+
+    # Director initiates, Orchestrator executes, both on one trace.
+    assert [row[0] for row in recorded] == ["director", "orchestrator"]
+    assert recorded[0][1] == "reset_requested"
+    assert recorded[0][4] == recorded[1][4]
+    assert recorded[0][2:4] == ("system", "reset")
 
 
 def test_fixed_dataset_labels_are_positioned():
