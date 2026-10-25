@@ -12,6 +12,7 @@ docker, and Render deploys all behave the same way.
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -67,6 +68,11 @@ def start_scheduler() -> BackgroundScheduler:
         run_controller_verification,
         "interval",
         minutes=settings.controller_interval_minutes,
+        # First cycle shortly after boot so reviewers see the Scheduler service
+        # in Observability without waiting a full interval. Delayed 90 s on
+        # purpose: the boot dashboard warm-up scans Parquet, and overlapping
+        # two scans on a 512 MB instance is what causes 502 restarts.
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
         id="controller_verification",
         replace_existing=True,
         max_instances=1,

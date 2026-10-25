@@ -12,6 +12,15 @@ def test_scheduler_no_longer_wipes_dashboard_cache(monkeypatch):
         job_ids = {job.id for job in scheduler.get_jobs()}
         assert "dashboard_refresh" not in job_ids
         assert job_ids == {"controller_verification", "otel_retention"}
+
+        # First controller cycle fires shortly after boot, not a full interval
+        # later, so Observability shows the Scheduler service right away.
+        from datetime import datetime, timedelta, timezone
+
+        job = scheduler.get_job("controller_verification")
+        assert job.next_run_time is not None
+        now = datetime.now(timezone.utc)
+        assert now < job.next_run_time <= now + timedelta(minutes=3)
     finally:
         scheduler.shutdown(wait=False)
         sched._scheduler = None
@@ -83,6 +92,8 @@ def test_observability_charts_layout():
     assert 'type: "bar"' in html
     assert 'indexAxis: "y"' in html
     assert "stacked: true" in html
+    # Reviewers can tell what the Scheduler slice is.
+    assert "Controller's audit" in html
 
 
 def test_topbar_is_sticky():
