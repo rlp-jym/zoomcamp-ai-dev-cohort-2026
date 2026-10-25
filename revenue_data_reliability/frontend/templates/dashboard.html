@@ -21,12 +21,6 @@
   No published data for this dataset yet. Publish a validation run to view the dashboard.
 </div>
 {% endif %}
-{% if not available and has_published_data %}
-<form method="post" action="/dashboard/refresh" style="margin-top:8px"
-      hx-post="/dashboard/refresh" hx-target="this" hx-swap="outerHTML">
-  <button type="submit">Refresh KPIs now</button>
-</form>
-{% endif %}
 
 {% if kpi_cache and kpi_cache.refreshed_at %}
 <div class="kpi-cache-note">

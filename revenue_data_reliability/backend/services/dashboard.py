@@ -662,8 +662,18 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
     On failure a minimal empty payload is cached so the dashboard still loads.
     """
     if not _DASHBOARD_BUILD_LOCK.acquire(blocking=False):
+        logger.info("Dashboard cache build already running for %s", scenario)
         return "busy"
+    logger.info("Dashboard cache build started for %s", scenario)
     try:
+        if not pub_svc.get_published_run(scenario):
+            logger.info(
+                "Dashboard cache: no published run for %s; writing empty payload.",
+                scenario,
+            )
+            _store_cache(scenario, _minimal_cache(scenario))
+            return "empty"
+        logger.info("Dashboard cache: published run found for %s", scenario)
         try:
             data = get_dashboard_data(scenario)
         except Exception as exc:
@@ -674,8 +684,11 @@ def refresh_dashboard_cache(scenario: str = SCENARIO) -> str:
             logger.info("Dashboard: no published dataset — cache left empty.")
             _store_cache(scenario, _minimal_cache(scenario))
             return "empty"
+        logger.info("Dashboard cache: payload built for %s; computing impact", scenario)
         data["data_quality_impact"] = get_raw_vs_cleaned_delta(scenario)
+        logger.info("Dashboard cache: writing payload for %s", scenario)
         _store_cache(scenario, data)
+        logger.info("Dashboard cache build completed for %s", scenario)
         return "updated"
     except Exception as exc:
         logger.exception("Dashboard cache fallback failed for %s", scenario)
