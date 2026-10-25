@@ -41,6 +41,11 @@ def format_payload(payload, limit: int = 140) -> str:
     return _truncate(" · ".join(parts), limit)
 
 
+def format_message(content, limit: int = 50) -> str:
+    """Short audit-friendly excerpt of a discussion message."""
+    return _truncate(content or "", limit)
+
+
 def action_label(action: str) -> str:
     """Turn an agent action slug into a readable verb phrase."""
     if not action:

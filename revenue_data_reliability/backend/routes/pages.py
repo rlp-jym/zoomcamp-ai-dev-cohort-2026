@@ -738,6 +738,20 @@ async def audit(request: Request, trace_id: str | None = None):
         """,
         pub_params,
     )
+    message_clause = " WHERE m.trace_id = %s" if trace_id else ""
+    message_params = (trace_id,) if trace_id else ()
+    message_rows = fetch_all(
+        f"""
+        SELECT m.message_id, m.persona_id, m.content, m.trace_id, m.created_at,
+               d.anchor_type, d.anchor_id
+        FROM messages m
+        JOIN discussions d ON d.discussion_id = m.discussion_id
+        {message_clause}
+        ORDER BY m.created_at DESC NULLS LAST
+        LIMIT 200
+        """,
+        message_params,
+    )
 
     events = []
     for row in actions:
@@ -783,6 +797,20 @@ async def audit(request: Request, trace_id: str | None = None):
                 "details": audit_svc.format_payload(
                     {"pointer": row["pointer"]} if row["pointer"] else None
                 ),
+                "trace_id": row["trace_id"],
+            }
+        )
+    for row in message_rows:
+        events.append(
+            {
+                "timestamp": audit_svc.format_timestamp(row["created_at"]),
+                "sort": str(row["created_at"] or ""),
+                "actor": row["persona_id"],
+                "action": "Message Posted",
+                "target": audit_svc.target_label(
+                    row["anchor_type"], row["anchor_id"]
+                ),
+                "details": audit_svc.format_message(row["content"]),
                 "trace_id": row["trace_id"],
             }
         )

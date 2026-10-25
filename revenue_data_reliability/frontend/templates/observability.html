@@ -32,13 +32,14 @@
 
 <h2>Traces</h2>
 {% if traces %}
-<table class="table">
+<table class="table" id="traces-table">
   <thead>
-    <tr><th>Trace ID</th><th>Context</th><th>Action</th><th>Started</th><th>Duration</th><th>Status</th><th>Spans</th></tr>
+    <tr><th>Trace ID</th><th>Context</th><th>Action</th><th data-sort="started" style="cursor:pointer" title="Sort by start time">Started</th><th data-sort="duration" style="cursor:pointer" title="Sort by duration">Duration</th><th>Status</th><th>Spans</th></tr>
   </thead>
   <tbody>
     {% for t in traces %}
-    <tr{% if t.trace_id == expanded_trace %} class="trace-selected"{% endif %}>
+    <tr{% if t.trace_id == expanded_trace %} class="trace-selected"{% endif %}
+        data-started="{{ t.started_at }}" data-duration="{{ t.duration_ms }}">
       <td><a href="/observability?trace_id={{ t.trace_id }}">{{ t.trace_id }}</a></td>
       <td>{{ t.context }}</td>
       <td>{{ t.action }}</td>
@@ -204,6 +205,34 @@
         }
       });
     }
+  })();
+</script>
+<script>
+  (function () {
+    const table = document.getElementById("traces-table");
+    if (!table || !table.tBodies.length) return;
+    const tbody = table.tBodies[0];
+    let sortKey = null;
+    let direction = -1;
+    table.querySelectorAll("th[data-sort]").forEach((header) => {
+      header.addEventListener("click", () => {
+        const nextKey = header.dataset.sort;
+        direction = sortKey === nextKey ? -direction : -1;
+        sortKey = nextKey;
+        const rows = Array.from(tbody.rows);
+        rows.sort((a, b) => {
+          const av = sortKey === "duration"
+            ? Number(a.dataset.duration || 0)
+            : (a.dataset.started || "");
+          const bv = sortKey === "duration"
+            ? Number(b.dataset.duration || 0)
+            : (b.dataset.started || "");
+          if (av === bv) return 0;
+          return (av > bv ? 1 : -1) * direction;
+        });
+        rows.forEach((row) => tbody.appendChild(row));
+      });
+    });
   })();
 </script>
 {% endblock %}

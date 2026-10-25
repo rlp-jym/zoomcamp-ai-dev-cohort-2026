@@ -73,8 +73,8 @@ def list_traces(limit: int = 25) -> list[dict]:
           AND COALESCE(s.name, '') NOT ILIKE 'HEAD /%%'
           AND COALESCE(s.name, '') NOT LIKE '%%/health%%'
           AND COALESCE(s.name, '') <> 'duckdb.query'
-        ORDER BY s.duration_ms DESC NULLS LAST,
-                 s.start_time DESC NULLS LAST
+        ORDER BY s.start_time DESC NULLS LAST,
+                 s.duration_ms DESC NULLS LAST
         LIMIT %s
         """,
         (limit,),
@@ -88,6 +88,7 @@ def list_traces(limit: int = 25) -> list[dict]:
                 "context": _trace_context(r["name"]),
                 "action": _trace_action(r["name"], r["attributes"]),
                 "duration": _fmt_duration(r["start_time"], r["end_time"]),
+                "duration_ms": round(float(r["duration_ms"] or 0.0), 2),
                 "status": "error" if r["status"] == "ERROR" else "ok",
                 "spans": r["span_count"],
                 "started_at": _fmt_dt(r["start_time"]),
