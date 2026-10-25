@@ -52,7 +52,7 @@ SEGMENT_COLORS = {
 # Short-lived in-memory cache for the request-path dashboard payload, keyed by
 # scenario (dataset) so switching datasets never reuses another dataset's data.
 _DASHBOARD_CACHE: dict = {}
-_DASHBOARD_CACHE_TTL = 5.0
+_DASHBOARD_CACHE_TTL = 60.0
 _DASHBOARD_REFRESHING: set = set()
 _DASHBOARD_BUILDING: set = set()
 _DASHBOARD_BUILD_STARTED: dict[str, float] = {}

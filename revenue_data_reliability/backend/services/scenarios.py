@@ -216,6 +216,14 @@ def delete_dataset(name):
     from backend.db.cleanup import cleanup_dataset
 
     cleanup_dataset(name, apply=True)
+    # Drop the in-process dashboard payload too (the DB row is removed by
+    # cleanup_dataset), so a deleted dataset cannot be served from memory.
+    try:
+        from backend.services.dashboard import invalidate_dashboard_cache
+
+        invalidate_dashboard_cache(name)
+    except Exception:
+        pass
 
 
 def register_dataset(payload):

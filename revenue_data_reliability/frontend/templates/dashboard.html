@@ -60,7 +60,6 @@
     </div>
     <p class="chart-desc">General Ledger revenue (actuals) against billings and the targeted plan.</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-revenue-plan">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-revenue-plan" %}
       {% set messages = (chart_messages or {}).get("chart-revenue-plan", []) %}
@@ -77,7 +76,6 @@
     </div>
     <p class="chart-desc">Target-to-actual bridge by item category. Grey bars are the target and actual totals; green and red bars show each category's contribution to the variance.</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-variance-category">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-variance-category" %}
       {% set messages = (chart_messages or {}).get("chart-variance-category", []) %}
@@ -91,7 +89,6 @@
     </div>
     <p class="chart-desc">Target-to-actual bridge by customer segment. Segment totals are allocated from the trailing billings mix.</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-customer-variance">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-customer-variance" %}
       {% set messages = (chart_messages or {}).get("chart-customer-variance", []) %}
@@ -108,7 +105,6 @@
     </div>
     <p class="chart-desc">Month-over-month change in General Ledger revenue across the trailing months — shows whether revenue is accelerating or decelerating.</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-growth">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-growth" %}
       {% set messages = (chart_messages or {}).get("chart-growth", []) %}
@@ -125,7 +121,6 @@
     </div>
     <p class="chart-desc">Stacked General Ledger revenue by item category across the trailing 12 months — shows which categories are driving the revenue trend.</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-category-trend">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-category-trend" %}
       {% set messages = (chart_messages or {}).get("chart-category-trend", []) %}
@@ -142,7 +137,6 @@
     </div>
     <p class="chart-desc">Stacked General Ledger revenue by customer segment across the trailing 12 months — shows which segments are driving the revenue trend (allocated based on monthly billing mix).</p>
     <div class="chart-thread">
-      <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-segment">Start a scenario analysis from this discussion</a></p>
       {% set anchor_type = "analysis" %}
       {% set anchor_id = "chart-segment" %}
       {% set messages = (chart_messages or {}).get("chart-segment", []) %}
@@ -184,7 +178,6 @@
         </tbody>
       </table>
       <div class="chart-thread">
-        <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-top-products">Start a scenario analysis from this discussion</a></p>
         {% set anchor_type = "analysis" %}
         {% set anchor_id = "chart-top-products" %}
         {% set messages = (chart_messages or {}).get("chart-top-products", []) %}
@@ -220,7 +213,6 @@
         </tbody>
       </table>
       <div class="chart-thread">
-        <p style="margin:0.25rem 0;"><a class="btn" href="/scenarios?src_type=analysis&src_id=chart-top-clients">Start a scenario analysis from this discussion</a></p>
         {% set anchor_type = "analysis" %}
         {% set anchor_id = "chart-top-clients" %}
         {% set messages = (chart_messages or {}).get("chart-top-clients", []) %}
