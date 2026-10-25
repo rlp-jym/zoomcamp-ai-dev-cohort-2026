@@ -7,9 +7,9 @@ this cannot OOM the app.
 
 Generated ("fast demo") scenarios are clones that share the baseline files in
 S3, but they promise a shorter history (``years_to_backtrack``). The footer
-gives the full source period span; the requested window is the last
-``Y`` calendar years, i.e. ``[2026 - Y + 1, 2026]``. Files whose period range
-does not intersect that window are excluded. Because the fixture writes one
+gives the full source period span; the requested window is the trailing
+``Y`` years ending in the last completed month. Files whose period range does
+not intersect that window are excluded. Because the fixture writes one
 file per table (all months in each file) rather than one file per period, the
 remaining totals are adjusted by the intersecting month share so a y1 clone
 does not report the y5 row/byte count.
@@ -27,7 +27,7 @@ import json
 import logging
 import re
 import threading
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from backend.config import settings
 from backend.db.connection import execute
@@ -38,9 +38,7 @@ logger = logging.getLogger(__name__)
 SCALE_TIMEOUT_SECONDS = 3.0
 SCALE_KEY = "scale"
 # Bump when the cached payload shape changes so stale caches recompute.
-SCALE_VERSION = 2
-# The synthetic data window ends in this calendar year.
-SCALE_ANCHOR_YEAR = 2026
+SCALE_VERSION = 3
 
 _YEARS_RE = re.compile(r"_y(\d+)$")
 
@@ -59,9 +57,25 @@ def parse_years_to_backtrack(name) -> int | None:
         return None
 
 
+def _previous_month_end() -> tuple[int, int]:
+    """Year and month of the last completed month."""
+    today = date.today()
+    previous = today.replace(day=1) - timedelta(days=1)
+    return previous.year, previous.month
+
+
 def scale_window(years: int) -> tuple[str, str]:
-    """Inclusive period window for a scenario with ``years`` years of history."""
-    return f"{SCALE_ANCHOR_YEAR - int(years) + 1:04d}-01", f"{SCALE_ANCHOR_YEAR:04d}-12"
+    """Trailing period window for a scenario with ``years`` years of history.
+
+    The generator ends its timeline at the previous completed month, so the
+    window has to trail today rather than snap to calendar years.
+    """
+    end_year, end_month = _previous_month_end()
+    months_back = int(years) * 12 - 1
+    start_year, start_month0 = divmod(
+        end_year * 12 + (end_month - 1) - months_back, 12
+    )
+    return f"{start_year:04d}-{start_month0 + 1:02d}", f"{end_year:04d}-{end_month:02d}"
 
 
 def scale_sql(source: str, years: int | None = None) -> str:

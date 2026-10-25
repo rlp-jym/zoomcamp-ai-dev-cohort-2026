@@ -1,13 +1,13 @@
 """Deterministic time window used by validation and reconciliation scans.
 
-The demo scans the latest 12 months of the synthetic dataset (2026-01 through
-2026-12) instead of all 60 months.  Defects are seeded in every month, so the
-window keeps rule coverage while reducing the rows DuckDB has to aggregate and
-spill.
+The demo scans the latest 12 months of the synthetic dataset (trailing from
+the last completed month) instead of the full generated history. Defects are
+seeded in every month from ``enabled_from_month`` onward, so the window keeps
+rule coverage while reducing the rows DuckDB has to aggregate and spill.
 
 ``years_to_backtrack`` still participates in the boundary calculation.  A y1
-scenario asks for 2026 only; a y5 scenario asks for five years but is capped at
-the same latest-12-months demo window.
+scenario asks for the same trailing 12 months; a y5 scenario asks for five
+years but is capped at the same latest-12-months demo window.
 """
 
 from __future__ import annotations

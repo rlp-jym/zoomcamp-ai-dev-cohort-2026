@@ -1,9 +1,17 @@
 """Unit tests for lazy dataset scale info (no S3 / Postgres round trips)."""
 
+import pytest
+
 from backend.services import dataset_scale as scale
 
 BASE_ROWS = 31_497_522
 BASE_BYTES = 430_691_108
+
+
+@pytest.fixture(autouse=True)
+def _pin_previous_month(monkeypatch):
+    """Freeze the scale window so expectations do not drift with today's date."""
+    monkeypatch.setattr(scale, "_previous_month_end", lambda: (2026, 9))
 
 
 def test_parse_years_from_generated_names():
@@ -14,10 +22,10 @@ def test_parse_years_from_generated_names():
     assert scale.parse_years_to_backtrack(None) is None
 
 
-def test_scale_window_is_last_y_calendar_years():
-    assert scale.scale_window(1) == ("2026-01", "2026-12")
-    assert scale.scale_window(3) == ("2024-01", "2026-12")
-    assert scale.scale_window(5) == ("2022-01", "2026-12")
+def test_scale_window_is_trailing_years():
+    assert scale.scale_window(1) == ("2025-10", "2026-09")
+    assert scale.scale_window(3) == ("2023-10", "2026-09")
+    assert scale.scale_window(5) == ("2021-10", "2026-09")
 
 
 def test_months_between_is_inclusive():
@@ -33,33 +41,33 @@ def test_months_between_rejects_bad_values():
 
 
 def test_windowed_scale_keeps_full_baseline():
-    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2022-01", "2026-12", 5)
+    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2021-10", "2026-09", 5)
     assert result == {"rows": BASE_ROWS, "months": 60, "size_bytes": BASE_BYTES}
 
 
 def test_windowed_scale_shortens_one_year_clone():
-    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2022-01", "2026-12", 1)
+    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2021-10", "2026-09", 1)
     assert result["months"] == 12
     assert result["rows"] == round(BASE_ROWS * 12 / 60)
     assert result["size_bytes"] == round(BASE_BYTES * 12 / 60)
 
 
 def test_windowed_scale_shortens_three_year_clone():
-    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2022-01", "2026-12", 3)
+    result = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2021-10", "2026-09", 3)
     assert result["months"] == 36
     assert result["rows"] == round(BASE_ROWS * 36 / 60)
     assert result["size_bytes"] == round(BASE_BYTES * 36 / 60)
 
 
 def test_windowed_scale_handles_already_windowed_source():
-    # A y1 source physically holding 2025-2026 still reports a 2026 window.
-    result = scale.windowed_scale(12_813_555, 176_944_070, "2025-01", "2026-12", 1)
+    # A y1 source physically holding only 12 months reports all of them.
+    result = scale.windowed_scale(12_813_555, 176_944_070, "2025-10", "2026-09", 1)
     assert result["months"] == 12
-    assert result["rows"] == round(12_813_555 / 2)
+    assert result["rows"] == 12_813_555
 
 
 def test_windowed_scale_without_years_or_stats():
-    full = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2022-01", "2026-12", None)
+    full = scale.windowed_scale(BASE_ROWS, BASE_BYTES, "2021-10", "2026-09", None)
     assert full["months"] == 60
     assert full["rows"] == BASE_ROWS
     no_stats = scale.windowed_scale(BASE_ROWS, BASE_BYTES, None, None, 3)
@@ -79,7 +87,7 @@ def test_formatters_match_ui_contract():
 
 def test_cached_scale_reads_dict_and_json_manifest():
     payload = {
-        "version": 2,
+        "version": scale.SCALE_VERSION,
         "scenario": "baseline_run",
         "years_to_backtrack": 5,
         "rows": 10,
@@ -87,9 +95,14 @@ def test_cached_scale_reads_dict_and_json_manifest():
         "size_bytes": 3,
     }
     assert scale.cached_scale({"scale": payload}) == payload
-    assert scale.cached_scale('{"scale": {"version": 2, "rows": 10}}') is not None
+    assert (
+        scale.cached_scale(
+            f'{{"scale": {{"version": {scale.SCALE_VERSION}, "rows": 10}}}}'
+        )
+        is not None
+    )
     assert scale.cached_scale({"scale": {"version": 1, "rows": 10}}) is None
-    assert scale.cached_scale({"scale": {"version": 2}}) is None
+    assert scale.cached_scale({"scale": {"version": scale.SCALE_VERSION}}) is None
     assert scale.cached_scale(None) is None
 
 
@@ -99,8 +112,9 @@ def test_scale_sql_reads_footers_only_and_windows_period():
     assert "parquet_metadata(" in sql
     assert "read_parquet" not in sql
     assert "scenarios/baseline_run/*.parquet" in sql
-    assert "p.max_period >= '2026-01'" in sql
-    assert "p.min_period <= '2026-12'" in sql
+    window_start, window_end = scale.scale_window(1)
+    assert f"p.max_period >= '{window_start}'" in sql
+    assert f"p.min_period <= '{window_end}'" in sql
 
 
 def test_attach_uses_cached_manifest_without_computing(monkeypatch):
@@ -115,7 +129,7 @@ def test_attach_uses_cached_manifest_without_computing(monkeypatch):
             "years_to_backtrack": 1,
             "manifest": {
                 "scale": {
-                    "version": 2,
+                    "version": scale.SCALE_VERSION,
                     "scenario": "baseline_run",
                     "years_to_backtrack": 1,
                     "rows": 1234,
@@ -146,7 +160,7 @@ def test_attach_ignores_cache_with_a_different_year_window(monkeypatch):
             "years_to_backtrack": 1,
             "manifest": {
                 "scale": {
-                    "version": 2,
+                    "version": scale.SCALE_VERSION,
                     "scenario": "baseline_run",
                     "years_to_backtrack": 5,
                     "rows": BASE_ROWS,
@@ -190,7 +204,7 @@ def test_attach_ignores_cache_from_a_different_source(monkeypatch):
             "years_to_backtrack": 2,
             "manifest": {
                 "scale": {
-                    "version": 2,
+                    "version": scale.SCALE_VERSION,
                     "scenario": "baseline_run",
                     "years_to_backtrack": 2,
                     "rows": 1234,

@@ -1,14 +1,23 @@
 """Tests for the deterministic latest-12-months scan window."""
 
+import pytest
+
+from backend.services import dataset_scale
 from backend.services.demo_window import demo_window
+
+
+@pytest.fixture(autouse=True)
+def _pin_previous_month(monkeypatch):
+    """Freeze the window so expectations do not drift with today's date."""
+    monkeypatch.setattr(dataset_scale, "_previous_month_end", lambda: (2026, 9))
 
 
 def test_demo_window_is_latest_twelve_months():
     window = demo_window()
-    assert window.start_period == "2026-01"
-    assert window.end_period == "2026-12"
-    assert window.start_date == "2026-01-01"
-    assert window.end_date == "2027-01-01"
+    assert window.start_period == "2025-10"
+    assert window.end_period == "2026-09"
+    assert window.start_date == "2025-10-01"
+    assert window.end_date == "2026-10-01"
 
 
 def test_years_to_backtrack_cannot_widen_demo_window():
@@ -29,9 +38,9 @@ def test_validation_render_applies_period_and_date_filters():
         years_to_backtrack=5,
     )
 
-    assert "inv.invoice_date >= DATE '2026-01-01'" in rendered
-    assert "inv.invoice_date < DATE '2027-01-01'" in rendered
-    assert "period >= '2026-01'" in rendered
+    assert "inv.invoice_date >= DATE '2025-10-01'" in rendered
+    assert "inv.invoice_date < DATE '2026-10-01'" in rendered
+    assert "period >= '2025-10'" in rendered
     assert "s3://" not in rendered
 
 
