@@ -44,7 +44,7 @@ anchored discussion threads, agent posts, and persona-driven review — rather
 than an exhaustive BI tool. A real-world FP&A dashboard would typically expose
 15-30 KPIs tailored to the specific business, industry, and reporting cadence.
 
-## Traceability: orders → revenue
+## Traceability: Orders → Revenue
 
 ```text
 orders -> order_lines                    [BOOKINGS]

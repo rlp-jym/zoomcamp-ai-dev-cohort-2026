@@ -12,6 +12,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 > §19, and §23.
 >
 > Traceability: commit history plus the checkbox history in this file.
+> Post-tracker changes and workarounds: see [`challenges.md`](challenges.md#workarounds).
 
 ## 0. Prerequisites before build (`spec.md §19`)
 > §1, §1b, §2, §4, and §6 can proceed in parallel with the unchecked prerequisites. §5 and §7 onwards depend on `definitions.md` and the regenerated `baseline_run` (16 tables, seed=9). §19 depends on §1b being complete.

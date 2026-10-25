@@ -9,7 +9,6 @@
 | [demo.md](demo.md) | Five-minute end-user walkthrough |
 | [architecture.md](architecture.md) | Request flow, agents, data stores |
 | [deployment.md](deployment.md) | Environments, CI/CD, rollback, limits |
-| [challenges.md](challenges.md) | Engineering challenges and stable settings |
-| [backlog.md](backlog.md) | Verified behavior checklist |
+| [challenges.md](challenges.md) | Engineering challenges and workarounds |
 
 **Reading order:** [../README.md](../README.md) → [demo.md](demo.md) → [spec.md](spec.md) → [operating-model.md](operating-model.md) → [architecture.md](architecture.md) → [deployment.md](deployment.md).

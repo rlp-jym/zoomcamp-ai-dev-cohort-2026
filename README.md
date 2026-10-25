@@ -2,7 +2,7 @@
 
 Course homework and final project submissions.
 
-## Final project
+## Final Project
 
 **Revenue Data Reliability Platform** — ingest, validate, reconcile, and publish
 B2B revenue data with a team of AI agents and human approval gates.
@@ -15,12 +15,12 @@ B2B revenue data with a team of AI agents and human approval gates.
 | Live demo | https://revenue-platform-prod.onrender.com |
 | Health | https://revenue-platform-prod.onrender.com/health |
 
-## Quick demo
+## Quick Demo
 
-1. Open `/runs`, choose persona **Analyst**, load **Seed 1 (Neutral)**.
-2. Click **Validate**, review the run.
-3. Switch to **Manager**, approve go-live.
-4. Open `/` for the dashboard.
+1. Open Validation (`/runs`), choose persona **FP&A Analyst**, load **Seed 1 (Neutral)**.
+2. Click **Validate**, review the run on Validation (`/runs/{id}`).
+3. Switch to **FP&A Manager**, approve go-live.
+4. Open Dashboard (`/`); use Data Issues (`/exceptions`) to clear blockers.
 
 ## Branches
 

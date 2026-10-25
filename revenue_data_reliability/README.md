@@ -5,7 +5,7 @@ the General Ledger, and published only after a human approves it. A team of
 agents triages data issues in anchored discussion threads; a Controller verifies
 the published state on a schedule.
 
-## Live demo
+## Live Demo
 
 | Environment | URL | Notes |
 |---|---|---|
@@ -13,46 +13,54 @@ the published state on a schedule.
 | Staging | https://revenue-platform-staging.onrender.com | `staging`; pre-loaded demo data |
 | Health | https://revenue-platform-prod.onrender.com/health | `{"status":"ok"}` |
 
-## Start here
+## Start Here
 
-| # | Page | Persona | Action | Expected |
+| # | Page (URL) | Persona | Action | Expected |
 |---|---|---|---|---|
-| 1 | `/runs` | Analyst | Load Dataset → **Seed 1 (Neutral)** → Load | Dataset appears |
-| 2 | `/runs` | Analyst | **Validate** | 11 rules run |
-| 3 | `/runs/{id}` | Analyst | Review results | Rule table + publication block |
-| 4 | `/exceptions` | Analyst / Manager | Review open issues | Queue with period and severity |
-| 5 | `/runs/{id}` | Manager | **Approve Go-Live** | Publication created |
-| 6 | `/` | Any | Open Dashboard | Target Attainment, charts, threads |
+| 1 | Validation (`/runs`) | FP&A Analyst | Load Dataset → **Seed 1 (Neutral)** → Load | Dataset appears |
+| 2 | Validation (`/runs`) | FP&A Analyst | **Validate** | 11 rules run |
+| 3 | Validation (`/runs/{id}`) | FP&A Analyst | Review results | Rule table + publication block |
+| 4 | Data Issues (`/exceptions`) | FP&A Analyst / FP&A Manager | Review open issues | Queue with period and severity |
+| 5 | Validation (`/runs/{id}`) | FP&A Manager | **Approve Go-Live** | Publication created |
+| 6 | Dashboard (`/`) | Any | Open Dashboard | Target Attainment, charts, threads |
 
-Seeds: **Seed 1 (Neutral)**, **Seed 2 (Bullish)**, **Seed 3 (Bearish)**. All are
-12-month, pre-generated datasets. If go-live is blocked, clear the open issues
-on `/exceptions` first.
+### Pre-Generated Datasets
 
-## What works
+| Seed | Label | Story | S3 Prefix |
+|---|---|---|---|
+| 101 | Seed 1 (Neutral) | Flat performance; misses target | `scenarios/seed_101/` |
+| 102 | Seed 2 (Bullish) | Outperforms target | `scenarios/seed_102/` |
+| 103 | Seed 3 (Bearish) | Declining performance | `scenarios/seed_103/` |
+
+All three are 12-month, pre-generated datasets. The platform does not generate
+data inside FastAPI. If go-live is blocked, clear the open issues on Data Issues
+(`/exceptions`) first.
+
+## What Works
 
 | Area | Implementation |
 |---|---|
 | Validation | 11 DuckDB rules over Parquet on R2 |
 | Reconciliation | Billings vs GL at `(period, account_id, item_category)` |
-| Exceptions | One per affected month per failed rule; latest period stays open |
-| Agents | Orchestrator, DQ, DE, Financial Impact, Controller |
-| Publication | Manager-gated go-live; published pointer + quarantine overlay |
+| Data Issues | One per affected month per failed rule; latest period stays open |
+| Agents | Pipeline Orchestrator, Data Quality, Data Engineer, Financial Impact Agent, Controller |
+| Publication | FP&A Manager-gated go-live; published pointer + quarantine overlay |
 | Observability | Traces, metrics, structured logs in Postgres; in-app viewer |
 | Dashboard | Target Attainment plus revenue, growth, category, customer, variance, concentration views |
 
-## Operating model
+## Operating Model
 
 | Principle | Implementation |
 |---|---|
 | Timeliness over precision | Validation fires on tolerable variance, not zero variance |
-| Human-gated publication | Manager approves go-live and remediation; agents propose |
+| Human-gated publication | FP&A Manager approves go-live and remediation; agents propose |
 | Controller as counterweight | Freshness SLA + continuous verification; critical alerts escalate |
 | Narrow autonomy | `STALE_PUBLISHED` triggers revalidation, not republication |
-| Immutable raw data | DE's only executable action is quarantine; Parquet is never altered |
+| Immutable raw data | Data Engineer's only executable action is quarantine; Parquet is never altered |
 
 See [docs/operating-model.md](docs/operating-model.md).
 
-## Course core vs domain extension
+## Course Core and Domain Extension
 
 | Layer | Covers |
 |---|---|
@@ -79,15 +87,15 @@ flowchart LR
 
 | Agent | Writes | Executes |
 |---|---|---|
-| Orchestrator | Run start/finish | Pipeline |
-| DQ | Validation summary | 11 rules |
-| DE | Remediation proposal | Quarantine after approval |
-| Financial Impact | Impact narrative | None |
+| Pipeline Orchestrator | Run start/finish | Pipeline |
+| Data Quality | Validation summary | 11 rules |
+| Data Engineer | Remediation proposal | Quarantine after approval |
+| Financial Impact Agent | Impact narrative | None |
 | Controller | Alerts, triage, escalation | Revalidation on stale publication |
 
 See [docs/architecture.md](docs/architecture.md).
 
-## Repository map
+## Repository Map
 
 | Path | Contents |
 |---|---|
@@ -100,7 +108,7 @@ See [docs/architecture.md](docs/architecture.md).
 | `docs/` | Spec, tasks, definitions, operating model, demo, deployment |
 | `src/` | `uv_build` package root |
 
-## Run locally
+## Run Locally
 
 ```bash
 cp .env.example .env          # Windows: Copy-Item .env.example .env
@@ -128,12 +136,16 @@ CI runs lint plus the full suite against a Postgres service container.
 
 ## Roles
 
-| Role | Type | Responsibility |
+| Role (ID) | Type | Responsibility |
 |---|---|---|
-| Analyst | Human | Loads datasets, triggers validation, authors analyses |
-| Manager | Human | Approves go-live and remediation |
-| Director | Human | Receives critical escalations; can reset demo data |
-| Orchestrator / DQ / DE / FA / Controller | Agents | Pipeline, validation, remediation proposal, financial impact, verification |
+| FP&A Analyst (`analyst`) | Human | Loads datasets, triggers validation, authors analyses |
+| FP&A Manager (`manager`) | Human | Approves go-live and remediation |
+| Director of FP&A (`director`) | Human | Receives critical escalations; can reset demo data |
+| Pipeline Orchestrator (`orchestrator`) | Agent | Runs the pipeline; posts start/finish |
+| Data Quality (`dq`) | Agent | Runs the 11 rules; posts the validation summary |
+| Data Engineer (`de`) | Agent | Proposes remediation; executes quarantine after approval |
+| Financial Impact Agent (`fa`) | Agent | Quantifies the financial impact of each issue |
+| Controller (`controller`) | Agent | Verifies published state; opens alerts; escalates |
 
 ## Docs
 
@@ -146,8 +158,7 @@ CI runs lint plus the full suite against a Postgres service container.
 | [docs/demo.md](docs/demo.md) | End-user walkthrough |
 | [docs/architecture.md](docs/architecture.md) | System flow and agents |
 | [docs/deployment.md](docs/deployment.md) | Environments, CI/CD, rollback |
-| [docs/challenges.md](docs/challenges.md) | Engineering challenges |
-| [docs/backlog.md](docs/backlog.md) | Verified behavior checklist |
+| [docs/challenges.md](docs/challenges.md) | Engineering challenges and workarounds |
 
 ## CI/CD
 
@@ -160,7 +171,7 @@ CI runs lint plus the full suite against a Postgres service container.
 
 See [docs/deployment.md](docs/deployment.md).
 
-## Known limits
+## Known Limits
 
 | Limit | Mitigation |
 |---|---|

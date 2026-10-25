@@ -1,6 +1,6 @@
 # Architecture
 
-## Request flow
+## Request Flow
 
 ```mermaid
 flowchart LR
@@ -29,12 +29,12 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant A as Analyst
-  participant O as Orchestrator
-  participant DQ as DQ
-  participant DE as DE
-  participant FA as FA
-  participant M as Manager
+  participant A as FP&A Analyst
+  participant O as Pipeline Orchestrator
+  participant DQ as Data Quality
+  participant DE as Data Engineer
+  participant FA as Financial Impact Agent
+  participant M as FP&A Manager
   A->>O: Validate dataset
   O->>DQ: Run 11 rules
   DQ-->>O: Results
@@ -51,13 +51,13 @@ sequenceDiagram
 
 | Agent | Input | Output | Executes |
 |---|---|---|---|
-| Orchestrator | Run request | Start/finish messages | Pipeline |
-| DQ | Run data | Validation summary | 11 rules |
-| DE | Open exceptions | Remediation proposal | Quarantine after approval |
-| FA | Exception | Financial impact narrative | None |
+| Pipeline Orchestrator | Run request | Start/finish messages | Pipeline |
+| Data Quality | Run data | Validation summary | 11 rules |
+| Data Engineer | Open data issues | Remediation proposal | Quarantine after approval |
+| Financial Impact Agent | Data issue | Financial impact narrative | None |
 | Controller | Published state | Alerts, triage, escalation | Revalidation on stale publication |
 
-## Trace propagation
+## Trace Propagation
 
 | Step | Trace |
 |---|---|

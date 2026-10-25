@@ -23,11 +23,11 @@ factory, not part of the runtime application.
 - Scenario creation (via generator, triggered from app)
 - Pipeline run: validate → reconcile → produce exceptions
 - Discussion anchored to runs, exceptions, and analysis slices
-- Agent team: Orchestrator, DE, DQ, FA, Controller
-- Human personas: Analyst, Manager, Director
+- Agent team: Pipeline Orchestrator, Data Engineer, Data Quality, Financial Impact Agent, Controller
+- Human personas: FP&A Analyst, FP&A Manager, Director of FP&A
 - Alerting (in-app, 6 types)
 - Observability (OTEL → Postgres, in-app viewer)
-- Publication: Manager approves go-live; published pointer + quarantine overlay
+- Publication: FP&A Manager approves go-live; published pointer + quarantine overlay
 - Controller continuous verification of published state
 
 ### Out of scope
@@ -53,7 +53,7 @@ Seeded at boot. No authentication. Header selector sets the acting persona.
 | `orchestrator` | agent | Pipeline Orchestrator | Runs pipeline; posts start/finish; requests go-live |
 | `de` | agent | Data Engineer | Proposes remediation (re-run, quarantine, reload) |
 | `dq` | agent | Data Quality | Executes rules; posts validation results |
-| `fa` | agent | Financial Analyst | Translates every defect into financial impact; may open analysis threads |
+| `fa` | agent | Financial Impact Agent | Translates every defect into financial impact; may open analysis threads |
 | `controller` | agent | Controller | Runtime first responder; verifies published state |
 
 ---
@@ -93,8 +93,7 @@ revenue_data_reliability/
 │   ├── demo.md
 │   ├── architecture.md
 │   ├── deployment.md
-│   ├── challenges.md
-│   └── backlog.md
+│   └── challenges.md
 ├── frontend/
 │   ├── templates/
 │   └── static/
@@ -155,13 +154,16 @@ Controller (APScheduler, every N minutes)
 | 1 | `/` | Dashboard; analysis threads inline on KPI cards | all |
 | 2 | `/exceptions` | Exception queue | all |
 | 3 | `/exceptions/{id}` | Exception detail + thread | all |
-| 4 | `/runs` | Run history | Analyst, Manager |
-| 5 | `/runs/{id}` | Run detail + thread; approve/reject | Analyst, Manager |
-| 6 | `/scenarios` | Scenario list + New Scenario button | Analyst |
-| 7 | `/audit` | agent_actions, approvals, publications; filter by trace_id | Manager, Director |
+| 4 | `/runs` | Run history | FP&A Analyst, FP&A Manager |
+| 5 | `/runs/{id}` | Run detail + thread; approve/reject | FP&A Analyst, FP&A Manager |
+| 6 | `/scenarios` | Scenario list + New Scenario button | FP&A Analyst |
+| 7 | `/audit` | agent_actions, approvals, publications; filter by trace_id | FP&A Manager, Director of FP&A |
 | 8 | `/observability` | Trace list + span tree + logs | all |
 
 Persona selector in header on every page.
+
+UI labels: **Validation** (`/runs`) and **Data Issues** (`/exceptions`). The
+`/scenarios` route exists, but its nav entry is hidden.
 
 ---
 
@@ -237,17 +239,17 @@ deterministic Python; LLM is used only for prose.
 
 | Agent | Writes | Executes | Permissions |
 |---|---|---|---|
-| Orchestrator | Start/finish messages on run thread | Runs pipeline; no data mutation | read-only on data |
-| DQ | Validation summary, exceptions created | Runs rules | read-only on data |
-| DE | Remediation proposal on exception thread | Executes only after Manager approval; writes `agent_actions` | bounded write (re-run, quarantine) |
-| FA | Financial impact; may open analysis threads | None | read-only on data |
+| Pipeline Orchestrator | Start/finish messages on run thread | Runs pipeline; no data mutation | read-only on data |
+| Data Quality | Validation summary, exceptions created | Runs rules | read-only on data |
+| Data Engineer | Remediation proposal on exception thread | Executes only after FP&A Manager approval; writes `agent_actions` | bounded write (re-run, quarantine) |
+| Financial Impact Agent | Financial impact; may open analysis threads | None | read-only on data |
 | Controller | Alerts, verification findings | None | read-only on published state |
 
 ### Approval gates
 
-- **Go-live:** Manager approves in run thread → publication row created
-- **Remediation:** Manager approves in exception thread → DE executes → logs `agent_actions`
-- **Critical escalation:** Controller posts to Director in thread
+- **Go-live:** FP&A Manager approves in run thread → publication row created
+- **Remediation:** FP&A Manager approves in exception thread → Data Engineer executes → logs `agent_actions`
+- **Critical escalation:** Controller posts to Director of FP&A in thread
 
 ### LLM usage
 
@@ -457,3 +459,21 @@ If listed here, do not build it.
 - WebSocket live updates (HTMX polling is sufficient)
 - Skills that compute or decide anything (skills are prose-only)
 - Skill framework, registry, or discovery beyond `load_skill(name)`
+
+---
+
+## 21. As-Built Notes
+
+The spec is locked; this table records where the shipped system intentionally
+differs.
+
+| Area | Spec | As Built | Reason |
+|---|---|---|---|
+| Instrumentation | FastAPI, psycopg3, boto3, DuckDB | FastAPI only | Telemetry volume on the free Postgres tier |
+| Database | Neon free tier | Neon via `DATABASE_URL`; `render.yaml` still declares Render Postgres | Blueprint drift; reconcile in Phase 2 |
+| Baseline | `baseline_run` published on boot | Retired; generated datasets are first-class | Dataset scoping |
+| Scenarios | `/scenarios` in nav | Route exists; nav hidden | Low demo value |
+| Controller | Executes none | Revalidation run on `STALE_PUBLISHED` | Narrow autonomy; no publication |
+| Navigation | 6 routes | 5 routes: Dashboard, Validation, Data Issues, Audit, Observability | Scenarios hidden |
+| UI labels | Runs, Exceptions | Validation (`/runs`), Data Issues (`/exceptions`) | User-facing rename; URLs unchanged |
+| Seed loading | In-app generation | Three pre-generated datasets (101/102/103) | Render 512 MB cannot generate in-process |
