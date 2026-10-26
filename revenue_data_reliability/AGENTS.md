@@ -16,5 +16,4 @@ Revenue Data Reliability Platform. The three synthetic fixtures are pre-generate
 - Task tracker: `docs/tasks.md`
 - Operating model: `docs/operating-model.md`
 - Engineering challenges: `docs/challenges.md`
-- Verified behavior backlog: `docs/backlog.md`
 - Agent skill definitions: `backend/skills/`
