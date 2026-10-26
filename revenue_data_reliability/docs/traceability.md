@@ -4,7 +4,7 @@
 
 | Criterion | Evidence |
 |---|---|
-| Problem Description | [`../README.md`](../README.md) |
+| Problem Description | [`../README.md`](../README.md#the-problem) and [`../README.md`](../README.md#the-value) |
 | Product Specification | [`spec.md`](spec.md), [`tasks.md`](tasks.md) |
 | Agent Team Specification | [`spec.md`](spec.md) §11, `backend/teams/`, `backend/skills/` |
 | Context Management | [`../AGENTS.md`](../AGENTS.md), [`../data/AGENTS.md`](../data/AGENTS.md), this docs index |
