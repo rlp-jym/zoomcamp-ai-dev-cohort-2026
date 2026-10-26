@@ -30,7 +30,6 @@ block remains until the unused Render DBs are backed up and removed. See
 | GitHub rulesets | Off during build; re-enable once at final submission |
 | Production deploy | Manual approval via the `production` environment |
 | Direct pushes | Allowed on `develop` and `staging` during build |
-| Disabled workflows | `deploy-now` (stale) |
 
 ## Rollback
 

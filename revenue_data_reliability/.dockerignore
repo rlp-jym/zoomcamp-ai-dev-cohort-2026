@@ -20,4 +20,11 @@ docker-compose.yml
 CRITERIA (new).md
 CRITERIA (old).md
 final_touches.md
+delete-me-later.md
 *.parquet
+
+# Removed from repo; kept locally only
+run_generator.py
+run_generator.bat
+upload.py
+backend/services/backfill.py
