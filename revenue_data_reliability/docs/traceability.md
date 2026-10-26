@@ -14,8 +14,8 @@
 | Deployment | `infra/render.yaml`; prod URL in README |
 | CI/CD | `.github/workflows/test.yml`, `deploy-staging.yml`, `deploy-prod.yml` |
 | Observability | `observability/`, `/observability` |
-| Alerting on User Impact | `backend/services/alerts.py` (six types, 1 h dedup); `backend/teams/controller.py` (`_raise`, triage note, Director escalation); visible in the run thread and `/audit`; walkthrough in [`demo.md`](demo.md#verified-behavior--controller-and-alerts) |
-| On-Call Agent | `backend/teams/controller.py` (`trigger_autonomous_rerun`): `STALE_PUBLISHED` opens a `controller`-triggered run and executes the pipeline; `autonomous_re_run` row in `/audit` |
+| Alerting on User Impact | `backend/services/alerts.py` (six types, 1 h dedup); `backend/teams/controller.py` (`_raise`, triage note for run/analysis anchors); alerts recorded in `/audit`; walkthrough in [`demo.md`](demo.md#verified-behavior--controller-and-alerts) |
+| On-Call Agent | `backend/teams/controller.py`: scheduled verification detects `STALE_PUBLISHED`, opens an alert, and posts a triage note; no autonomous pipeline run |
 
 ## Build History
 

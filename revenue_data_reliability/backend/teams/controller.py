@@ -1,6 +1,5 @@
-"""Controller agent (SPEC §12, §18, §3 continuously verifies published data
-reliability on a schedule and opens alerts, posts triage notes, escalates
-critical findings to the Director.
+"""Controller agent (SPEC §12, §18, §3) continuously verifies published data
+reliability on a schedule and posts alert triage notes.
 
 The six alert types (SPEC §12):
 
@@ -22,7 +21,7 @@ from opentelemetry import trace
 from backend.config import settings
 from backend.db.connection import fetch_all, fetch_one
 from backend.services import alerts as alerts_svc
-from backend.services import llm_client, stub_data
+from backend.services import llm_client
 from backend.services import messages as msg_svc
 from backend.services import publications as pub_svc
 from backend.skills import load_skill
@@ -49,13 +48,11 @@ class ControllerAgent(BaseAgent):
         anchor_id: str,
         detail: str,
         trace_id: str | None,
-        escalate: bool = False,
     ) -> dict:
         """Raise one alert (deduplicated) with its destinations.
 
-        Fresh alert: logged to ``agent_actions``, Controller triage note on
-        the anchor thread, and — for critical alerts — an escalation note
-        posted by the Director persona on the same thread.
+        Fresh alert: logged to ``agent_actions`` and a Controller triage note
+        on the anchor thread.
         """
         res = alerts_svc.raise_alert(
             alert_type, anchor_type, anchor_id, detail, trace_id
@@ -76,40 +73,7 @@ class ControllerAgent(BaseAgent):
                 alert_type, anchor_type, str(anchor_id),
                 res["severity"], detail, trace_id,
             )
-            if escalate and res["severity"] == "critical":
-                self._escalate_to_director(
-                    alert_type, anchor_type, str(anchor_id),
-                    res["severity"], detail, trace_id,
-                )
         return res
-
-    def _escalate_to_director(
-        self,
-        alert_type: str,
-        anchor_type: str,
-        anchor_id: str,
-        severity: str,
-        detail: str,
-        trace_id: str | None,
-    ) -> None:
-        """Critical alerts escalate to the Director on the anchor thread."""
-        content = (
-            f"ESCALATION [{severity.upper()}]: {alert_type} requires "
-            f"Director review. {detail}"
-        )
-        msg_svc.post_message(
-            anchor_type,
-            str(anchor_id),
-            stub_data.get_persona("director"),
-            content,
-            trace_id=trace_id,
-            evidence={"escalation": True, "alert_type": alert_type},
-        )
-        self.log_action(
-            "critical_escalation", anchor_type, str(anchor_id), trace_id,
-            {"alert_type": alert_type, "severity": severity},
-        )
-        logger.warning("Controller: escalated %s to Director.", alert_type)
 
     def verify_stale_published(self, trace_id: str | None = None) -> dict | None:
         """Check whether the active publication is older than its SLA.
@@ -169,52 +133,8 @@ class ControllerAgent(BaseAgent):
         )
         alert = self._raise("STALE_PUBLISHED", "run", str(pub["run_id"]),
                             finding, trace_id)
-        rerun = None
-        if alert["created"]:
-            # §18: no Manager approval required — the Controller re-runs the
-            # pipeline for this month autonomously, exactly one agent row.
-            rerun = self.trigger_autonomous_rerun(pub["dataset_name"], trace_id)
         logger.warning("Controller: %s", finding)
-        return {"finding": finding, "alert": alert, "rerun": rerun, **payload}
-
-    def trigger_autonomous_rerun(
-        self,
-        scenario_name: str | None,
-        trace_id: str | None,
-    ) -> dict | None:
-        """Autonomously trigger a pipeline re-run for the affected month.
-
-        Creates a new run (``triggered_by = controller``), logs exactly one
-        ``agent_actions`` row, then executes the pipeline synchronously —
-        the scheduler thread absorbs the long-running work.
-        """
-        if not scenario_name:
-            return None
-        from backend.services import runs as runs_svc
-        from backend.services.orchestrator import run_pipeline
-
-        run_id = runs_svc.create_run(scenario_name, "controller", trace_id)
-        self.log_action(
-            "autonomous_re_run", "run", str(run_id), trace_id,
-            {"triggered_by_alert": "STALE_PUBLISHED", "dataset": scenario_name},
-        )
-        logger.warning(
-            "Controller: autonomously re-running %s as run %s (no Manager "
-            "approval required).", scenario_name, run_id,
-        )
-        try:
-            run_pipeline(run_id)
-        except Exception as exc:  # noqa: BLE001 — scheduler must survive
-            logger.exception("Autonomous re-run %s failed.", run_id)
-            from backend.db.connection import execute
-
-            execute(
-                "UPDATE runs SET status = 'failed', finished_at = now() "
-                "WHERE run_id = %s AND status = 'running'",
-                (run_id,),
-            )
-            return {"run_id": run_id, "pipeline": "failed", "error": str(exc)}
-        return {"run_id": run_id, "pipeline": "completed"}
+        return {"finding": finding, "alert": alert, **payload}
 
     def check_source_hash_mismatch(self, trace_id: str | None = None) -> dict | None:
         """Critical: S3 Parquet hash differs from the registered manifest.
@@ -255,7 +175,7 @@ class ControllerAgent(BaseAgent):
             f"manifest: {', '.join(bad)}."
         )
         alert = self._raise("SOURCE_HASH_MISMATCH", "scenario", row["name"],
-                            finding, trace_id, escalate=True)
+                            finding, trace_id)
         return {"finding": finding, "alert": alert, "mismatched": bad}
 
     def check_audit_row_missing(self, trace_id: str | None = None) -> dict | None:
@@ -379,8 +299,7 @@ class ControllerAgent(BaseAgent):
             f"{res['invoice_orphans']} orphaned invoice_id)."
         )
         alert = self._raise("PUBLISHED_RECORD_FAILS_REVALIDATION", "publication",
-                            str(pub["publication_id"]), finding, trace_id,
-                            escalate=True)
+                            str(pub["publication_id"]), finding, trace_id)
         return {"finding": finding, "alert": alert,
                 "item_orphans": res["item_orphans"],
                 "invoice_orphans": res["invoice_orphans"]}
@@ -419,8 +338,7 @@ class ControllerAgent(BaseAgent):
             f"(worst: {sample})."
         )
         alert = self._raise("RECON_DRIFT", "publication",
-                            str(pub["publication_id"]), finding, trace_id,
-                            escalate=True)
+                            str(pub["publication_id"]), finding, trace_id)
         return {"finding": finding, "alert": alert, "drifted": len(worst)}
 
     # ------------------------------------------------------------- messaging

@@ -26,23 +26,23 @@ failure mode; acting on data outside tolerance is a different one.
 |---|---|
 | Freshness SLA | `CONTROLLER_STALE_HOURS` (default 24h) |
 | Continuous verification | Six checks every `CONTROLLER_INTERVAL_MINUTES` (default 15) |
-| Alerting | Six in-app types; one-hour dedup; dashboard badge |
-| Escalation | Critical alerts post to the Director of FP&A |
-| Autonomous action | `STALE_PUBLISHED` → revalidation run only |
-| Not autonomous | No publication, approval, or financial mutation |
+| Alerting | Six alert types; one-hour dedup; triage note on run / exception / analysis anchors |
+| Autonomous action | None — alert and triage only |
+| Not autonomous | No publication, approval, re-run, or financial mutation |
 
 ```mermaid
-flowchart LR
-  A[Alert] --> B{Critical?}
-  B -- yes --> C[Escalate to Director of FP&A]
-  B -- no --> D[Controller triage]
-  A --> E{Stale published?}
-  E -- yes --> F[Revalidation run]
-  E -- no --> D
+flowchart TD
+    A["Controller cycle<br/>every 15 minutes"] --> B["Run 6 checks"]
+    B --> C{"Finding?"}
+    C -->|No| A
+    C -->|Yes| D["Open alert + log alert_raised"]
+    D --> E{"Anchor type"}
+    E -->|"run / exception / analysis"| F["Post triage note"]
+    E -->|"publication / scenario"| G["Alert row only"]
 ```
 
 The Controller is the counterweight to timeliness: it enforces freshness and
-escalates drift, while publication stays FP&A Manager-gated.
+surfaces drift, while publication stays FP&A Manager-gated.
 
 ## Governance
 
@@ -50,5 +50,16 @@ escalates drift, while publication stays FP&A Manager-gated.
 |---|---|---|
 | Go-live | FP&A Manager | Publication row + dashboard pointer |
 | Remediation | FP&A Manager | Data Engineer executes quarantine or re-run |
-| Critical escalation | Director of FP&A | Informed on the anchor thread |
 | Demo reset | Director of FP&A | Deletes non-baseline data; preserves audit and telemetry |
+
+## Audit vs Current State
+
+| Page | What it shows | Survives reset? |
+|---|---|---|
+| Validation (`/runs`) | Current runs and validation results | No |
+| Data Issues (`/exceptions`) | Current open issue queue | No |
+| Audit (`/audit`) | Append-only ledger: approvals, publications, agent actions, Controller alerts | Yes |
+| Observability (`/observability`) | Traces, logs, and metrics | Yes |
+
+Audit is history. An alert there is evidence that the Controller acted at that
+time; it does not mean the issue is still open. The live queue is Data Issues.

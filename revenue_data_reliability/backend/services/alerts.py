@@ -2,11 +2,10 @@
 
 Destinations on a fresh alert:
 1. one ``alerts`` row,
-2. a Controller triage message on the anchor thread,
-3. critical alerts escalate to the Director persona on the same thread.
+2. a Controller triage message on the anchor thread.
 
 Dedup: ``(alert_type, anchor_id)`` inside the dedup window (1 hour) yields
-None — no new row, no new thread message, no escalation.
+None — no new row and no new thread message.
 """
 
 from backend.db.connection import execute, fetch_all, fetch_one

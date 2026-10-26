@@ -101,11 +101,11 @@ issue is no longer open.
 
 | Agent | Code | Trigger | Writes |
 |---|---|---|---|
-| Pipeline Orchestrator | `services/orchestrator.py` | Analyst clicks Validate; Controller rerun | Run status, start/finish messages, run trace |
+| Pipeline Orchestrator | `services/orchestrator.py` | Analyst clicks Validate | Run status, start/finish messages, run trace |
 | Data Quality | `services/dq.py` | Every pipeline run | Validation summary message + action |
 | Financial Impact Agent | `teams/fa.py` | Every pipeline run | Impact narrative per open issue |
 | Data Engineer | `teams/de.py` | Manager/DE request; approved remediation | Proposal, quarantine rows |
-| Controller | `teams/controller.py` | APScheduler, every 15 minutes | Alerts, triage notes, revalidation runs |
+| Controller | `teams/controller.py` | APScheduler, every 15 minutes | Alerts, triage notes |
 
 ## Trace Propagation
 
@@ -113,7 +113,7 @@ issue is no longer open.
 |---|---|
 | HTTP request | FastAPI server span |
 | UI-triggered pipeline | New root `pipeline.run` span in a daemon thread; `runs.trace_id` points at it |
-| Controller cycle | `controller.verification_job` span; its autonomous rerun is a child |
+| Controller cycle | `controller.verification_job` span |
 | Agent action | `agent_actions.trace_id` |
 | Thread message | `messages.trace_id` |
 | Demo reset | Both audit rows share the `POST /runs/reset` trace |

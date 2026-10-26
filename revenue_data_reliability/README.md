@@ -41,6 +41,9 @@ The discussion thread is the core interaction; the pipeline exists to give it so
 | 5 | Validation (`/runs/{id}`) | FP&A Manager | Approve Go-Live | Publication created |
 | 6 | Dashboard (`/`) | Any | Open Dashboard | Target Attainment, charts, threads |
 
+Audit (`/audit`) is an append-only ledger. Data Issues (`/exceptions`) is the
+current queue.
+
 ## App Personas
 
 | Role (ID) | Category | Responsibilities |
@@ -52,7 +55,7 @@ The discussion thread is the core interaction; the pipeline exists to give it so
 | **Data Quality** (`dq`) | Agent | Runs 12 validation rules and posts validation summaries |
 | **Data Engineer** (`de`) | Agent | Generates remediation options; executes quarantine upon approval |
 | **Financial Impact** (`fa`) | Agent | Calculates and writes impact narratives for open issues |
-| **Controller** (`controller`) | Agent | Verifies published state, manages alerts, and triggers escalations |
+| **Controller** (`controller`) | Agent | Verifies published state and posts alert triage notes |
 
 ## Expected Workflow
 
@@ -88,7 +91,7 @@ The priority order is deliberate: timeliness, accuracy, then auditability.
 | Speed first | Accepts tolerable variance so decisions are not delayed |
 | Manager sign-off | Human approval required for all fixes and go-live decisions |
 | Continuous review | Background controller monitors data freshness and flags issues |
-| Restricted actions | Auto-triggers revalidation only; cannot republish on its own |
+| Restricted actions | Alert and triage only; cannot republish on its own |
 | Immutable raw data | Isolates issues via quarantine without touching source files |
 
 See [`docs/operating-model.md`](docs/operating-model.md).

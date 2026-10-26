@@ -34,6 +34,9 @@ the seeds were produced; the app only registers and reads them.
 
 If go-live is blocked, clear the open issues on Data Issues (`/exceptions`) first.
 
+Read `/audit` as history, not as the current queue. A Controller alert can remain
+in the ledger after the underlying Data Issue is resolved or the dataset is reset.
+
 ## What to Look For
 
 | Page (URL) | Signal |
@@ -48,21 +51,21 @@ If go-live is blocked, clear the open issues on Data Issues (`/exceptions`) firs
 
 The Controller sweeps every 15 minutes, plus once 90 seconds after boot. On the
 first sweep after the published dataset crosses its freshness SLA
-(`CONTROLLER_STALE_HOURS`, default 24 h) it acts without human input.
+(`CONTROLLER_STALE_HOURS`, default 24 h) it detects and alerts without human
+input.
 
 | # | Where to look | What appears |
 |---|---|---|
 | 1 | Run thread for the published run | Controller triage note naming `STALE_PUBLISHED`, the age, and the threshold |
-| 2 | Audit (`/audit`) | `alert_raised`, `alert_triage`, and `autonomous_re_run` rows sharing one trace ID |
-| 3 | Validation (`/runs`) | New run with `triggered_by = controller`, pipeline completed |
+| 2 | Audit (`/audit`) | `alert_raised` and `alert_triage` rows sharing one trace ID |
 
 Critical types (`SOURCE_HASH_MISMATCH`, `PUBLISHED_RECORD_FAILS_REVALIDATION`,
-`RECON_DRIFT`) also post a Director escalation on the same thread. The `alerts`
-table holds the finding; there is no separate Alerts page in the UI.
+`RECON_DRIFT`) are recorded in `alerts` and `/audit`. There is no separate
+Alerts page.
 
-Revalidation only: the Controller refreshes validation for the affected dataset
-and never republishes. Publication stays human-gated by design, so the alert row
-is retained as the finding's audit record rather than auto-closed.
+Alert only: the Controller detects stale publication and posts a triage note. It
+does not re-run or republish. Publication stays human-gated by design, so the
+alert row is retained as the finding's audit record rather than auto-closed.
 
 The Director's demo reset on Validation (`/runs`) clears dataset state only.
 Audit (`/audit`) and Observability (`/observability`) survive it. The reset
@@ -75,7 +78,7 @@ appears as two linked rows sharing one trace ID: Director of FP&A
 |---|---|
 | FP&A Analyst (`analyst`) | Load a dataset, validate, post in a thread |
 | FP&A Manager (`manager`) | Approve go-live, dismiss or execute remediation |
-| Director of FP&A (`director`) | Reset demo data, receive critical escalations |
+| Director of FP&A (`director`) | Reset demo data |
 
 Agents are also selectable in the header for inspection; the human personas
 drive the demo.

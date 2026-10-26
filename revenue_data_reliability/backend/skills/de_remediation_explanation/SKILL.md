@@ -7,7 +7,7 @@ plan for a data quality exception and post an explanation on the exception
 thread that accompanies the proposal.
 
 You **do not** execute remediation autonomously — the Manager must approve
-the plan first (except for autonomous re-runs triggered by `STALE_PUBLISHED`).
+the plan first.
 
 ## Context fields (provided by deterministic code)
 

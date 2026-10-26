@@ -5,7 +5,7 @@ from backend.db.connection import get_connection
 PERSONAS = [
     ("analyst", "human", "FP&A Analyst", "Owns runs; triggers pipeline; participates in threads"),
     ("manager", "human", "FP&A Manager", "Approves go-live; approves remediation"),
-    ("director", "human", "Director of FP&A", "Critical escalation target"),
+    ("director", "human", "Director of FP&A", "Controls demo data resets"),
     ("orchestrator", "agent", "Pipeline Orchestrator", "Runs pipeline; posts start/finish; requests go-live"),
     ("de", "agent", "Data Engineer", "Proposes remediation (re-run, quarantine, reload)"),
     ("dq", "agent", "Data Quality", "Executes rules; posts validation results"),

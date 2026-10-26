@@ -49,7 +49,7 @@ Seeded at boot. No authentication. Header selector sets the acting persona.
 |---|---|---|---|
 | `analyst` | human | FP&A Analyst | Owns runs; triggers pipeline; participates in threads |
 | `manager` | human | FP&A Manager | Approves go-live; approves remediation |
-| `director` | human | Director of FP&A | Critical escalation target |
+| `director` | human | Director of FP&A | Controls demo data resets |
 | `orchestrator` | agent | Pipeline Orchestrator | Runs pipeline; posts start/finish; requests go-live |
 | `de` | agent | Data Engineer | Proposes remediation (re-run, quarantine, reload) |
 | `dq` | agent | Data Quality | Executes rules; posts validation results |
@@ -140,7 +140,7 @@ Analyst clicks "Run Pipeline" on a scenario
 
 Controller (APScheduler, every N minutes)
     → Verifies published state
-    → On anomaly: opens alert → posts to anchored thread → escalates if critical
+    → On anomaly: opens alert → posts triage for run/analysis anchors
 ```
 
 ---
@@ -248,7 +248,6 @@ deterministic Python; LLM is used only for prose.
 
 - **Go-live:** FP&A Manager approves in run thread → publication row created
 - **Remediation:** FP&A Manager approves in exception thread → Data Engineer executes → logs `agent_actions`
-- **Critical escalation:** Controller posts to Director of FP&A in thread
 
 ### LLM usage
 
@@ -303,42 +302,30 @@ Each `SKILL.md` contains:
 
 Each step is logged as one `agent_actions` row.
 
-### Autonomous remediation (narrow)
+### No autonomous remediation
 
-One alert type is remediated autonomously, without Manager approval:
+The Controller does not create runs, publish, approve, or mutate financial
+data. On `STALE_PUBLISHED` it opens an alert and posts a triage note on the
+published run thread. Publication stays FP&A Manager-gated.
 
-- **`STALE_PUBLISHED`:** Controller triggers a pipeline re-run for the
-  affected month. This action is:
-  - Read-consistent: re-validation only; no financial data mutated
-  - Reversible: publication pointer unchanged until re-run passes
-  - Logged: one `agent_actions` row with `agent_id = controller`
-  - Reported: Controller posts a message on the alert thread
-
-Controller does not gain broader write permissions. It triggers the same
-pipeline action an Analyst would; no publication, approval, or financial
-mutation is autonomous. All other remediation remains Manager-gated.
-
-This satisfies the rubric requirement that "an agent wakes up on an alert
-and fixes the issue" while keeping data-changing actions human-approved.
+The on-call evidence is the scheduled detection and triage note; no pipeline
+run is triggered.
 
 ---
-
-
 
 ## 12. Alerting (6 types, in-app)
 
 | Alert | Trigger | Severity | Remediation |
 |---|---|---|---|
-| `STALE_PUBLISHED` | Published run older than SLA | high | Controller auto-re-runs pipeline (see §11) |
-| `SOURCE_HASH_MISMATCH` | Filebase Parquet hash differs from registered manifest | critical | Thread + escalate |
-| `AUDIT_ROW_MISSING` | Published action lacks `agent_actions` row | high | Thread + escalate |
-| `THREAD_ANCHOR_ORPHANED` | Thread references deleted run/exception | medium | Thread + escalate |
-| `PUBLISHED_RECORD_FAILS_REVALIDATION` | Controller re-runs sample, finds failures | critical | Thread + escalate |
-| `RECON_DRIFT` | Post-publication billings vs GL exceeds tolerance | critical | Thread + escalate |
+| `STALE_PUBLISHED` | Published run older than SLA | high | Alert + triage; no re-run |
+| `SOURCE_HASH_MISMATCH` | Filebase Parquet hash differs from registered manifest | critical | Alert row + `/audit` |
+| `AUDIT_ROW_MISSING` | Published action lacks `agent_actions` row | high | Alert row + `/audit` |
+| `THREAD_ANCHOR_ORPHANED` | Thread references deleted run/exception | medium | Triage note on analysis thread |
+| `PUBLISHED_RECORD_FAILS_REVALIDATION` | Controller re-runs sample, finds failures | critical | Alert row + `/audit` |
+| `RECON_DRIFT` | Post-publication billings vs GL exceeds tolerance | critical | Alert row + `/audit` |
 
 - Dedup: `(alert_type, anchor_id)` in 1-hour window
-- Destinations: `alerts` row + Controller message on the anchor thread + dashboard badge
-- Critical: escalate to Director via thread message
+- Destinations: `alerts` row + Controller triage message on run/analysis anchors
 
 ---
 
