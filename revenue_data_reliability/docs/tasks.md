@@ -102,8 +102,8 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 ## 7. Scenarios and scenario creation flow
 - [x] Scenario CRUD service and repository (raw SQL).
 - [x] `/scenarios` route: list + "New Scenario" button (Analyst only).
-- [x] Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.
-- [x] Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).
+- [x] ~~Trigger GitHub Action `workflow_dispatch` using `GH_TOKEN`.~~ — generator retired; `GH_TOKEN` removed from Actions secrets and Render env.
+- [x] ~~Webhook endpoint to register scenario from generator (verify `WEBHOOK_TOKEN`).~~ — generator retired; no caller remains.
 - [x] Store manifest, file hashes, and scenario metadata.
 - [x] Display scenario list with status.
 
@@ -171,7 +171,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] DE agent: remediation proposal; bounded writes after approval; playbook steps logged.
 - [x] FA agent: financial impact; may open analysis threads.
 - [x] Controller agent: verification findings; read-only published state.
-- [x] Approval gates: go-live, remediation, critical escalation.
+- [x] ~~Approval gates: go-live, remediation, critical escalation.~~ — Director escalation removed; gates are go-live and remediation only (`58275ff`).
 **Done when:** All 5 agents can be invoked in one pipeline run, each posting to the correct anchor thread and logging exactly one `agent_actions` row.
 
 ## 14. Skills (LLM prose layer)
@@ -199,7 +199,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] `RECON_DRIFT` (critical).
 - [x] Dedup by `(alert_type, anchor_id)` in 1-hour window.
 - [x] Destinations: `alerts` row + Controller message on anchor thread + dashboard badge.
-- [x] Critical alerts escalate to Director via thread message.
+- [x] ~~Critical alerts escalate to Director via thread message.~~ — alert-only: critical alerts are recorded in `alerts` + `/audit`; no escalation (`58275ff`).
 
 ## 17. Publication and quarantine
 > This section wires together publication, quarantine, and approval flows defined in §8, §11, and §13. Do not duplicate logic here; reference and connect.
@@ -211,16 +211,16 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 
 ## 18. Controller continuous verification
 - [x] Verify published state on schedule. (Phase 2: `controller_verification` APScheduler job → `ControllerAgent.verify_stale_published`.)
-- [x] Detect stale published (SLA). (Phase 2 skeleton: logs one `agent_actions` finding; `alerts` wiring lands in Phase 3.)
+- [x] Detect stale published (SLA). ~~(Phase 2 skeleton: logs one `agent_actions` finding; `alerts` wiring lands in Phase 3.)~~ — alert wiring shipped; stale detection posts an alert plus a triage note.
 - [x] Source hash mismatch check.
 - [x] Audit row missing check.
 - [x] Thread anchor orphaned check.
 - [x] Sample revalidation of published records.
 - [x] Post-publication recon drift check.
-- [x] Open alerts and post to anchored threads; escalate critical.
-- [x] Controller autonomously triggers a pipeline re-run on `STALE_PUBLISHED` (no Manager approval required)
-- [x] Autonomous re-run logs exactly one `agent_actions` row with `agent_id = controller`
-**Done when:** Controller job runs on schedule, detects at least one seeded anomaly, opens an alert, posts to the anchored thread, and — for `STALE_PUBLISHED` — autonomously re-runs the pipeline.
+- [x] ~~Open alerts and post to anchored threads; escalate critical.~~ — triage is posted for `run`/`exception`/`analysis` anchors; publication and scenario alerts are audit-only.
+- [x] ~~Controller autonomously triggers a pipeline re-run on `STALE_PUBLISHED` (no Manager approval required)~~ — autonomous re-run removed; the Controller never creates runs (`58275ff`).
+- [x] ~~Autonomous re-run logs exactly one `agent_actions` row with `agent_id = controller`~~ — no autonomous action exists; `autonomous_re_run` count is 0 on staging.
+**Done when:** Controller job runs on schedule, detects at least one seeded anomaly, opens an alert, and posts triage to the anchored thread. ~~and — for `STALE_PUBLISHED` — autonomously re-runs the pipeline.~~ (Verified live on staging: `alert_raised` 76→80, `alert_triage` 14→16, no new run.)
 
 ## 19. Frontend wiring (replace stub context with real data)
 > Templates and route handlers were built in §1b with stub data. This
@@ -237,7 +237,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] `/observability` trace list + span tree + logs (all). (Phase 2.)
 - [x] Persona selector in header on every page.
 - [x] Base layout, HTMX partials, static CSS.
-- [x] Baseline fixture seeded on boot (scenarios + published run + publication + run thread).
+- [x] Baseline fixture seeded on boot (scenarios + published run + publication + run thread). Opt-in via `SEED_BASELINE_FIXTURE=1`; unset on Render, so both services start empty.
 **Done when:** All 8 routes render with real data, and persona selection persists across pages.
 
 ## 20. Audit and compliance
@@ -249,7 +249,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] `.github/workflows/test.yml`: lint, unit, integration on PRs and pushes.
 - [x] `.github/workflows/deploy-staging.yml`: push to `staging`.
 - [x] `.github/workflows/deploy-prod.yml`: push to `main` with manual approval via GitHub Environments.
-- [x] `.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.
+- [x] ~~`.github/workflows/scenario-generate.yml`: `workflow_dispatch` run generator, upload R2, POST webhook.~~ — workflow and generator deleted; only `test`, `deploy-staging`, `deploy-prod` remain.
 - [x] Integration tests use Postgres service container.
 - [x] `main` requires green tests + manual approval.
 
@@ -287,16 +287,16 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Confirm spec lives at `docs/spec.md` and is referenced from `README.md` and `AGENTS.md`.
 - [x] Document the two-phase UI build (skeleton in §1b, wiring in §19) in `README.md` so users understand template edits are expected.
 - [x] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior — not just a link to `docs/spec.md`
-- [x] Update root `AGENTS.md` "Quick links" to include `docs/spec.md`, `docs/definitions.md`, `docs/tasks.md`, `backend/skills/`, `data/AGENTS.md`, and `data/README.md`
+- [x] Update root `AGENTS.md` "Quick links" to include `docs/spec.md`, `docs/definitions.md`, `docs/tasks.md`, `backend/skills/`~~, `data/AGENTS.md`, and `data/README.md`~~ — `data/` was archived with the generator; `AGENTS.md` links docs and skills only.
 
 ## 25. Success criteria verification (`spec.md §18`)
 - [x] User sees a populated dashboard after loading and publishing a seed.
 - [x] Navigation of `/exceptions`, `/runs`, `/audit`, `/observability` works without setup.
 - [x] Persona selection + posting in thread works.
 - [x] N/A — Scenarios nav hidden.
-- [x] N/A — in-app Run Pipeline removed; pipeline runs via script.
+- [x] ~~N/A — in-app Run Pipeline removed; pipeline runs via script.~~ — superseded: validation is triggered by Validate on Validation (`/runs`).
 - [x] Manager approves on `/runs/{id}`; published pointer updates.
-- [ ] Controller alert fires on documented trigger — code path verified; not exercised.
+- [x] Controller alert fires on documented trigger — verified live on staging (`alert_raised` 76→80, `alert_triage` 14→16, no new run).
 - [ ] `/observability` shows trace spanning web request → pipeline → agent action — trace detail + linked logs verified; single cross-stage trace not confirmed.
 - [x] CI runs tests on PR; `main` requires approval.
 - [x] Every agent action has `agent_actions` row and shared `trace_id`.
@@ -322,7 +322,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 > Dashboard becomes the historical actuals + FP&A assessment surface ("what happened, where are we"). Scenarios become sensitivity analysis ("what if") built on top of published data. Separation: dashboard = actuals + assessment; scenarios = forward-looking sensitivity exploration.
 
 ### Dashboard — FP&A outputs
-- [x] Remove Run Pipeline button from dashboard (pipeline runs via script only) - done
+- [x] ~~Remove Run Pipeline button from dashboard (pipeline runs via script only) - done~~ — validation now triggers from Validation (`/runs`).
 - [x] Add Target Attainment Assessment (variance from plan, decomposed by category/segment/region)
 - [x] Extend dashboard cache to compute and store the new FP&A outputs
 - [x] Consolidate the FP&A outputs into the chart layer — the four output cards duplicated the charts above them (the General Ledger series was plotted twice, the projection and the growth table were re-cuts of the same revenue series). "Revenue, Billings & Plan" carries actuals, billings and target (no projection — see above); "Month-over-Month Growth" is a diverging bar chart; "Target Attainment" is a progress bar (moved to the top of the page, no thread) plus a "Billings by Customer Segment" bar chart with its own thread. 8 cards → 4.
@@ -352,7 +352,7 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 - [x] Form help text on `/scenarios` should state that the projection is the analyst's judgement, not a platform calculation.
 
 ## 28. UI Workflow Enhancements
-- [x] Data generation form (seed, years back) triggering GitHub Actions with status tracking (`generating`/`ready`/`failed`).
+- [x] ~~Data generation form (seed, years back) triggering GitHub Actions with status tracking (`generating`/`ready`/`failed`).~~ — replaced by Load Dataset with the three fixed seeds; no GitHub Action and no generation status.
 - [x] Generated Datasets table with Validate/Delete actions and HTMX polling on `/runs`.
 - [x] Generated Datasets table shows scale (Rows, Months, Size MB) read lazily from Parquet footers (`parquet_file_metadata` / `parquet_metadata`), cached in `scenarios.manifest`, with a 3s render budget (`—` when the read fails or is slow).
 - [x] Memory guardrails (pagination/limits) on exception lists and pipeline result tables.
@@ -361,11 +361,12 @@ anything listed in `spec.md` §20 (Explicit non-goals).
 ## 29. Pre-Submission Checklist (CI/CD Final State)
 > CI/CD is stable: `test`, `deploy-staging`, and `deploy-prod` are active;
 > production deploy is manual via the `production` environment. Branch rulesets
-> stay off during build and are re-enabled once at final submission.
+> were off during build and are re-enabled at final submission (`main-protection`
+> active on `main` since 2026-10-27).
 
 - [x] Active workflows: `test`, `deploy-staging`, `deploy-prod`.
-- [x] `scenario-generate` and stale `deploy-now` disabled manually.
-- [ ] Re-enable GitHub Rulesets for branch protection — final-submission toggle; keep off during build.
+- [x] ~~`scenario-generate` and stale `deploy-now` disabled manually.~~ — both workflows deleted; `test`, `deploy-staging`, `deploy-prod` are the only active ones.
+- [x] ~~Re-enable GitHub Rulesets for branch protection — final-submission toggle; keep off during build.~~ — `main-protection` active on `main` (PR + required status checks) as of 2026-10-27.
 
 ## 30. Dataset Scoping (Project File Model)
 

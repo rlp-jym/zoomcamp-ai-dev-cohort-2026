@@ -27,9 +27,9 @@ block remains until the unused Render DBs are backed up and removed. See
 
 | Control | State |
 |---|---|
-| GitHub rulesets | Off during build; re-enable once at final submission |
+| GitHub rulesets | `main-protection` active: PR + required status checks on `main` |
 | Production deploy | Manual approval via the `production` environment |
-| Direct pushes | Allowed on `develop` and `staging` during build |
+| Direct pushes | Allowed on `develop` and `staging` (ruleset covers `main` only) |
 
 ## Rollback
 
