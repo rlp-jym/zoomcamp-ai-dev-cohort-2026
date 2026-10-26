@@ -46,29 +46,18 @@ than an exhaustive BI tool. A real-world FP&A dashboard would typically expose
 
 ## Traceability: Orders → Revenue
 
-```text
-orders -> order_lines                    [BOOKINGS]
-              |  extended_price = qty_ordered x unit_price
-              |
-              +-> shipments -> shipment_lines   [FULFILLMENT]
-              |       |  qty_shipped, freight_cost
-              |       |  shipment_lines.order_line_id -> order_lines
-              |       |
-              |       +-> backorders              [LOST REVENUE]
-              |               lost_sales_value, backorder_cost
-              |
-              +-> invoices -> invoice_lines      [BILLINGS = REVENUE EVENT]
-                      |  line_subtotal = qty_shipped x unit_price
-                      |  line_total = subtotal + freight + tax - discount
-                      |  (invoice_lines has no order_line_id)
-                      |
-                      +-> ar_ledger               [CASH / DSO]
-                      |       outstanding_balance, aging_bucket, payment_date
-                      |
-                      +-> returns                 [CONTRA-REVENUE]
-                              credit_amount, return_value, margin_loss
-                              returns.order_line_id -> order_lines
-                              returns.shipment_id   -> shipments
+```mermaid
+flowchart LR
+    O["orders"] --> OL["order_lines<br/>BOOKINGS<br/>extended_price = qty_ordered x unit_price"]
+    OL --> SH["shipments"]
+    SH --> SL["shipment_lines<br/>FULFILLMENT<br/>qty_shipped, freight_cost<br/>order_line_id -> order_lines"]
+    SL --> BO["backorders<br/>LOST REVENUE<br/>lost_sales_value, backorder_cost"]
+    OL --> INV["invoices"]
+    INV --> IL["invoice_lines<br/>BILLINGS = REVENUE EVENT<br/>line_subtotal = qty_shipped x unit_price<br/>line_total = subtotal + freight + tax - discount<br/>no order_line_id"]
+    INV --> AR["ar_ledger<br/>CASH / DSO<br/>outstanding_balance, aging_bucket, payment_date<br/>invoice_id -> invoices (1:1)"]
+    INV --> RET["returns<br/>CONTRA-REVENUE<br/>credit_amount, return_value, margin_loss"]
+    RET -.->|"order_line_id"| OL
+    RET -.->|"shipment_id"| SH
 ```
 
 
