@@ -22,7 +22,6 @@ class Settings:
         self.r2_bucket = os.getenv("R2_BUCKET")
 
         self.groq_api_key = os.getenv("GROQ_API_KEY") or None
-        self.gh_token = os.getenv("GH_TOKEN") or None
         self.webhook_token = os.getenv("WEBHOOK_TOKEN", "dev-webhook-token")
         self.persona_cookie = os.getenv("PERSONA_COOKIE_NAME", "persona")
         # One thread is the stable maximum for Render's 512MB container.

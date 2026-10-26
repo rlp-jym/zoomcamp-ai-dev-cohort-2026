@@ -12,15 +12,15 @@ data, validates it, reconciles billings to GL, surfaces exceptions, hosts
 anchored discussion threads, and dispatches a team of agents to triage,
 quantify, and propose remediation — with human approval at every gate.
 
-The app is the product. The data generator under `data/` is a fixture
-factory, not part of the runtime application.
+The app is the product. The three seed bundles were generated offline and are
+fixed fixtures; the generator has been removed from the repo.
 
 ---
 
 ## 2. Scope
 
 ### In scope
-- Scenario creation (via generator, triggered from app)
+- Registration of pre-generated seed datasets
 - Pipeline run: validate → reconcile → produce exceptions
 - Discussion anchored to runs, exceptions, and analysis slices
 - Agent team: Pipeline Orchestrator, Data Engineer, Data Quality, Financial Impact Agent, Controller
@@ -64,17 +64,17 @@ Seeded at boot. No authentication. Header selector sets the acting persona.
 
 | Store | Holds | Never holds |
 |---|---|---|
-| **R2 (S3-compatible)** | Parquet bundles per scenario, under `scenarios/<name>/` | App state |
+| **Filebase (S3-compatible)** | Parquet bundles per scenario, under `scenarios/<name>/` | App state |
 | **Neon Postgres** | App state: runs, validations, reconciliations, exceptions, quarantines, approvals, publications, scenarios, discussions, messages, alerts, agent_actions, personas, rules, OTEL tables | Financial rows |
 
 **Published data is derived at query time:**
-`DuckDB.read_parquet(R2) − quarantine_filter − non-published runs`
+`DuckDB.read_parquet(Filebase) − quarantine_filter − non-published runs`
 
 ### Backend
 
 - FastAPI
 - Jinja2 + HTMX (no JS framework, no build step)
-- DuckDB reads Parquet from R2 (via `httpfs`)
+- DuckDB reads Parquet from Filebase (via `httpfs`)
 - psycopg3, raw SQL
 - APScheduler in-process for Controller checks only
 - OTEL SDK with custom Postgres exporter
@@ -113,7 +113,6 @@ revenue_data_reliability/
 │   │   ├── dq_validation_summary/SKILL.md
 │   │   └── controller_triage_note/SKILL.md
 │   └── db/
-├── data/                # generator + runs (existing)
 ├── infra/               # Docker, Render config
 ├── observability/       # OTEL exporter, dashboards
 ├── tests/               # unit + integration
@@ -125,9 +124,8 @@ revenue_data_reliability/
 ## 5. Data flow
 
 ```
-Analyst clicks "New Scenario" → app calls GitHub Action (workflow_dispatch)
-    → generator produces Parquet → uploads to R2 → webhooks app to register
-    → scenario appears in /scenarios
+A human registers one of the three pre-generated seeds; the app never
+    generates or uploads data.
 
 Analyst clicks "Run Pipeline" on a scenario
     → Orchestrator posts "run started"
@@ -332,7 +330,7 @@ and fixes the issue" while keeping data-changing actions human-approved.
 | Alert | Trigger | Severity | Remediation |
 |---|---|---|---|
 | `STALE_PUBLISHED` | Published run older than SLA | high | Controller auto-re-runs pipeline (see §11) |
-| `SOURCE_HASH_MISMATCH` | R2 Parquet hash differs from registered manifest | critical | Thread + escalate |
+| `SOURCE_HASH_MISMATCH` | Filebase Parquet hash differs from registered manifest | critical | Thread + escalate |
 | `AUDIT_ROW_MISSING` | Published action lacks `agent_actions` row | high | Thread + escalate |
 | `THREAD_ANCHOR_ORPHANED` | Thread references deleted run/exception | medium | Thread + escalate |
 | `PUBLISHED_RECORD_FAILS_REVALIDATION` | Controller re-runs sample, finds failures | critical | Thread + escalate |
@@ -360,10 +358,10 @@ and fixes the issue" while keeping data-changing actions human-approved.
 - **Platform:** Render free tier
 - **App:** two services — `staging` (branch: `staging`), `prod` (branch: `main`)
 - **DB:** Neon free tier — one project, two databases (`staging`, `prod`)
-- **Object storage:** Cloudflare R2, one bucket, `scenarios/<name>/` prefixes
-- **Secrets:** Render env vars for `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `GH_TOKEN`, `WEBHOOK_TOKEN`
+- **Object storage:** Filebase (S3-compatible), one bucket, `scenarios/<name>/` prefixes
+- **Secrets:** Render env vars for `DATABASE_URL`, `R2_*`, `GROQ_API_KEY`, `WEBHOOK_TOKEN`
 - **DB schema:** `schema.sql` idempotent on boot (`CREATE TABLE IF NOT EXISTS`)
-- **Backfill:** on first boot, if `scenarios` empty, trigger the GitHub Action to generate `baseline_run` with seed=9, then wait for webhook
+- **Datasets:** the app registers one of the three pre-generated seeds; boot never generates data
 - **Local run:** `docker compose up` starts app + Postgres in one command. Documented in `README.md`.
 
 ---
@@ -375,7 +373,6 @@ and fixes the issue" while keeping data-changing actions human-approved.
 | `test.yml` | PRs, all pushes | Lint, unit, integration |
 | `deploy-staging.yml` | Push to `staging` | Deploy to staging |
 | `deploy-prod.yml` | Push to `main` | Manual approval via GitHub Environments, then deploy |
-| `scenario-generate.yml` | `workflow_dispatch` | Disabled; offline generator retained for reproducibility |
 
 - Integration tests use Postgres service container
 - `main` requires green tests + manual approval to deploy
@@ -390,12 +387,12 @@ and fixes the issue" while keeping data-changing actions human-approved.
 | Backend | FastAPI (Python 3.11+) |
 | Templates | Jinja2 |
 | Interactivity | HTMX |
-| Parquet query | DuckDB (`httpfs` for R2) |
+| Parquet query | DuckDB (`httpfs` for Filebase) |
 | Postgres client | psycopg3, raw SQL |
 | Scheduler | APScheduler in-process |
 | Telemetry | opentelemetry-sdk + custom exporter |
 | LLM | Groq + template fallback |
-| Object storage | Cloudflare R2 |
+| Object storage | Filebase (S3-compatible) |
 | CI/CD | GitHub Actions |
 | Deploy | Render |
 
@@ -405,7 +402,7 @@ and fixes the issue" while keeping data-changing actions human-approved.
 
 - Render free = 512MB RAM, ephemeral disk, no background workers
 - Neon free = 1GB total; app state stays under ~50MB via state-only model
-- R2 free = 10GB; ~20 scenarios max; lifecycle policy required
+- Object storage = ~10GB budget; ~20 scenarios max; lifecycle policy required
 - SQLite not used — PostgreSQL required due to discussion write contention
 - No auth — personas selected from header; acceptable for demo, documented
 - No migrations framework — schema changes require `schema.sql` edits
@@ -419,7 +416,7 @@ and fixes the issue" while keeping data-changing actions human-approved.
 - End user visits the URL, loads a seed, and sees a populated dashboard
 - End user navigates `/exceptions`, `/runs`, `/audit`, `/observability` without setup
 - End user selects a persona in the header and can post in a thread
-- Analyst persona can trigger "New Scenario"; new scenario appears in `/scenarios`
+- Analyst persona can create an analysis scenario; it appears in `/scenarios`
 - Analyst persona can "Run Pipeline"; thread shows Orchestrator, DQ, DE, FA posts
 - Manager persona can approve in run thread; published pointer updates
 - Controller alert fires on a documented trigger (e.g., stale published)
@@ -431,9 +428,6 @@ and fixes the issue" while keeping data-changing actions human-approved.
 
 ## 19. Prerequisites before build
 
-- [ ] Generator updated to emit `budget` table (reference-only)
-- [ ] `baseline_run` regenerated with seed=9 (16 tables)
-- [ ] `data/AGENTS.md`, `data/TASKS.md`, `data/SOURCES.md` updated
 - [ ] `docs/definitions.md` written (revenue, billings, DSO, fill rate, materiality)
 - [ ] Root `README.md` updated with project overview + link to `docs/spec.md`
 - [ ] Root `README.md` describes (a) the problem, (b) system functionality, (c) expected behavior
@@ -479,4 +473,4 @@ differs.
 | UI labels | Runs, Exceptions | Validation (`/runs`), Data Issues (`/exceptions`) | User-facing rename; URLs unchanged |
 | Seed loading | In-app generation | Three pre-generated datasets (101/102/103) | Render 512 MB cannot generate in-process |
 | Seed window | 5 years | 12 months | 5-year scans caused Render 502s |
-| Generator | Runtime component | Offline fixture factory | Historical; app reads R2 only |
+| Generator | Runtime component | Removed from repo | Fixed seeds; app reads Filebase only |

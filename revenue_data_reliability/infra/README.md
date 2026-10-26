@@ -4,7 +4,7 @@
 From the project root (`revenue_data_reliability/`):
 
 ```bash
-cp .env.example .env   # optional; R2/Groq credentials
+cp .env.example .env   # optional; Filebase/Groq credentials
 docker compose up --build
 ```
 
@@ -25,7 +25,7 @@ sync:false env vars in the Render dashboard (R2_*, GROQ_API_KEY, etc.).
 - WEBHOOK_TOKEN
 - APP_ENV (dev|staging|prod)
 
-## R2 bucket
+## S3 bucket (Filebase)
 - Bucket name = R2_BUCKET
 - Prefix convention: scenarios/<scenario_name>/*.parquet
 - Lifecycle: optional; old run objects can be expired after N days.

@@ -67,7 +67,7 @@ def _previous_month_end() -> tuple[int, int]:
 def scale_window(years: int) -> tuple[str, str]:
     """Trailing period window for a scenario with ``years`` years of history.
 
-    The generator ends its timeline at the previous completed month, so the
+    The seed bundles end their timeline at the previous completed month, so the
     window has to trail today rather than snap to calendar years.
     """
     end_year, end_month = _previous_month_end()

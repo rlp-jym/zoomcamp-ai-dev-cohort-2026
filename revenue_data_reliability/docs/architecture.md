@@ -67,29 +67,35 @@ flowchart LR
 ## Pipeline
 
 ```mermaid
-sequenceDiagram
-  participant A as FP&A Analyst
-  participant O as Pipeline Orchestrator
-  participant DQ as Data Quality
-  participant FA as Financial Impact Agent
-  participant M as FP&A Manager
-  participant PUB as Publication
-
-  A->>O: Validate dataset
-  O->>O: Run 12 rules + reconcile billings vs GL
-  O->>DQ: Hand off results
-  DQ-->>O: Summary posted to run thread
-  O->>FA: Hand off open issues
-  FA-->>O: Impact narrative posted
-  O-->>A: Run complete
-  M->>PUB: Approve Go-Live
-  PUB->>PUB: Publication row + published pointer
-  PUB-->>M: Dashboard cache rebuild started
+flowchart TD
+    A["1. FP&A Analyst loads dataset (human)"] --> B["2. FP&A Analyst validates dataset (human)"]
+    B --> C["3. Pipeline Orchestrator runs 12 rules + reconciliation (agent)"]
+    C --> D["4. Data Quality posts validation summary (agent)"]
+    D --> E["5. Financial Impact posts impact narratives (agent)"]
+    E --> F["6. Pipeline Orchestrator marks run complete (agent)"]
+    F --> G["7. FP&A Manager reviews each open Data Issue (human)"]
+    G --> H{"8. Approve remediation or dismiss? (human)"}
+    H -->|Approve| I["9. Data Engineer quarantines records (agent)"]
+    H -->|Dismiss| J["9. Records remain in dataset; issue dismissed (human)"]
+    I --> I2["10. Quarantined records omitted from published data (system)"]
+    J --> J2["10. Dismissed records remain in published data (system)"]
+    I2 --> K{"11. FP&A Manager approves go-live? (human)"}
+    J2 --> K
+    K -->|Yes| L["12. Publication row + pointer (system)"]
+    L --> M["13. Dashboard cache rebuild (system)"]
+    K -->|No| N["Stays unpublished (system)"]
 ```
 
-Remediation is not part of the pipeline. The Manager or DE requests a proposal
-from Data Issues (`/exceptions/{id}`); the DE executes the quarantine, either
-directly or after the Manager approves the remediation.
+Remediation proposals are requested from Data Issues (`/exceptions/{id}`); the
+pipeline does not auto-propose them.
+
+Before scanning, the pipeline downloads the dataset into the local cache and
+computes the 12-month window. It persists reconciliation rows, opens
+material-gap exceptions, creates one validation exception per failed rule per
+month, and closes exceptions from superseded runs. Approving a remediation
+quarantines the records, so they are omitted from published data; dismissing
+keeps them in the dataset, so they remain in published data. Either way, the
+issue is no longer open.
 
 ## Agent Team
 
@@ -121,10 +127,7 @@ request returns immediately, and the pipeline runs in a background thread.
 |---|---|---|
 | FastAPI | Yes | Serves the app |
 | Filebase `scenarios/<dataset>/*.parquet` | Yes | Source of Parquet for validation and dashboard |
-| `data/` generator | No | Historical fixture factory; produced the fixed seeds |
-| `run_generator.*` | No | Local orchestration; kept for reproducibility |
-| `upload.py` | No | Uploads Parquet to Filebase; used by the manual workflow |
-| `scenario-generate.yml` | No | Manual workflow; disabled in GitHub Actions |
+| Offline generation | No | Removed after the three seeds were produced; no in-repo generator or uploader |
 
 ## Deviations
 
@@ -135,8 +138,8 @@ request returns immediately, and the pipeline runs in a background thread.
 | Baseline fixture retired | Generated datasets carry their own runs and publication pointers |
 | Only FastAPI auto-instrumented | Telemetry volume stays inside the free Postgres tier |
 | Scenarios nav hidden | Route remains for forward-looking analysis; not part of the demo path |
+| Generator removed | Seeds are fixed fixtures; no in-repo generation or upload path |
 | Remediation is human-triggered | The pipeline no longer auto-proposes; Manager/DE requests it from Data Issues |
 | UI-triggered runs get their own trace | The request returns immediately; the pipeline runs in a daemon thread |
 
-See [spec.md](spec.md) §4 for the locked component contract. This page reflects
-runtime behavior where it diverges from §5.
+See [spec.md](spec.md) §4–§5 for the component contract and data flow.

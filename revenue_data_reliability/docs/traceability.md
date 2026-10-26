@@ -7,7 +7,7 @@
 | Problem Description | [`../README.md`](../README.md#the-problem) and [`../README.md`](../README.md#the-value) |
 | Product Specification | [`spec.md`](spec.md), [`tasks.md`](tasks.md) |
 | Agent Team Specification | [`spec.md`](spec.md) §11, `backend/teams/`, `backend/skills/` |
-| Context Management | [`../AGENTS.md`](../AGENTS.md), [`../data/AGENTS.md`](../data/AGENTS.md), this docs index |
+| Context Management | [`../AGENTS.md`](../AGENTS.md), this docs index |
 | Application | `backend/`, `frontend/`, `backend/db/schema.sql`; live URL in README |
 | Testing | `tests/`, `.github/workflows/test.yml` |
 | Containerization | `infra/Dockerfile`, `docker-compose.yml` |

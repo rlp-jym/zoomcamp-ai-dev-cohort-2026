@@ -18,9 +18,8 @@ Production starts empty. A human loads a seed — that is intentional.
 | 102 | Seed 2 (Bullish) | Outperforms target | `scenarios/seed_102/` |
 | 103 | Seed 3 (Bearish) | Declining performance | `scenarios/seed_103/` |
 
-All three are 12-month, pre-generated, reproducible datasets. The platform does
-not generate data inside FastAPI. The generator is kept for reproducibility; the
-app does not invoke it at runtime.
+All three are 12-month, pre-generated datasets. The generator was removed after
+the seeds were produced; the app only registers and reads them.
 
 ## Walkthrough
 

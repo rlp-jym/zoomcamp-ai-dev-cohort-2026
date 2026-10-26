@@ -9,8 +9,7 @@ Required environment variables / secrets:
   responses.
 - `WEBHOOK_TOKEN` — shared secret for the scenario registration webhook.
 - `APP_ENV` — `dev`, `staging`, or `prod`.
-- `GH_TOKEN` — used by the generator for GitHub API calls (if enabled).
 
 Store these in GitHub Actions secrets (`R2_*`, `GROQ_API_KEY`, `WEBHOOK_TOKEN`,
-`RENDER_*_DEPLOY_HOOK`, `APP_URL`) and in Render's environment variables.
+`RENDER_*_DEPLOY_HOOK`) and in Render's environment variables.
 Never commit secret values to the repository.

@@ -1,14 +1,13 @@
 # AGENTS.md — Revenue Data Reliability Platform (revenue_data_reliability)
 
-Scope: entire `revenue_data_reliability/`. The data generator lives under `data/` and has its own `data/AGENTS.md`.
+Scope: entire `revenue_data_reliability/`.
 
 ## Purpose
-Revenue Data Reliability Platform. Synthetic test fixtures are produced by `data/` generator.
+Revenue Data Reliability Platform. The three synthetic fixtures are pre-generated and read from Filebase.
 
 ## Conventions
-- Directories and files use snake_case (e.g., `run_generator.py`, `data_generator.md`).
-- Do not commit generated artifacts: `data/runs/`, `data/sample/`, `.venv/`, `__pycache__/`.
-- Data generator rules: see `data/AGENTS.md`.
+- Directories and files use snake_case.
+- Do not commit generated artifacts: `.venv/`, `__pycache__/`.
 
 ## Quick links
 - Docs index: `docs/README.md`
@@ -19,6 +18,3 @@ Revenue Data Reliability Platform. Synthetic test fixtures are produced by `data
 - Engineering challenges: `docs/challenges.md`
 - Verified behavior backlog: `docs/backlog.md`
 - Agent skill definitions: `backend/skills/`
-- Generator docs: `data/README.md`
-- Generator agent rules: `data/AGENTS.md`
-- Generator (offline, historical): `run_generator.bat` / `run_generator.py`

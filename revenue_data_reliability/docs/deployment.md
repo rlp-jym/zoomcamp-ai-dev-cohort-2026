@@ -22,7 +22,6 @@ block remains until the unused Render DBs are backed up and removed. See
 | `test.yml` | PR / push to `develop`, `staging`, `main` | Ruff + pytest against Postgres |
 | `deploy-staging.yml` | Push to `staging` | Tests, then Render deploy hook |
 | `deploy-prod.yml` | Push to `main` | `production` approval, then Render deploy hook |
-| `scenario-generate.yml` | Manual | Disabled; offline generator retained for reproducibility |
 
 ## Branch Protection
 
@@ -31,7 +30,7 @@ block remains until the unused Render DBs are backed up and removed. See
 | GitHub rulesets | Off during build; re-enable once at final submission |
 | Production deploy | Manual approval via the `production` environment |
 | Direct pushes | Allowed on `develop` and `staging` during build |
-| Disabled workflows | `deploy-now` (stale), `scenario-generate` (manual) |
+| Disabled workflows | `deploy-now` (stale) |
 
 ## Rollback
 
@@ -57,6 +56,6 @@ App: http://localhost:8000 · Health: `/health` · Postgres: `localhost:5432`.
 |---|---|
 | Render 512 MB | 12-month window, DuckDB 200 MB / 1 thread, local Parquet cache |
 | Free Postgres | State-only schema; 30-day telemetry retention |
-| R2 free 10 GB | `scenarios/<name>/` prefixes; lifecycle policy optional |
+| Object storage 10 GB | `scenarios/<name>/` prefixes; lifecycle policy optional |
 | No background workers | APScheduler in-process |
 | No auth | Persona selector; documented non-goal |

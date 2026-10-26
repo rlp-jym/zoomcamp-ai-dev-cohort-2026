@@ -101,7 +101,7 @@ See [`docs/operating-model.md`](docs/operating-model.md).
 | 102 | Bullish | Outperforms target | `scenarios/seed_102/` |
 | 103 | Bearish | Declining performance | `scenarios/seed_103/` |
 
-These are synthetic 12-month pre-generated datasets (data generation runs outside FastAPI). If go-live is blocked, clear open items under **Data Issues** (`/exceptions`) first.
+These are synthetic 12-month pre-generated datasets. The generator was removed after the three seeds were produced; the app only registers and reads them. If go-live is blocked, clear open items under **Data Issues** (`/exceptions`) first.
 
 ## Platform Features
 
@@ -174,7 +174,6 @@ See [`docs/architecture.md`](docs/architecture.md).
 | --- | --- |
 | `backend/` | FastAPI routes, domain services, agents, and storage |
 | `frontend/` | Jinja templates, HTMX interactivity, and styling |
-| `data/` | Offline generator scripts and fixtures (not used at runtime) |
 | `infra/` | Dockerfile, Render blueprint, and provider notes |
 | `observability/` | OpenTelemetry setup and Postgres exporter |
 | `tests/` | Unit and integration tests |
@@ -219,7 +218,6 @@ CI runs lint plus the full suite against a Postgres service container.
 | `test.yml` | PRs and pushes | Lint + tests (Postgres service) |
 | `deploy-staging.yml` | Push to `staging` | Tests, then Render deploy |
 | `deploy-prod.yml` | Push to `main` | Manual approval, then Render deploy |
-| `scenario-generate.yml` | Manual | Disabled; offline generator retained for reproducibility |
 
 See [`docs/deployment.md`](docs/deployment.md).
 
