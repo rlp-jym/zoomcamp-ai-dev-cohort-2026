@@ -107,7 +107,7 @@ These are synthetic 12-month pre-generated datasets (data generation runs outsid
 
 | Capability | How It Works |
 | --- | --- |
-| Validation | 12 DuckDB rules running against R2-hosted Parquet data |
+| Validation | 12 DuckDB rules running against Filebase-hosted Parquet data |
 | Reconciliation | Automated billings vs GL matching by period, account, and category |
 | Exception Queue | Tracks monthly rule failures and keeps current period issues active |
 | Agent Support | Dedicated agents handle pipeline flows, data quality, and impact checks |
@@ -120,27 +120,51 @@ These are synthetic 12-month pre-generated datasets (data generation runs outsid
 ```mermaid
 flowchart LR
     subgraph Frontend
-        U[Browser / HTMX]
+        U[Browser + HTMX]
     end
 
-    subgraph Backend Engine
-        F[FastAPI Routes] --> S[Services]
-        S --> A[Agent Team]
+    subgraph App["FastAPI Application"]
+        direction TB
+        F[Routes] -->|dispatch| S[Services]
+        S -->|invoke| A[Agent Team]
+        SCH[APScheduler] -->|verify every 15 min| A
     end
 
-    subgraph "Storage & Data"
-        S --> D[DuckDB] --> R[(R2 Parquet)]
-        S --> P[(Postgres)]
-        A --> P
+    subgraph Data["Data Layer"]
+        direction TB
+        P[(PostgreSQL / Neon)]
+        D[DuckDB Query Engine]
+        R[(Filebase S3)]
     end
 
-    subgraph Telemetry
-        F --> O[OTEL Exporter] --> P
-    end
+    L[Groq LLM]
+    O[OpenTelemetry]
 
-    U --> F
+    U -->|HTTP / HTMX| F
+    F -->|Jinja HTML| U
+    S -->|read / write| P
+    S -.->|SQL scans| D
+    D -->|read Parquet| R
+    A -.->|prompt| L
+    A -->|messages / actions| P
+    F -->|spans / logs| O
+    O -->|export| P
 
+    linkStyle 0 stroke:#94a3b8,stroke-width:1px
+    linkStyle 3,4 stroke:#2563eb,stroke-width:1px
+    linkStyle 1,2 stroke:#7c3aed,stroke-width:1px
+    linkStyle 5,7,9 stroke:#16a34a,stroke-width:1px
+    linkStyle 6,8 stroke:#ea580c,stroke-width:1px
+    linkStyle 10,11 stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 2 3
 ```
+
+**Footnotes**
+
+- **Routes** (`backend/routes/`): page handlers, form actions, approval gates, and thread endpoints.
+- **Frontend → Routes**: page loads, HTMX swaps, and form submits all arrive as HTTP requests.
+- **Routes → Frontend**: Jinja renders the full page or an HTMX partial; that HTML is the only response path.
+- **Routes → Services**: routes dispatch to services, which own the data and agent work.
+- **Routes → OpenTelemetry**: every request emits a span/log; OpenTelemetry exports it to PostgreSQL / Neon.
 
 See [`docs/architecture.md`](docs/architecture.md).
 
@@ -167,7 +191,7 @@ docker compose up --build
 - App: http://localhost:8000
 - Health: `/health`
 - Postgres: `localhost:5432`
-- `.env` supplies R2 and Groq credentials; without it the app starts with local Postgres and empty storage.
+- `.env` supplies Filebase (`R2_*`) and Groq credentials; without it the app starts with local Postgres and empty storage.
 
 Without Docker (with Postgres running):
 
